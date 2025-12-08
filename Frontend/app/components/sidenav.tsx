@@ -17,7 +17,7 @@ const menuItems = [
   { name: "Home", href: "/", icon: HomeIcon },
   { name: "Orders", href: "/orders", icon: DocumentTextIcon },
   { name: "Products", href: "/products", icon: CubeIcon },
-  { name: "Schedule", href: "/schedule", icon: CalendarIcon },
+  { name: "Company Calendar", href: "/company-calendar", icon: CalendarIcon },
   { name: "Timeline", href: "/timeline", icon: ClockIcon },
   { name: "Resources", href: "/resources", icon: UserGroupIcon },
   { name: "Settings", href: "/settings", icon: CogIcon },
@@ -37,11 +37,10 @@ export default function SideNav() {
           <Link
             key={item.name}
             href={item.href}
-            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              isActive
-                ? "bg-red-600 text-white"
-                : "text-gray-400 hover:bg-gray-700 hover:text-white"
-            }`}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${isActive
+              ? "bg-red-600 text-white"
+              : "text-gray-400 hover:bg-gray-700 hover:text-white"
+              }`}
             title={item.name}
           >
             <Icon className="w-6 h-6" />
