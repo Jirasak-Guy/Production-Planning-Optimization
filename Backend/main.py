@@ -4,6 +4,7 @@ from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Session, create_engine, select
+from fastapi.middleware.cors import CORSMiddleware
 
 from model import (
     Product,
@@ -36,6 +37,14 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # =====================================================
