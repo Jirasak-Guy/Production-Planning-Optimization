@@ -1,4 +1,5 @@
 import { Order } from "@/app/types/CoreData";
+import Link from "next/link";
 
 interface OrderCardProps {
   order: Order;
@@ -28,48 +29,50 @@ export default function OrderCard({ order }: OrderCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-lg font-semibold text-blue-600">
-          {order.order_number}
-        </h3>
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-            order.status
-          )}`}
-        >
-          {getStatusLabel(order.status)}
-        </span>
-      </div>
-
-      <div className="space-y-2 text-sm">
-        <div>
-          <p className="font-medium text-gray-700">
-            {order.customer_name || "Unknown Customer"}
-          </p>
-        </div>
-
-        {order.notes && (
-          <div className="text-gray-600">
-            <p className="line-clamp-2">{order.notes}</p>
-          </div>
-        )}
-
-        <div className="text-gray-500">
-          <p>Due: {new Date(order.due_date).toLocaleDateString()}</p>
-        </div>
-
-        <div className="text-gray-400 text-xs">
-          <p>Order Date: {new Date(order.order_date).toLocaleDateString()}</p>
-        </div>
-
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <span className="text-xs text-gray-500">
-            Priority: {order.priority}
+    <Link href={`/orders/${order.id}`}>
+      <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-lg font-semibold text-blue-600">
+            {order.order_number}
+          </h3>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+              order.status
+            )}`}
+          >
+            {getStatusLabel(order.status)}
           </span>
-          <span className="text-xs text-gray-400">ID: {order.id}</span>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div>
+            <p className="font-medium text-gray-700">
+              {order.customer_name || "Unknown Customer"}
+            </p>
+          </div>
+
+          {order.notes && (
+            <div className="text-gray-600">
+              <p className="line-clamp-2">{order.notes}</p>
+            </div>
+          )}
+
+          <div className="text-gray-500">
+            <p>Due: {new Date(order.due_date).toLocaleDateString()}</p>
+          </div>
+
+          <div className="text-gray-400 text-xs">
+            <p>Order Date: {new Date(order.order_date).toLocaleDateString()}</p>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <span className="text-xs text-gray-500">
+              Priority: {order.priority}
+            </span>
+            <span className="text-xs text-gray-400">ID: {order.id}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -56,6 +56,14 @@ def read_orders(session: SessionDep):
     return session.exec(select(Order)).all()
 
 
+@app.get("/orders/{order_id}", response_model=Order)
+def read_order(order_id: int, session: SessionDep):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order
+
+
 @app.get("/products", response_model=list[Product])
 def read_products(session: SessionDep):
     return session.exec(select(Product)).all()
