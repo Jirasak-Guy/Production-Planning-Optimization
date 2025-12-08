@@ -69,6 +69,14 @@ def read_products(session: SessionDep):
     return session.exec(select(Product)).all()
 
 
+@app.get("/products/{product_id}", response_model=Product)
+def read_product(product_id: int, session: SessionDep):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
 @app.get("/order-items", response_model=list[OrderItem])
 def read_order_items(session: SessionDep):
     return session.exec(select(OrderItem)).all()

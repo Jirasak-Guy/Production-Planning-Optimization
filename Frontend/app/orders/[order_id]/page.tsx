@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Order, OrderItem, ProductData } from "@/app/types/CoreData";
 import {
   fetchOrderById,
@@ -210,9 +211,16 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600">
-                        {item.product?.product_code || "-"}
-                      </span>
+                      {item.product ? (
+                        <Link
+                          href={`/products/${item.product_id}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {item.product.product_code}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
