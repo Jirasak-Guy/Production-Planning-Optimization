@@ -18,7 +18,7 @@ const menuItems = [
   { name: "Orders", href: "/orders", icon: DocumentTextIcon },
   { name: "Products", href: "/products", icon: CubeIcon },
   { name: "Company Calendar", href: "/company-calendar", icon: CalendarIcon },
-  { name: "Timeline", href: "/timeline", icon: ClockIcon },
+  { name: "Shifts", href: "/shifts", icon: ClockIcon },
   { name: "Resources", href: "/resources", icon: UserGroupIcon },
   { name: "Settings", href: "/settings", icon: CogIcon },
   { name: "Delivery", href: "/delivery", icon: TruckIcon },
