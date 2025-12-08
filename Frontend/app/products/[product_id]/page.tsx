@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ProductData, BOM } from "@/app/types/CoreData";
 import { fetchProductById, fetchBOM, fetchProducts } from "@/app/lib/data";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
@@ -41,7 +42,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           .filter((bom) => bom.parent_product_id === productId)
           .map((bom) => ({
             ...bom,
-            component: productsData.find((p) => p.id === bom.component_product_id),
+            component: productsData.find(
+              (p) => p.id === bom.component_product_id
+            ),
           }));
 
         setBomItems(productBom);
@@ -114,7 +117,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
           <div>
             <p className="text-sm text-gray-500 mb-1">Unit:</p>
-            <p className="text-base font-medium text-gray-900">{product.unit}</p>
+            <p className="text-base font-medium text-gray-900">
+              {product.unit}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-500 mb-1">Standard Cost:</p>
@@ -186,11 +191,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {bomItems.map((bom) => (
-                  <tr key={bom.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={bom.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
-                        {bom.component?.product_code || "-"}
-                      </span>
+                      {bom.component ? (
+                        <Link
+                          href={`/products/${bom.component_product_id}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {bom.component.product_code}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
