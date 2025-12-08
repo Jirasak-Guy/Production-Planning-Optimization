@@ -10,18 +10,19 @@ import {
   ClockIcon,
   UserGroupIcon,
   CogIcon,
-  TruckIcon,
+  WrenchScrewdriverIcon,
+  RectangleStackIcon,
 } from "@heroicons/react/24/outline";
 
 const menuItems = [
   { name: "Home", href: "/", icon: HomeIcon },
   { name: "Orders", href: "/orders", icon: DocumentTextIcon },
+  { name: "Production", href: "/production", icon: RectangleStackIcon },
   { name: "Products", href: "/products", icon: CubeIcon },
+  { name: "Operations", href: "/operations", icon: WrenchScrewdriverIcon },
   { name: "Work Centers", href: "/workcenter", icon: CogIcon },
   { name: "Company Calendar", href: "/company-calendar", icon: CalendarIcon },
   { name: "Shifts", href: "/shifts", icon: ClockIcon },
-  { name: "Resources", href: "/resources", icon: UserGroupIcon },
-  { name: "Delivery", href: "/delivery", icon: TruckIcon },
 ];
 
 export default function SideNav() {
