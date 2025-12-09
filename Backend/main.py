@@ -40,7 +40,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -130,6 +130,14 @@ def read_work_centers(session: SessionDep):
     return session.exec(select(WorkCenter)).all()
 
 
+@app.get("/work-centers/{work_center_id}", response_model=WorkCenter)
+def read_work_center(work_center_id: int, session: SessionDep):
+    work_center = session.get(WorkCenter, work_center_id)
+    if not work_center:
+        raise HTTPException(status_code=404, detail="Work center not found")
+    return work_center
+
+
 @app.get("/work-center-shifts", response_model=list[WorkCenterShift])
 def read_work_center_shifts(session: SessionDep):
     return session.exec(select(WorkCenterShift)).all()
@@ -149,6 +157,14 @@ def read_operations(session: SessionDep):
     return session.exec(select(Operation)).all()
 
 
+@app.get("/operations/{operation_id}", response_model=Operation)
+def read_operation(operation_id: int, session: SessionDep):
+    operation = session.get(Operation, operation_id)
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return operation
+
+
 @app.get("/routing", response_model=list[Routing])
 def read_routing(session: SessionDep):
     return session.exec(select(Routing)).all()
@@ -166,6 +182,14 @@ def read_operation_dependencies(session: SessionDep):
 @app.get("/production-orders", response_model=list[ProductionOrder])
 def read_production_orders(session: SessionDep):
     return session.exec(select(ProductionOrder)).all()
+
+
+@app.get("/production-orders/{production_order_id}", response_model=ProductionOrder)
+def read_production_order(production_order_id: int, session: SessionDep):
+    production_order = session.get(ProductionOrder, production_order_id)
+    if not production_order:
+        raise HTTPException(status_code=404, detail="Production order not found")
+    return production_order
 
 
 @app.get("/work-center-schedule", response_model=list[WorkCenterSchedule])
@@ -204,6 +228,12 @@ def delete_order(order_id: int, session: SessionDep):
     db_order = session.get(Order, order_id)
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Delete related order items first
+    order_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    for item in order_items:
+        session.delete(item)
+    
     session.delete(db_order)
     session.commit()
     return {"message": "Order deleted successfully"}

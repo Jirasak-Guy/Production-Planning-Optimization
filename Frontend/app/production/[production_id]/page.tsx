@@ -8,8 +8,8 @@ import { ProductData } from "@/app/types/CoreData";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import { Operation } from "@/app/types/Operation";
 import {
-  fetchProductionOrders,
-  fetchProducts,
+  fetchProductionOrderById,
+  fetchProductById,
   fetchWorkCenterSchedule,
   fetchWorkCenters,
   fetchOperations,
@@ -47,44 +47,38 @@ export default function ProductionDetailPage({
       setIsLoading(true);
       try {
         const poId = parseInt(production_id);
-        const [
-          productionOrdersData,
-          productsData,
-          schedulesData,
-          workCentersData,
-          operationsData,
-        ] = await Promise.all([
-          fetchProductionOrders(),
-          fetchProducts(),
-          fetchWorkCenterSchedule(),
-          fetchWorkCenters(),
-          fetchOperations(),
-        ]);
 
-        const po = productionOrdersData.find((p) => p.id === poId);
-        setProductionOrder(po || null);
+        // First fetch the production order by ID
+        const po = await fetchProductionOrderById(poId);
+        setProductionOrder(po);
 
-        if (po) {
-          const prod = productsData.find((p) => p.id === po.product_id);
-          setProduct(prod || null);
+        // Then fetch product and other data
+        const [productData, schedulesData, workCentersData, operationsData] =
+          await Promise.all([
+            fetchProductById(po.product_id),
+            fetchWorkCenterSchedule(),
+            fetchWorkCenters(),
+            fetchOperations(),
+          ]);
 
-          const poSchedules = schedulesData
-            .filter((s) => s.production_order_id === poId)
-            .map((s) => ({
-              ...s,
-              workCenter: workCentersData.find(
-                (w) => w.id === s.work_center_id
-              ),
-              operation: operationsData.find((o) => o.id === s.operation_id),
-            }))
-            .sort(
-              (a, b) =>
-                new Date(a.scheduled_start).getTime() -
-                new Date(b.scheduled_start).getTime()
-            );
+        setProduct(productData);
 
-          setSchedules(poSchedules);
-        }
+        const poSchedules = schedulesData
+          .filter((s) => s.production_order_id === poId)
+          .map((s) => ({
+            ...s,
+            workCenter: workCentersData.find(
+              (w) => w.id === s.work_center_id
+            ),
+            operation: operationsData.find((o) => o.id === s.operation_id),
+          }))
+          .sort(
+            (a, b) =>
+              new Date(a.scheduled_start).getTime() -
+              new Date(b.scheduled_start).getTime()
+          );
+
+        setSchedules(poSchedules);
       } catch (error) {
         console.error("Failed to fetch production order details:", error);
       } finally {

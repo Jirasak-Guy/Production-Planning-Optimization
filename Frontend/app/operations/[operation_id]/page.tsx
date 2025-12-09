@@ -8,7 +8,7 @@ import { Routing } from "@/app/types/Routing";
 import { ProductData } from "@/app/types/CoreData";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import {
-  fetchOperations,
+  fetchOperationById,
   fetchRouting,
   fetchProducts,
   fetchWorkCenters,
@@ -40,16 +40,15 @@ export default function OperationDetailPage({
       setIsLoading(true);
       try {
         const operationId = parseInt(operation_id);
-        const [operationsData, routingsData, productsData, workCentersData] =
+        const [operationData, routingsData, productsData, workCentersData] =
           await Promise.all([
-            fetchOperations(),
+            fetchOperationById(operationId),
             fetchRouting(),
             fetchProducts(),
             fetchWorkCenters(),
           ]);
 
-        const op = operationsData.find((o) => o.id === operationId);
-        setOperation(op || null);
+        setOperation(operationData);
 
         const opRoutings = routingsData
           .filter((r) => r.operation_id === operationId && r.is_active)
@@ -105,11 +104,10 @@ export default function OperationDetailPage({
                 {operation.operation_code}
               </h1>
               <span
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                  operation.is_active
-                    ? "bg-green-100 text-green-700 border-green-200"
-                    : "bg-gray-100 text-gray-600 border-gray-200"
-                }`}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${operation.is_active
+                  ? "bg-green-100 text-green-700 border-green-200"
+                  : "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}
               >
                 {operation.is_active ? "ACTIVE" : "INACTIVE"}
               </span>

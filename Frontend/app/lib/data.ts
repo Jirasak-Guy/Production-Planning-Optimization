@@ -160,6 +160,20 @@ export async function fetchWorkCenters(): Promise<WorkCenter[]> {
   return fetchData<WorkCenter>("/work-centers");
 }
 
+export async function fetchWorkCenterById(
+  workCenterId: number
+): Promise<WorkCenter> {
+  const response = await fetch(`${API_BASE_URL}/work-centers/${workCenterId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch work center ${workCenterId}`);
+  }
+  return response.json();
+}
+
 export async function fetchWorkCenterShifts(): Promise<WorkCenterShift[]> {
   return fetchData<WorkCenterShift>("/work-center-shifts");
 }
@@ -180,6 +194,20 @@ export async function fetchOperations(): Promise<Operation[]> {
   return fetchData<Operation>("/operations");
 }
 
+export async function fetchOperationById(
+  operationId: number
+): Promise<Operation> {
+  const response = await fetch(`${API_BASE_URL}/operations/${operationId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch operation ${operationId}`);
+  }
+  return response.json();
+}
+
 export async function fetchRouting(): Promise<Routing[]> {
   return fetchData<Routing>("/routing");
 }
@@ -196,6 +224,20 @@ export async function fetchOperationDependencies(): Promise<
 
 export async function fetchProductionOrders(): Promise<ProductionOrder[]> {
   return fetchData<ProductionOrder>("/production-orders");
+}
+
+export async function fetchProductionOrderById(
+  productionOrderId: number
+): Promise<ProductionOrder> {
+  const response = await fetch(`${API_BASE_URL}/production-orders/${productionOrderId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch production order ${productionOrderId}`);
+  }
+  return response.json();
 }
 
 export async function fetchWorkCenterSchedule(): Promise<WorkCenterSchedule[]> {
