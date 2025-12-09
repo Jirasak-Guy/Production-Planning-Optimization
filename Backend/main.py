@@ -462,14 +462,6 @@ def delete_company_calendar(calendar_id: int, session: SessionDep):
     db_calendar = session.get(CompanyCalendar, calendar_id)
     if not db_calendar:
         raise HTTPException(status_code=404, detail="Company calendar not found")
-    
-    # Delete related work center calendar exceptions first
-    exceptions = session.exec(select(WorkCenterCalendarException).where(
-        WorkCenterCalendarException.calendar_id == calendar_id
-    )).all()
-    for exception in exceptions:
-        session.delete(exception)
-    
     session.delete(db_calendar)
     session.commit()
     return {"message": "Company calendar deleted successfully"}
@@ -614,6 +606,19 @@ def delete_operation(operation_id: int, session: SessionDep):
     db_operation = session.get(Operation, operation_id)
     if not db_operation:
         raise HTTPException(status_code=404, detail="Operation not found")
+    
+    # Delete related routing entries first
+    routings = session.exec(select(Routing).where(Routing.operation_id == operation_id)).all()
+    for routing in routings:
+        # Delete operation dependencies for each routing first
+        deps = session.exec(select(OperationDependency).where(
+            (OperationDependency.routing_id == routing.id) | 
+            (OperationDependency.predecessor_routing_id == routing.id)
+        )).all()
+        for dep in deps:
+            session.delete(dep)
+        session.delete(routing)
+    
     session.delete(db_operation)
     session.commit()
     return {"message": "Operation deleted successfully"}
