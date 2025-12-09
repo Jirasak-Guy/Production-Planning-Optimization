@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import ProductCard from "@/app/components/ProductCard";
-import ProductsHeader from "@/app/components/ProductsHeader";
+import ProductsHeader, { ViewMode } from "@/app/components/ProductsHeader";
 import { ProductData } from "@/app/types/CoreData";
 import { fetchProducts } from "@/app/lib/data";
 
 export default function Products() {
+  const router = useRouter();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -62,6 +65,14 @@ export default function Products() {
     // TODO: Open add product dialog
   };
 
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+  };
+
+  const handleRowClick = (productId: number) => {
+    router.push(`/products/${productId}`);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <ProductsHeader
@@ -69,6 +80,8 @@ export default function Products() {
         onFilter={handleFilter}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -79,11 +92,69 @@ export default function Products() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {viewMode === "card" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Product Code
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Product Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Unit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredProducts.map((product) => (
+                      <tr
+                        key={product.id}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleRowClick(product.id)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                          {product.product_code}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {product.product_name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          {product.description || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {product.unit}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.is_active
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
+                          >
+                            {product.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {filteredProducts.length === 0 && !isLoading && (
               <div className="text-center py-12">

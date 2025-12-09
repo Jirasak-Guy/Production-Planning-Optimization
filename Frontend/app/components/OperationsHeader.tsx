@@ -5,13 +5,19 @@ import {
   FunnelIcon,
   ArrowPathIcon,
   PlusCircleIcon,
+  Squares2X2Icon,
+  TableCellsIcon,
 } from "@heroicons/react/24/outline";
+
+export type ViewMode = "card" | "table";
 
 interface OperationsHeaderProps {
   onSearch: (value: string) => void;
   onFilter: () => void;
   onRefresh: () => void;
   onAdd: () => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export default function OperationsHeader({
@@ -19,6 +25,8 @@ export default function OperationsHeader({
   onFilter,
   onRefresh,
   onAdd,
+  viewMode,
+  onViewModeChange,
 }: OperationsHeaderProps) {
   return (
     <div className="px-6 py-4">
@@ -42,6 +50,19 @@ export default function OperationsHeader({
             title="Filter"
           >
             <FunnelIcon className="w-6 h-6" />
+          </button>
+
+          {/* View Mode Toggle Button */}
+          <button
+            onClick={() => onViewModeChange(viewMode === "card" ? "table" : "card")}
+            className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            title={viewMode === "card" ? "Switch to Table View" : "Switch to Card View"}
+          >
+            {viewMode === "card" ? (
+              <TableCellsIcon className="w-6 h-6" />
+            ) : (
+              <Squares2X2Icon className="w-6 h-6" />
+            )}
           </button>
 
           <button

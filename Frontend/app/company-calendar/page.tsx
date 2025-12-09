@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CompanyCalendar } from "@/app/types/Shift";
 import { fetchCompanyCalendar } from "@/app/lib/data";
 import {
@@ -9,7 +9,11 @@ import {
   ChevronRightIcon,
   PlusCircleIcon,
   FunnelIcon,
+  CalendarDaysIcon,
+  TableCellsIcon,
 } from "@heroicons/react/24/outline";
+
+type ViewMode = "calendar" | "table";
 
 export default function CompanyCalendarPage() {
   const [calendarData, setCalendarData] = useState<CompanyCalendar[]>([]);
@@ -17,6 +21,8 @@ export default function CompanyCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDay, setHoveredDay] = useState<CompanyCalendar | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const loadCalendarData = async () => {
     setIsLoading(true);
@@ -33,6 +39,15 @@ export default function CompanyCalendarPage() {
   useEffect(() => {
     loadCalendarData();
   }, []);
+
+  const filteredCalendarData = useMemo(() => {
+    return calendarData.filter(
+      (item) =>
+        item.calendar_date.includes(searchTerm) ||
+        item.day_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [calendarData, searchTerm]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -151,9 +166,8 @@ export default function CompanyCalendarPage() {
         >
           <div className="flex justify-between items-start">
             <span
-              className={`text-sm font-semibold ${
-                isToday ? "text-blue-600" : "text-gray-700"
-              }`}
+              className={`text-sm font-semibold ${isToday ? "text-blue-600" : "text-gray-700"
+                }`}
             >
               {day}
             </span>
@@ -196,6 +210,19 @@ export default function CompanyCalendarPage() {
               <FunnelIcon className="w-6 h-6" />
             </button>
 
+            {/* View Mode Toggle Button */}
+            <button
+              onClick={() => setViewMode(viewMode === "calendar" ? "table" : "calendar")}
+              className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              title={viewMode === "calendar" ? "Switch to Table View" : "Switch to Calendar View"}
+            >
+              {viewMode === "calendar" ? (
+                <TableCellsIcon className="w-6 h-6" />
+              ) : (
+                <CalendarDaysIcon className="w-6 h-6" />
+              )}
+            </button>
+
             {/* Refresh Button */}
             <button
               onClick={loadCalendarData}
@@ -216,58 +243,60 @@ export default function CompanyCalendarPage() {
           </div>
         </div>
 
-        {/* Calendar Navigation */}
-        <div className="flex items-center justify-between">
-          {/* Navigation Controls */}
-          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={goToPreviousMonth}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-              title="Previous Month"
-            >
-              <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
-            </button>
-            <button
-              onClick={goToToday}
-              className="px-3 py-1 text-sm font-medium text-gray-700 hover:bg-white rounded-lg transition-colors"
-            >
-              Today
-            </button>
-            <button
-              onClick={goToNextMonth}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-              title="Next Month"
-            >
-              <ChevronRightIcon className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+        {/* Calendar Navigation - only show in calendar mode */}
+        {viewMode === "calendar" && (
+          <div className="flex items-center justify-between">
+            {/* Navigation Controls */}
+            <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={goToPreviousMonth}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+                title="Previous Month"
+              >
+                <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+              </button>
+              <button
+                onClick={goToToday}
+                className="px-3 py-1 text-sm font-medium text-gray-700 hover:bg-white rounded-lg transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={goToNextMonth}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+                title="Next Month"
+              >
+                <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
 
-          {/* Month/Year Display */}
-          <h3 className="text-lg font-semibold text-gray-700">
-            {monthNames[month]} {year}
-          </h3>
+            {/* Month/Year Display */}
+            <h3 className="text-lg font-semibold text-gray-700">
+              {monthNames[month]} {year}
+            </h3>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">Legend:</span>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-green-500"></span>
-              <span className="text-xs text-gray-600">Working</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-              <span className="text-xs text-gray-600">Weekend</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-red-500"></span>
-              <span className="text-xs text-gray-600">Holiday</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-              <span className="text-xs text-gray-600">Special</span>
+            {/* Legend */}
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">Legend:</span>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                <span className="text-xs text-gray-600">Working</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                <span className="text-xs text-gray-600">Weekend</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                <span className="text-xs text-gray-600">Holiday</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                <span className="text-xs text-gray-600">Special</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Calendar Content */}
@@ -277,7 +306,7 @@ export default function CompanyCalendarPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-500 text-lg">Loading calendar data...</p>
           </div>
-        ) : (
+        ) : viewMode === "calendar" ? (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
             {/* Weekday Headers */}
             <div className="grid grid-cols-7 bg-gray-50">
@@ -294,11 +323,69 @@ export default function CompanyCalendarPage() {
             {/* Calendar Grid */}
             <div className="grid grid-cols-7">{renderCalendarDays()}</div>
           </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Day Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Working Day
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredCalendarData.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                      {new Date(item.calendar_date).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${getDayTypeBadgeStyles(item.day_type)}`}
+                      >
+                        {item.day_type.replace("-", " ")}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {item.description || "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.is_working_day
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                          }`}
+                      >
+                        {item.is_working_day ? "Yes" : "No"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Tooltip */}
-      {hoveredDay && (
+      {hoveredDay && viewMode === "calendar" && (
         <div
           className="fixed z-50 bg-gray-900 text-white rounded-lg shadow-xl p-4 max-w-xs transform -translate-x-1/2 -translate-y-full pointer-events-none"
           style={{
@@ -347,3 +434,4 @@ export default function CompanyCalendarPage() {
     </div>
   );
 }
+
