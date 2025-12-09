@@ -40,7 +40,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -228,6 +228,12 @@ def delete_order(order_id: int, session: SessionDep):
     db_order = session.get(Order, order_id)
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Delete related order items first
+    order_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    for item in order_items:
+        session.delete(item)
+    
     session.delete(db_order)
     session.commit()
     return {"message": "Order deleted successfully"}
