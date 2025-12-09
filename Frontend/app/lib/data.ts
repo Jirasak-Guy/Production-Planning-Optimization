@@ -300,6 +300,14 @@ export async function updateOrderItem(orderItemId: number, data: Partial<OrderIt
   return updateData<OrderItem>(`/order-items/${orderItemId}`, data);
 }
 
+export async function updateShift(shiftId: number, data: Partial<Shift>): Promise<Shift> {
+  return updateData<Shift>(`/shifts/${shiftId}`, data);
+}
+
+export async function updateCompanyCalendar(calendarId: number, data: Partial<CompanyCalendar>): Promise<CompanyCalendar> {
+  return updateData<CompanyCalendar>(`/company-calendar/${calendarId}`, data);
+}
+
 // =====================================================
 // DELETE FUNCTIONS
 // =====================================================
@@ -345,6 +353,28 @@ export async function deleteBOM(bomId: number): Promise<void> {
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`Failed to delete BOM item: ${error}`);
+  }
+}
+
+export async function deleteShift(shiftId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/shifts/${shiftId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete shift: ${error}`);
+  }
+}
+
+export async function deleteCompanyCalendar(calendarId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/company-calendar/${calendarId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete calendar entry: ${error}`);
   }
 }
 

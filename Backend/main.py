@@ -414,9 +414,21 @@ def delete_shift(shift_id: int, session: SessionDep):
     db_shift = session.get(Shift, shift_id)
     if not db_shift:
         raise HTTPException(status_code=404, detail="Shift not found")
+    
+    # Delete related work center shifts first
+    work_center_shifts = session.exec(select(WorkCenterShift).where(WorkCenterShift.shift_id == shift_id)).all()
+    for wcs in work_center_shifts:
+        session.delete(wcs)
+    
+    # Delete related work center schedule entries
+    schedules = session.exec(select(WorkCenterSchedule).where(WorkCenterSchedule.shift_id == shift_id)).all()
+    for schedule in schedules:
+        session.delete(schedule)
+    
     session.delete(db_shift)
     session.commit()
     return {"message": "Shift deleted successfully"}
+
 
 
 # =====================================================
@@ -450,6 +462,14 @@ def delete_company_calendar(calendar_id: int, session: SessionDep):
     db_calendar = session.get(CompanyCalendar, calendar_id)
     if not db_calendar:
         raise HTTPException(status_code=404, detail="Company calendar not found")
+    
+    # Delete related work center calendar exceptions first
+    exceptions = session.exec(select(WorkCenterCalendarException).where(
+        WorkCenterCalendarException.calendar_id == calendar_id
+    )).all()
+    for exception in exceptions:
+        session.delete(exception)
+    
     session.delete(db_calendar)
     session.commit()
     return {"message": "Company calendar deleted successfully"}
@@ -630,6 +650,15 @@ def delete_routing(routing_id: int, session: SessionDep):
     db_routing = session.get(Routing, routing_id)
     if not db_routing:
         raise HTTPException(status_code=404, detail="Routing not found")
+    
+    # Delete related operation dependencies first (both as routing_id and predecessor_routing_id)
+    dependencies = session.exec(select(OperationDependency).where(
+        (OperationDependency.routing_id == routing_id) | 
+        (OperationDependency.predecessor_routing_id == routing_id)
+    )).all()
+    for dep in dependencies:
+        session.delete(dep)
+    
     session.delete(db_routing)
     session.commit()
     return {"message": "Routing deleted successfully"}
