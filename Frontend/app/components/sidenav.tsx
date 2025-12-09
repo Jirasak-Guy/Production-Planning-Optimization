@@ -11,7 +11,6 @@ import {
   CogIcon,
   WrenchScrewdriverIcon,
   RectangleStackIcon,
-  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline";
 
 const menuItems = [
@@ -20,7 +19,6 @@ const menuItems = [
   { name: "Production", href: "/production", icon: RectangleStackIcon },
   { name: "Products", href: "/products", icon: CubeIcon },
   { name: "Operations", href: "/operations", icon: WrenchScrewdriverIcon },
-  { name: "Routing", href: "/routing", icon: ArrowsRightLeftIcon },
   { name: "Work Centers", href: "/workcenter", icon: CogIcon },
   { name: "Company Calendar", href: "/company-calendar", icon: CalendarIcon },
   { name: "Shifts", href: "/shifts", icon: ClockIcon },

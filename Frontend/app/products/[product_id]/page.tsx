@@ -4,8 +4,11 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ProductData, BOM } from "@/app/types/CoreData";
-import { fetchProductById, fetchBOM, fetchProducts, updateProduct, deleteProduct, deleteBOM } from "@/app/lib/data";
-import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
+import { Routing } from "@/app/types/Routing";
+import { Operation, OperationDependency } from "@/app/types/Operation";
+import { WorkCenter } from "@/app/types/WorkCenter";
+import { fetchProductById, fetchBOM, fetchProducts, updateProduct, deleteProduct, deleteBOM, fetchRouting, fetchOperations, fetchWorkCenters, fetchOperationDependencies } from "@/app/lib/data";
+import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon, ArrowLongRightIcon, TableCellsIcon, Bars3BottomLeftIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import AddBOMItemModal from "@/app/components/modals/AddBOMItemModal";
 
@@ -17,6 +20,11 @@ interface ProductDetailPageProps {
 
 interface BOMWithProduct extends BOM {
   component?: ProductData;
+}
+
+interface RoutingWithDetails extends Routing {
+  operation?: Operation;
+  workCenter?: WorkCenter;
 }
 
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
@@ -36,16 +44,23 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [showDeleteBOMConfirm, setShowDeleteBOMConfirm] = useState(false);
   const [isDeletingBOM, setIsDeletingBOM] = useState(false);
   const [allProducts, setAllProducts] = useState<ProductData[]>([]);
+  const [productRoutings, setProductRoutings] = useState<RoutingWithDetails[]>([]);
+  const [routingDependencies, setRoutingDependencies] = useState<OperationDependency[]>([]);
+  const [routingViewMode, setRoutingViewMode] = useState<'timeline' | 'table'>('timeline');
 
   useEffect(() => {
     const loadProductData = async () => {
       setIsLoading(true);
       try {
         const productId = parseInt(product_id);
-        const [productData, bomData, productsData] = await Promise.all([
+        const [productData, bomData, productsData, routingsData, operationsData, workCentersData, dependenciesData] = await Promise.all([
           fetchProductById(productId),
           fetchBOM(),
           fetchProducts(),
+          fetchRouting(),
+          fetchOperations(),
+          fetchWorkCenters(),
+          fetchOperationDependencies(),
         ]);
 
         setProduct(productData);
@@ -62,6 +77,25 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           }));
 
         setBomItems(productBom);
+
+        // Filter routing for this product and map details
+        const productRoutingsData = routingsData
+          .filter((r) => r.product_id === productId && r.is_active)
+          .map((r) => ({
+            ...r,
+            operation: operationsData.find((o) => o.id === r.operation_id),
+            workCenter: workCentersData.find((w) => w.id === r.work_center_id),
+          }))
+          .sort((a, b) => a.sequence_number - b.sequence_number);
+        
+        setProductRoutings(productRoutingsData);
+
+        // Filter dependencies for this product's routings
+        const routingIds = productRoutingsData.map((r) => r.id);
+        const productDeps = dependenciesData.filter(
+          (d) => routingIds.includes(d.routing_id) && d.is_active
+        );
+        setRoutingDependencies(productDeps);
       } catch (error) {
         console.error("Failed to fetch product details:", error);
       } finally {
@@ -747,6 +781,298 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           {bomItems.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No BOM items found</p>
+            </div>
+          )}
+        </div>
+
+        {/* Production Flow Section - Timeline Style */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Production Flow
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Routing steps and dependencies for manufacturing this product
+                </p>
+              </div>
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setRoutingViewMode('timeline')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    routingViewMode === 'timeline'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Bars3BottomLeftIcon className="w-4 h-4" />
+                  Timeline
+                </button>
+                <button
+                  onClick={() => setRoutingViewMode('table')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    routingViewMode === 'table'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <TableCellsIcon className="w-4 h-4" />
+                  Table
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {productRoutings.length > 0 ? (
+            <div className="p-6">
+              {/* Timeline View */}
+              {routingViewMode === 'timeline' && (
+                <div className="relative">
+                  {productRoutings.map((routing, index) => {
+                    const deps = routingDependencies.filter(d => d.routing_id === routing.id);
+                    const isLast = index === productRoutings.length - 1;
+                    
+                    // Get color based on dependency type or default
+                    const dotColor = deps.length > 0 
+                      ? deps[0].dependency_type === 'FS' ? 'bg-teal-500' 
+                      : deps[0].dependency_type === 'SS' ? 'bg-amber-500'
+                      : deps[0].dependency_type === 'FF' ? 'bg-red-500'
+                      : 'bg-blue-500'
+                      : 'bg-teal-500';
+                    
+                    return (
+                      <div key={routing.id} className="flex gap-6">
+                        {/* Left side - Sequence number */}
+                        <div className="w-16 flex-shrink-0 text-right pt-1">
+                          <span className="text-2xl font-bold text-gray-700">
+                            {routing.sequence_number}
+                          </span>
+                          <p className="text-xs text-gray-400">Step</p>
+                        </div>
+                        
+                        {/* Timeline line and dot */}
+                        <div className="relative flex flex-col items-center">
+                          {/* Dot */}
+                          <div className={`w-4 h-4 rounded-full ${dotColor} border-2 border-white shadow-md z-10`}></div>
+                          {/* Vertical line */}
+                          {!isLast && (
+                            <div className="w-0.5 bg-gray-300 flex-1 min-h-[80px]"></div>
+                          )}
+                        </div>
+                        
+                        {/* Right side - Card */}
+                        <div className={`flex-1 ${!isLast ? 'pb-6' : ''}`}>
+                          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                            {/* Status Badge */}
+                            <div className="mb-3">
+                              <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                                routing.is_active 
+                                  ? "bg-green-500 text-white" 
+                                  : "bg-gray-400 text-white"
+                              }`}>
+                                {routing.is_active ? "Active" : "Inactive"}
+                              </span>
+                              {deps.length > 0 && (
+                                <span className="inline-block ml-2 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                  {deps[0].dependency_type}
+                                  {deps[0].lag_time_minutes > 0 && ` +${deps[0].lag_time_minutes}m`}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Operation Title */}
+                            <Link
+                              href={`/operations/${routing.operation_id}`}
+                              className="text-lg font-bold text-gray-900 hover:text-blue-600 hover:underline block mb-2"
+                            >
+                              {routing.operation?.operation_name || "Unknown Operation"}
+                            </Link>
+                            
+                            {/* Details */}
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <Link
+                                  href={`/workcenter/${routing.work_center_id}`}
+                                  className="hover:text-blue-600 hover:underline"
+                                >
+                                  {routing.workCenter?.work_center_code || "Unknown"}
+                                </Link>
+                              </div>
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                {routing.operation?.operation_code}
+                              </span>
+                            </div>
+                            
+                            {/* Time info */}
+                            <div className="flex gap-4 mt-3 pt-3 border-t border-gray-100 text-sm">
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Setup: <strong className="text-gray-700">{routing.setup_time_minutes}m</strong></span>
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span>Per unit: <strong className="text-gray-700">{routing.time_per_unit_minutes}m</strong></span>
+                              </div>
+                            </div>
+                            
+                            {/* Notes if any */}
+                            {routing.notes && (
+                              <p className="mt-3 text-sm text-gray-500 italic">
+                                {routing.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Table View */}
+              {routingViewMode === 'table' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Seq
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Operation
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Work Center
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Setup Time
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Time/Unit
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Dependencies
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Notes
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {productRoutings.map((routing) => {
+                        const deps = routingDependencies.filter(d => d.routing_id === routing.id && d.is_active);
+                        
+                        return (
+                          <tr
+                            key={routing.id}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                                {routing.sequence_number}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              {routing.operation ? (
+                                <Link
+                                  href={`/operations/${routing.operation_id}`}
+                                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {routing.operation.operation_code}
+                                </Link>
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              {routing.workCenter ? (
+                                <Link
+                                  href={`/workcenter/${routing.work_center_id}`}
+                                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {routing.workCenter.work_center_code}
+                                </Link>
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
+                                <ClockIcon className="w-4 h-4 text-gray-400" />
+                                {routing.setup_time_minutes} min
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
+                                <ClockIcon className="w-4 h-4 text-gray-400" />
+                                {routing.time_per_unit_minutes} min
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              {deps.length > 0 ? (
+                                <div className="space-y-1">
+                                  {deps.map((dep) => {
+                                    const predecessorRouting = productRoutings.find(r => r.id === dep.predecessor_routing_id);
+                                    return (
+                                      <div key={dep.id} className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                          {dep.dependency_type}
+                                        </span>
+                                        <span className="text-xs text-gray-600">
+                                          ← {predecessorRouting?.operation?.operation_code || `#${dep.predecessor_routing_id}`}
+                                        </span>
+                                        {dep.lag_time_minutes > 0 && (
+                                          <span className="text-xs text-gray-400">
+                                            (+{dep.lag_time_minutes}m)
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4">
+                              <span className="text-sm text-gray-600 line-clamp-2">
+                                {routing.notes || "-"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
+                                  routing.is_active
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {routing.is_active ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No production routing defined</p>
             </div>
           )}
         </div>
