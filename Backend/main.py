@@ -498,6 +498,38 @@ def delete_work_center(work_center_id: int, session: SessionDep):
     db_work_center = session.get(WorkCenter, work_center_id)
     if not db_work_center:
         raise HTTPException(status_code=404, detail="Work center not found")
+    
+    # Delete related work center shifts first
+    work_center_shifts = session.exec(select(WorkCenterShift).where(WorkCenterShift.work_center_id == work_center_id)).all()
+    for wcs in work_center_shifts:
+        session.delete(wcs)
+    
+    # Delete related work center calendar exceptions
+    exceptions = session.exec(select(WorkCenterCalendarException).where(
+        WorkCenterCalendarException.work_center_id == work_center_id
+    )).all()
+    for exception in exceptions:
+        session.delete(exception)
+    
+    # Delete related work center schedules
+    schedules = session.exec(select(WorkCenterSchedule).where(
+        WorkCenterSchedule.work_center_id == work_center_id
+    )).all()
+    for schedule in schedules:
+        session.delete(schedule)
+    
+    # Delete related routing entries
+    routings = session.exec(select(Routing).where(Routing.work_center_id == work_center_id)).all()
+    for routing in routings:
+        # Delete operation dependencies for each routing first
+        deps = session.exec(select(OperationDependency).where(
+            (OperationDependency.routing_id == routing.id) | 
+            (OperationDependency.predecessor_routing_id == routing.id)
+        )).all()
+        for dep in deps:
+            session.delete(dep)
+        session.delete(routing)
+    
     session.delete(db_work_center)
     session.commit()
     return {"message": "Work center deleted successfully"}
