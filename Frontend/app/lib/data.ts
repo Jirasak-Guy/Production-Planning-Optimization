@@ -412,3 +412,67 @@ export async function deleteCompanyCalendar(calendarId: number): Promise<void> {
   }
 }
 
+// =====================================================
+// WORK CENTER CRUD
+// =====================================================
+
+export async function updateWorkCenter(workCenterId: number, data: Partial<WorkCenter>): Promise<WorkCenter> {
+  return updateData<WorkCenter>(`/work-centers/${workCenterId}`, data);
+}
+
+export async function deleteWorkCenter(workCenterId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/work-centers/${workCenterId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete work center: ${error}`);
+  }
+}
+
+// =====================================================
+// WORK CENTER SHIFT CRUD
+// =====================================================
+
+export async function createWorkCenterShift(data: Partial<WorkCenterShift>): Promise<WorkCenterShift> {
+  return createData<WorkCenterShift>("/work-center-shifts", data);
+}
+
+export async function updateWorkCenterShift(shiftId: number, data: Partial<WorkCenterShift>): Promise<WorkCenterShift> {
+  return updateData<WorkCenterShift>(`/work-center-shifts/${shiftId}`, data);
+}
+
+export async function deleteWorkCenterShift(shiftId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/work-center-shifts/${shiftId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete work center shift: ${error}`);
+  }
+}
+
+// =====================================================
+// WORK CENTER CALENDAR EXCEPTION CRUD
+// =====================================================
+
+export async function createWorkCenterCalendarException(data: Partial<WorkCenterCalendarException>): Promise<WorkCenterCalendarException> {
+  return createData<WorkCenterCalendarException>("/work-center-calendar-exceptions", data);
+}
+
+export async function updateWorkCenterCalendarException(exceptionId: number, data: Partial<WorkCenterCalendarException>): Promise<WorkCenterCalendarException> {
+  return updateData<WorkCenterCalendarException>(`/work-center-calendar-exceptions/${exceptionId}`, data);
+}
+
+export async function deleteWorkCenterCalendarException(exceptionId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/work-center-calendar-exceptions/${exceptionId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete calendar exception: ${error}`);
+  }
+}
