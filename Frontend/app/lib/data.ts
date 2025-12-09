@@ -12,7 +12,7 @@ import { ProductionOrder, WorkCenterSchedule } from "@/app/types/Production";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // =====================================================
-// HELPER FUNCTION
+// HELPER FUNCTIONS
 // =====================================================
 
 async function fetchData<T>(endpoint: string): Promise<T[]> {
@@ -23,6 +23,19 @@ async function fetchData<T>(endpoint: string): Promise<T[]> {
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch data from ${endpoint}`);
+  }
+  return response.json();
+}
+
+async function createData<T>(endpoint: string, data: Partial<T>): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to create data: ${error}`);
   }
   return response.json();
 }
@@ -151,3 +164,44 @@ export async function fetchProductionOrders(): Promise<ProductionOrder[]> {
 export async function fetchWorkCenterSchedule(): Promise<WorkCenterSchedule[]> {
   return fetchData<WorkCenterSchedule>("/work-center-schedule");
 }
+
+// =====================================================
+// CREATE FUNCTIONS
+// =====================================================
+
+export async function createOrder(data: Partial<Order>): Promise<Order> {
+  return createData<Order>("/orders", data);
+}
+
+export async function createProduct(data: Partial<ProductData>): Promise<ProductData> {
+  return createData<ProductData>("/products", data);
+}
+
+export async function createOrderItem(data: Partial<OrderItem>): Promise<OrderItem> {
+  return createData<OrderItem>("/order-items", data);
+}
+
+export async function createBOM(data: Partial<BOM>): Promise<BOM> {
+  return createData<BOM>("/bom", data);
+}
+
+export async function createShift(data: Partial<Shift>): Promise<Shift> {
+  return createData<Shift>("/shifts", data);
+}
+
+export async function createCompanyCalendar(data: Partial<CompanyCalendar>): Promise<CompanyCalendar> {
+  return createData<CompanyCalendar>("/company-calendar", data);
+}
+
+export async function createWorkCenter(data: Partial<WorkCenter>): Promise<WorkCenter> {
+  return createData<WorkCenter>("/work-centers", data);
+}
+
+export async function createOperation(data: Partial<Operation>): Promise<Operation> {
+  return createData<Operation>("/operations", data);
+}
+
+export async function createProductionOrder(data: Partial<ProductionOrder>): Promise<ProductionOrder> {
+  return createData<ProductionOrder>("/production-orders", data);
+}
+

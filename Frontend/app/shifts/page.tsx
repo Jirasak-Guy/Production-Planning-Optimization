@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Shift } from "@/app/types/Shift";
 import { fetchShifts } from "@/app/lib/data";
+import AddShiftModal from "@/app/components/modals/AddShiftModal";
 import {
   ArrowPathIcon,
   ClockIcon,
@@ -20,6 +21,7 @@ export default function ShiftsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const loadShifts = async () => {
     setIsLoading(true);
@@ -157,7 +159,7 @@ export default function ShiftsPage() {
 
             {/* Add Button */}
             <button
-              onClick={() => console.log("Add clicked")}
+              onClick={() => setIsAddModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <PlusCircleIcon className="w-5 h-5" />
@@ -343,8 +345,8 @@ export default function ShiftsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${shift.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
                           }`}
                       >
                         {shift.is_active ? "Active" : "Inactive"}
@@ -364,6 +366,12 @@ export default function ShiftsPage() {
           </div>
         )}
       </div>
+
+      <AddShiftModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={loadShifts}
+      />
     </div>
   );
 }

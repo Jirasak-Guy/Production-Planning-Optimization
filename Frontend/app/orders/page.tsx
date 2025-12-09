@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import OrderCard from "@/app/components/OrderCard";
 import OrdersHeader, { ViewMode } from "@/app/components/OrdersHeader";
+import AddOrderModal from "@/app/components/modals/AddOrderModal";
 import { Order } from "@/app/types/CoreData";
 import { fetchOrders } from "@/app/lib/data";
 
@@ -13,6 +14,7 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -61,8 +63,11 @@ export default function Orders() {
   };
 
   const handleAdd = () => {
-    console.log("Add clicked");
-    // TODO: Open add order dialog
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSuccess = () => {
+    handleRefresh();
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -177,6 +182,12 @@ export default function Orders() {
           </>
         )}
       </div>
+
+      <AddOrderModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

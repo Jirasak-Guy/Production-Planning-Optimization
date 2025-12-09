@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProductCard from "@/app/components/ProductCard";
 import ProductsHeader, { ViewMode } from "@/app/components/ProductsHeader";
+import AddProductModal from "@/app/components/modals/AddProductModal";
 import { ProductData } from "@/app/types/CoreData";
 import { fetchProducts } from "@/app/lib/data";
 
@@ -13,6 +14,7 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -61,8 +63,11 @@ export default function Products() {
   };
 
   const handleAdd = () => {
-    console.log("Add clicked");
-    // TODO: Open add product dialog
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSuccess = () => {
+    handleRefresh();
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -164,6 +169,12 @@ export default function Products() {
           </>
         )}
       </div>
+
+      <AddProductModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

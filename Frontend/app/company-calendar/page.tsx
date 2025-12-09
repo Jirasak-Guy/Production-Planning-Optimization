@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { CompanyCalendar } from "@/app/types/Shift";
 import { fetchCompanyCalendar } from "@/app/lib/data";
+import AddCalendarEventModal from "@/app/components/modals/AddCalendarEventModal";
 import {
   ArrowPathIcon,
   ChevronLeftIcon,
@@ -23,6 +24,7 @@ export default function CompanyCalendarPage() {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const loadCalendarData = async () => {
     setIsLoading(true);
@@ -234,7 +236,7 @@ export default function CompanyCalendarPage() {
 
             {/* Add Button */}
             <button
-              onClick={() => console.log("Add clicked")}
+              onClick={() => setIsAddModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <PlusCircleIcon className="w-5 h-5" />
@@ -369,8 +371,8 @@ export default function CompanyCalendarPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.is_working_day
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
                           }`}
                       >
                         {item.is_working_day ? "Yes" : "No"}
@@ -431,6 +433,12 @@ export default function CompanyCalendarPage() {
           </div>
         </div>
       )}
+
+      <AddCalendarEventModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={loadCalendarData}
+      />
     </div>
   );
 }

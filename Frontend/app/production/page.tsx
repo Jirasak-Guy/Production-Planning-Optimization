@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProductionOrderCard from "@/app/components/ProductionOrderCard";
 import ProductionHeader, { ViewMode } from "@/app/components/ProductionHeader";
+import AddProductionOrderModal from "@/app/components/modals/AddProductionOrderModal";
 import { ProductionOrder } from "@/app/types/Production";
 import { fetchProductionOrders } from "@/app/lib/data";
 
@@ -15,6 +16,7 @@ export default function ProductionPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadProductionOrders = async () => {
@@ -61,7 +63,11 @@ export default function ProductionPage() {
   };
 
   const handleAdd = () => {
-    console.log("Add clicked");
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSuccess = () => {
+    handleRefresh();
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -184,6 +190,12 @@ export default function ProductionPage() {
           </>
         )}
       </div>
+
+      <AddProductionOrderModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

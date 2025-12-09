@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import OperationCard from "@/app/components/OperationCard";
 import OperationsHeader, { ViewMode } from "@/app/components/OperationsHeader";
+import AddOperationModal from "@/app/components/modals/AddOperationModal";
 import { Operation } from "@/app/types/Operation";
 import { fetchOperations } from "@/app/lib/data";
 
@@ -13,6 +14,7 @@ export default function OperationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadOperations = async () => {
@@ -60,7 +62,11 @@ export default function OperationsPage() {
   };
 
   const handleAdd = () => {
-    console.log("Add clicked");
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSuccess = () => {
+    handleRefresh();
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -140,8 +146,8 @@ export default function OperationsPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${op.is_active
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
                               }`}
                           >
                             {op.is_active ? "Active" : "Inactive"}
@@ -162,6 +168,12 @@ export default function OperationsPage() {
           </>
         )}
       </div>
+
+      <AddOperationModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

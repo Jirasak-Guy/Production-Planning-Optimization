@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import WorkCenterCard from "@/app/components/WorkCenterCard";
 import WorkCenterHeader, { ViewMode } from "@/app/components/WorkCenterHeader";
+import AddWorkCenterModal from "@/app/components/modals/AddWorkCenterModal";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import { fetchWorkCenters } from "@/app/lib/data";
 
@@ -13,6 +14,7 @@ export default function WorkCenterPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadWorkCenters = async () => {
@@ -61,8 +63,11 @@ export default function WorkCenterPage() {
   };
 
   const handleAdd = () => {
-    console.log("Add clicked");
-    // TODO: Open add work center dialog
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSuccess = () => {
+    handleRefresh();
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -177,6 +182,12 @@ export default function WorkCenterPage() {
           </>
         )}
       </div>
+
+      <AddWorkCenterModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

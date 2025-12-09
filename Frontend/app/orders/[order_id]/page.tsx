@@ -9,7 +9,8 @@ import {
   fetchOrderItemsByOrderId,
   fetchProducts,
 } from "@/app/lib/data";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
+import AddOrderItemModal from "@/app/components/modals/AddOrderItemModal";
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -27,6 +28,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItemWithProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const loadOrderData = async () => {
@@ -56,6 +58,25 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
     loadOrderData();
   }, [order_id]);
+
+  const reloadOrderItems = async () => {
+    try {
+      const orderId = parseInt(order_id);
+      const [orderItemsData, productsData] = await Promise.all([
+        fetchOrderItemsByOrderId(orderId),
+        fetchProducts(),
+      ]);
+
+      const itemsWithProducts = orderItemsData.map((item) => ({
+        ...item,
+        product: productsData.find((p) => p.id === item.product_id),
+      }));
+
+      setOrderItems(itemsWithProducts);
+    } catch (error) {
+      console.error("Failed to reload order items:", error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -167,8 +188,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       {/* Products Section */}
       <div className="flex-1 overflow-auto bg-gray-50 p-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Products</h2>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              <PlusCircleIcon className="w-5 h-5" />
+              <span>Add Product</span>
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -189,9 +217,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     System
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Location
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Quantity
@@ -229,11 +254,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
-                          item.product?.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                        className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${item.product?.is_active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {item.product?.is_active ? "Active" : "Inactive"}
                       </span>
@@ -244,32 +268,29 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {item.product?.unit || "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      -
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
                       {item.quantity.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                       {item.unit_price != null
                         ? `$${Number(item.unit_price).toLocaleString(
-                            undefined,
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`
+                          undefined,
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}`
                         : "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
                       {item.total_price != null
                         ? `$${Number(item.total_price).toLocaleString(
-                            undefined,
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`
+                          undefined,
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}`
                         : "-"}
                     </td>
                   </tr>
@@ -285,6 +306,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           )}
         </div>
       </div>
+
+      <AddOrderItemModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={reloadOrderItems}
+        orderId={parseInt(order_id)}
+      />
     </div>
   );
 }
