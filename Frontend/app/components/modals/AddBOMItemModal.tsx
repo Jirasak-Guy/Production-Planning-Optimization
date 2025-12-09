@@ -2,28 +2,32 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/app/components/ui/Modal";
-import { createOrderItem, fetchProducts } from "@/app/lib/data";
+import { createBOM, fetchProducts } from "@/app/lib/data";
 import { ProductData } from "@/app/types/CoreData";
 
-interface AddOrderItemModalProps {
+interface AddBOMItemModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    orderId: number;
+    parentProductId: number;
+    parentProductCode: string;
 }
 
-export default function AddOrderItemModal({
+export default function AddBOMItemModal({
     isOpen,
     onClose,
     onSuccess,
-    orderId,
-}: AddOrderItemModalProps) {
+    parentProductId,
+    parentProductCode,
+}: AddBOMItemModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [products, setProducts] = useState<ProductData[]>([]);
     const [formData, setFormData] = useState({
-        product_id: "",
-        quantity: "",
-        unit_price: "",
+        component_product_id: "",
+        quantity_required: "",
+        unit: "",
+        scrap_percentage: "0",
+        effective_from: new Date().toISOString().split('T')[0],
         notes: "",
     });
 
@@ -31,7 +35,8 @@ export default function AddOrderItemModal({
         const loadProducts = async () => {
             try {
                 const data = await fetchProducts();
-                setProducts(data.filter((p) => p.is_active));
+                // Filter out the parent product and inactive products
+                setProducts(data.filter((p) => p.is_active && p.id !== parentProductId));
             } catch (error) {
                 console.error("Failed to fetch products:", error);
             }
@@ -40,7 +45,7 @@ export default function AddOrderItemModal({
         if (isOpen) {
             loadProducts();
         }
-    }, [isOpen]);
+    }, [isOpen, parentProductId]);
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -57,32 +62,22 @@ export default function AddOrderItemModal({
         setIsLoading(true);
 
         try {
-            const quantity = parseInt(formData.quantity);
-            
-            // Use entered unit_price, or fallback to product's standard_cost
-            let unitPrice: number | undefined;
-            if (formData.unit_price) {
-                unitPrice = parseFloat(formData.unit_price);
-            } else if (selectedProduct?.standard_cost) {
-                unitPrice = Number(selectedProduct.standard_cost);
-            }
-            
-            const totalPrice = unitPrice ? quantity * unitPrice : undefined;
-
-            await createOrderItem({
-                order_id: orderId,
-                product_id: parseInt(formData.product_id),
-                quantity: quantity,
-                unit_price: unitPrice,
-                total_price: totalPrice,
+            await createBOM({
+                parent_product_id: parentProductId,
+                component_product_id: parseInt(formData.component_product_id),
+                quantity_required: parseFloat(formData.quantity_required),
+                unit: formData.unit,
+                scrap_percentage: parseFloat(formData.scrap_percentage),
+                effective_from: formData.effective_from,
+                is_active: true,
                 notes: formData.notes || undefined,
             });
             onSuccess();
             onClose();
             resetForm();
         } catch (error) {
-            console.error("Failed to create order item:", error);
-            alert("Failed to add product. Please try again.");
+            console.error("Failed to create BOM item:", error);
+            alert("Failed to add component. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -90,9 +85,11 @@ export default function AddOrderItemModal({
 
     const resetForm = () => {
         setFormData({
-            product_id: "",
-            quantity: "",
-            unit_price: "",
+            component_product_id: "",
+            quantity_required: "",
+            unit: "",
+            scrap_percentage: "0",
+            effective_from: new Date().toISOString().split('T')[0],
             notes: "",
         });
     };
@@ -103,24 +100,40 @@ export default function AddOrderItemModal({
     };
 
     const selectedProduct = products.find(
-        (p) => p.id === parseInt(formData.product_id)
+        (p) => p.id === parseInt(formData.component_product_id)
     );
 
+    // Auto-fill unit when product is selected
+    useEffect(() => {
+        if (selectedProduct) {
+            setFormData((prev) => ({
+                ...prev,
+                unit: selectedProduct.unit,
+            }));
+        }
+    }, [selectedProduct]);
+
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Add Product to Order">
+        <Modal isOpen={isOpen} onClose={handleClose} title="Add Component to BOM">
             <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+                    <p className="text-sm text-gray-600">
+                        Adding component to: <span className="font-semibold text-gray-900">{parentProductCode}</span>
+                    </p>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Product <span className="text-red-500">*</span>
+                        Component Product <span className="text-red-500">*</span>
                     </label>
                     <select
-                        name="product_id"
-                        value={formData.product_id}
+                        name="component_product_id"
+                        value={formData.component_product_id}
                         onChange={handleChange}
                         required
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                        <option value="">Select a product</option>
+                        <option value="">Select a component</option>
                         {products.map((product) => (
                             <option key={product.id} value={product.id}>
                                 {product.product_code} - {product.product_name}
@@ -132,7 +145,7 @@ export default function AddOrderItemModal({
                 {selectedProduct && (
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <p className="text-sm text-blue-800">
-                            <span className="font-medium">Type:</span> {selectedProduct.type}
+                            <span className="font-medium">Type:</span> {selectedProduct.type.replace("-", " ")}
                         </p>
                         <p className="text-sm text-blue-800">
                             <span className="font-medium">Unit:</span> {selectedProduct.unit}
@@ -149,52 +162,70 @@ export default function AddOrderItemModal({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quantity <span className="text-red-500">*</span>
+                            Quantity Required <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
-                            name="quantity"
-                            value={formData.quantity}
+                            name="quantity_required"
+                            value={formData.quantity_required}
                             onChange={handleChange}
                             required
-                            min="1"
+                            min="0.001"
+                            step="0.001"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="0"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Unit Price
-                            {selectedProduct?.standard_cost && !formData.unit_price && (
-                                <span className="text-xs text-gray-500 font-normal ml-2">
-                                    (will use Standard Cost: ${Number(selectedProduct.standard_cost).toFixed(2)})
-                                </span>
-                            )}
+                            Unit <span className="text-red-500">*</span>
                         </label>
                         <input
-                            type="number"
-                            name="unit_price"
-                            value={formData.unit_price}
+                            type="text"
+                            name="unit"
+                            value={formData.unit}
                             onChange={handleChange}
-                            step="0.01"
-                            min="0"
+                            required
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder={selectedProduct?.standard_cost ? `${Number(selectedProduct.standard_cost).toFixed(2)} (Standard Cost)` : "0.00"}
+                            placeholder="e.g., unit, kg, liter"
                         />
                     </div>
                 </div>
 
-                {formData.quantity && (formData.unit_price || selectedProduct?.standard_cost) && (
-                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                        <p className="text-sm text-green-800">
-                            <span className="font-medium">Total Price:</span> $
-                            {(parseInt(formData.quantity) * (formData.unit_price ? parseFloat(formData.unit_price) : Number(selectedProduct?.standard_cost || 0))).toFixed(2)}
-                            {!formData.unit_price && selectedProduct?.standard_cost && (
-                                <span className="text-xs text-green-600 ml-2">(using Standard Cost)</span>
-                            )}
-                        </p>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Scrap Percentage
+                        </label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                name="scrap_percentage"
+                                value={formData.scrap_percentage}
+                                onChange={handleChange}
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="0"
+                            />
+                            <span className="ml-2 text-gray-600">%</span>
+                        </div>
                     </div>
-                )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Effective From <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            name="effective_from"
+                            value={formData.effective_from}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -223,7 +254,7 @@ export default function AddOrderItemModal({
                         disabled={isLoading}
                         className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isLoading ? "Adding..." : "Add Product"}
+                        {isLoading ? "Adding..." : "Add Component"}
                     </button>
                 </div>
             </form>

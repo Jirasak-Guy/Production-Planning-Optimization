@@ -326,3 +326,25 @@ export async function deleteOrderItem(orderItemId: number): Promise<void> {
   }
 }
 
+export async function deleteProduct(productId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete product: ${error}`);
+  }
+}
+
+export async function deleteBOM(bomId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/bom/${bomId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete BOM item: ${error}`);
+  }
+}
+
