@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Shift } from "@/app/types/Shift";
 import { fetchShifts } from "@/app/lib/data";
 import AddShiftModal from "@/app/components/modals/AddShiftModal";
@@ -17,6 +18,7 @@ import {
 type ViewMode = "card" | "table";
 
 export default function ShiftsPage() {
+  const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -183,7 +185,8 @@ export default function ShiftsPage() {
               return (
                 <div
                   key={shift.id}
-                  className={`bg-white rounded-xl border ${colors.border} overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1`}
+                  onClick={() => router.push(`/shifts/${shift.id}`)}
+                  className={`bg-white rounded-xl border ${colors.border} overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
                 >
                   {/* Card Header with Gradient */}
                   <div className={`bg-gradient-to-r ${colors.bg} px-5 py-4`}>
@@ -322,6 +325,7 @@ export default function ShiftsPage() {
                 {filteredShifts.map((shift) => (
                   <tr
                     key={shift.id}
+                    onClick={() => router.push(`/shifts/${shift.id}`)}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">

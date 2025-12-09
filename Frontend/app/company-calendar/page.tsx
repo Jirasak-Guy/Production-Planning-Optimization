@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { CompanyCalendar } from "@/app/types/Shift";
 import { fetchCompanyCalendar } from "@/app/lib/data";
 import AddCalendarEventModal from "@/app/components/modals/AddCalendarEventModal";
@@ -17,6 +18,7 @@ import {
 type ViewMode = "calendar" | "table";
 
 export default function CompanyCalendarPage() {
+  const router = useRouter();
   const [calendarData, setCalendarData] = useState<CompanyCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -163,6 +165,7 @@ export default function CompanyCalendarPage() {
           className={`h-24 p-2 border border-gray-200 cursor-pointer transition-all duration-200 ${getDayTypeStyles(
             dayData?.day_type
           )} ${isToday ? "ring-2 ring-blue-500 ring-inset" : ""}`}
+          onClick={() => dayData && router.push(`/company-calendar/${dayData.id}`)}
           onMouseEnter={(e) => dayData && handleMouseEnter(e, dayData)}
           onMouseLeave={handleMouseLeave}
         >
@@ -348,7 +351,8 @@ export default function CompanyCalendarPage() {
                 {filteredCalendarData.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    onClick={() => router.push(`/company-calendar/${item.id}`)}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                       {new Date(item.calendar_date).toLocaleDateString("en-US", {

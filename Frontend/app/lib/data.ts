@@ -111,8 +111,32 @@ export async function fetchShifts(): Promise<Shift[]> {
   return fetchData<Shift>("/shifts");
 }
 
+export async function fetchShiftById(shiftId: number): Promise<Shift> {
+  const response = await fetch(`${API_BASE_URL}/shifts/${shiftId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch shift ${shiftId}`);
+  }
+  return response.json();
+}
+
 export async function fetchCompanyCalendar(): Promise<CompanyCalendar[]> {
   return fetchData<CompanyCalendar>("/company-calendar");
+}
+
+export async function fetchCompanyCalendarById(calendarId: number): Promise<CompanyCalendar> {
+  const response = await fetch(`${API_BASE_URL}/company-calendar/${calendarId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch calendar entry ${calendarId}`);
+  }
+  return response.json();
 }
 
 // =====================================================

@@ -104,9 +104,25 @@ def read_shifts(session: SessionDep):
     return session.exec(select(Shift)).all()
 
 
+@app.get("/shifts/{shift_id}", response_model=Shift)
+def read_shift(shift_id: int, session: SessionDep):
+    shift = session.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    return shift
+
+
 @app.get("/company-calendar", response_model=list[CompanyCalendar])
 def read_company_calendar(session: SessionDep):
     return session.exec(select(CompanyCalendar)).all()
+
+
+@app.get("/company-calendar/{calendar_id}", response_model=CompanyCalendar)
+def read_company_calendar_entry(calendar_id: int, session: SessionDep):
+    calendar = session.get(CompanyCalendar, calendar_id)
+    if not calendar:
+        raise HTTPException(status_code=404, detail="Calendar entry not found")
+    return calendar
 
 
 @app.get("/work-centers", response_model=list[WorkCenter])
