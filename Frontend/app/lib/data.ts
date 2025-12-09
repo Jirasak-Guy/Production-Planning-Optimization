@@ -40,6 +40,19 @@ async function createData<T>(endpoint: string, data: Partial<T>): Promise<T> {
   return response.json();
 }
 
+async function updateData<T>(endpoint: string, data: Partial<T>): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to update data: ${error}`);
+  }
+  return response.json();
+}
+
 // =====================================================
 // CORE DATA FETCHERS
 // =====================================================
@@ -227,5 +240,47 @@ export async function createOperation(data: Partial<Operation>): Promise<Operati
 
 export async function createProductionOrder(data: Partial<ProductionOrder>): Promise<ProductionOrder> {
   return createData<ProductionOrder>("/production-orders", data);
+}
+
+// =====================================================
+// UPDATE FUNCTIONS
+// =====================================================
+
+export async function updateOrder(orderId: number, data: Partial<Order>): Promise<Order> {
+  return updateData<Order>(`/orders/${orderId}`, data);
+}
+
+export async function updateProduct(productId: number, data: Partial<ProductData>): Promise<ProductData> {
+  return updateData<ProductData>(`/products/${productId}`, data);
+}
+
+export async function updateOrderItem(orderItemId: number, data: Partial<OrderItem>): Promise<OrderItem> {
+  return updateData<OrderItem>(`/order-items/${orderItemId}`, data);
+}
+
+// =====================================================
+// DELETE FUNCTIONS
+// =====================================================
+
+export async function deleteOrder(orderId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete order: ${error}`);
+  }
+}
+
+export async function deleteOrderItem(orderItemId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/order-items/${orderItemId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete order item: ${error}`);
+  }
 }
 
