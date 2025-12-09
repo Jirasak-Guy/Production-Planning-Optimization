@@ -270,6 +270,42 @@ def delete_product(product_id: int, session: SessionDep):
     db_product = session.get(Product, product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Delete related order items first
+    order_items = session.exec(select(OrderItem).where(OrderItem.product_id == product_id)).all()
+    for item in order_items:
+        session.delete(item)
+    
+    # Delete related BOM entries (both as parent and component)
+    bom_as_parent = session.exec(select(BOM).where(BOM.parent_product_id == product_id)).all()
+    for bom in bom_as_parent:
+        session.delete(bom)
+    
+    bom_as_component = session.exec(select(BOM).where(BOM.component_product_id == product_id)).all()
+    for bom in bom_as_component:
+        session.delete(bom)
+    
+    # Delete related routing entries
+    routings = session.exec(select(Routing).where(Routing.product_id == product_id)).all()
+    for routing in routings:
+        # Delete operation dependencies for this routing first
+        deps = session.exec(select(OperationDependency).where(
+            (OperationDependency.routing_id == routing.id) | 
+            (OperationDependency.predecessor_routing_id == routing.id)
+        )).all()
+        for dep in deps:
+            session.delete(dep)
+        session.delete(routing)
+    
+    # Delete related production orders
+    production_orders = session.exec(select(ProductionOrder).where(ProductionOrder.product_id == product_id)).all()
+    for po in production_orders:
+        # Delete work center schedules for this production order first
+        schedules = session.exec(select(WorkCenterSchedule).where(WorkCenterSchedule.production_order_id == po.id)).all()
+        for schedule in schedules:
+            session.delete(schedule)
+        session.delete(po)
+    
     session.delete(db_product)
     session.commit()
     return {"message": "Product deleted successfully"}
