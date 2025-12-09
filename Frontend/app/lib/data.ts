@@ -280,6 +280,14 @@ export async function createOperation(data: Partial<Operation>): Promise<Operati
   return createData<Operation>("/operations", data);
 }
 
+export async function createRouting(data: Partial<Routing>): Promise<Routing> {
+  return createData<Routing>("/routing", data);
+}
+
+export async function createOperationDependency(data: Partial<OperationDependency>): Promise<OperationDependency> {
+  return createData<OperationDependency>("/operation-dependencies", data);
+}
+
 export async function createProductionOrder(data: Partial<ProductionOrder>): Promise<ProductionOrder> {
   return createData<ProductionOrder>("/production-orders", data);
 }
@@ -298,6 +306,10 @@ export async function updateProduct(productId: number, data: Partial<ProductData
 
 export async function updateOrderItem(orderItemId: number, data: Partial<OrderItem>): Promise<OrderItem> {
   return updateData<OrderItem>(`/order-items/${orderItemId}`, data);
+}
+
+export async function updateRouting(routingId: number, data: Partial<Routing>): Promise<Routing> {
+  return updateData<Routing>(`/routing/${routingId}`, data);
 }
 
 export async function updateShift(shiftId: number, data: Partial<Shift>): Promise<Shift> {
@@ -320,6 +332,28 @@ export async function deleteOrder(orderId: number): Promise<void> {
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`Failed to delete order: ${error}`);
+  }
+}
+
+export async function deleteRouting(routingId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/routing/${routingId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete routing: ${error}`);
+  }
+}
+
+export async function deleteOperationDependency(dependencyId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/operation-dependencies/${dependencyId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete operation dependency: ${error}`);
   }
 }
 

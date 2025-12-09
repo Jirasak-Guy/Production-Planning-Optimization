@@ -7,10 +7,12 @@ import { ProductData, BOM } from "@/app/types/CoreData";
 import { Routing } from "@/app/types/Routing";
 import { Operation, OperationDependency } from "@/app/types/Operation";
 import { WorkCenter } from "@/app/types/WorkCenter";
-import { fetchProductById, fetchBOM, fetchProducts, updateProduct, deleteProduct, deleteBOM, fetchRouting, fetchOperations, fetchWorkCenters, fetchOperationDependencies } from "@/app/lib/data";
-import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon, ArrowLongRightIcon, TableCellsIcon, Bars3BottomLeftIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { fetchProductById, fetchBOM, fetchProducts, updateProduct, deleteProduct, deleteBOM, fetchRouting, fetchOperations, fetchWorkCenters, fetchOperationDependencies, deleteRouting } from "@/app/lib/data";
+import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon, ArrowLongRightIcon, TableCellsIcon, Bars3BottomLeftIcon, ClockIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import AddBOMItemModal from "@/app/components/modals/AddBOMItemModal";
+import AddRoutingModal from "@/app/components/modals/AddRoutingModal";
+import EditRoutingModal from "@/app/components/modals/EditRoutingModal";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -47,6 +49,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [productRoutings, setProductRoutings] = useState<RoutingWithDetails[]>([]);
   const [routingDependencies, setRoutingDependencies] = useState<OperationDependency[]>([]);
   const [routingViewMode, setRoutingViewMode] = useState<'timeline' | 'table'>('timeline');
+  const [isAddRoutingModalOpen, setIsAddRoutingModalOpen] = useState(false);
+  const [allOperations, setAllOperations] = useState<Operation[]>([]);
+  const [allWorkCenters, setAllWorkCenters] = useState<WorkCenter[]>([]);
+  const [routingToEdit, setRoutingToEdit] = useState<RoutingWithDetails | null>(null);
+  const [isEditRoutingModalOpen, setIsEditRoutingModalOpen] = useState(false);
+  const [routingToDelete, setRoutingToDelete] = useState<RoutingWithDetails | null>(null);
+  const [showDeleteRoutingConfirm, setShowDeleteRoutingConfirm] = useState(false);
+  const [isDeletingRouting, setIsDeletingRouting] = useState(false);
 
   useEffect(() => {
     const loadProductData = async () => {
@@ -65,6 +75,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
         setProduct(productData);
         setAllProducts(productsData);
+        setAllOperations(operationsData);
+        setAllWorkCenters(workCentersData);
 
         // Filter BOM items for this product and map component details
         const productBom = bomData
@@ -121,6 +133,61 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       setBomItems(productBom);
     } catch (error) {
       console.error("Failed to reload BOM items:", error);
+    }
+  };
+
+  const reloadRoutings = async () => {
+    try {
+      const productId = parseInt(product_id);
+      const [routingsData, dependenciesData] = await Promise.all([
+        fetchRouting(),
+        fetchOperationDependencies(),
+      ]);
+
+      const productRoutingsData = routingsData
+        .filter((r) => r.product_id === productId && r.is_active)
+        .map((r) => ({
+          ...r,
+          operation: allOperations.find((o) => o.id === r.operation_id),
+          workCenter: allWorkCenters.find((w) => w.id === r.work_center_id),
+        }))
+        .sort((a, b) => a.sequence_number - b.sequence_number);
+
+      setProductRoutings(productRoutingsData);
+
+      const routingIds = productRoutingsData.map((r) => r.id);
+      const productDeps = dependenciesData.filter(
+        (d) => routingIds.includes(d.routing_id) && d.is_active
+      );
+      setRoutingDependencies(productDeps);
+    } catch (error) {
+      console.error("Failed to reload routings:", error);
+    }
+  };
+
+  const handleEditRouting = (routing: RoutingWithDetails) => {
+    setRoutingToEdit(routing);
+    setIsEditRoutingModalOpen(true);
+  };
+
+  const handleDeleteRouting = (routing: RoutingWithDetails) => {
+    setRoutingToDelete(routing);
+    setShowDeleteRoutingConfirm(true);
+  };
+
+  const confirmDeleteRouting = async () => {
+    if (!routingToDelete) return;
+    
+    setIsDeletingRouting(true);
+    try {
+      await deleteRouting(routingToDelete.id);
+      await reloadRoutings();
+      setShowDeleteRoutingConfirm(false);
+      setRoutingToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete routing:", error);
+    } finally {
+      setIsDeletingRouting(false);
     }
   };
 
@@ -798,28 +865,37 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </p>
               </div>
               {/* View Toggle */}
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setRoutingViewMode('timeline')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      routingViewMode === 'timeline'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Bars3BottomLeftIcon className="w-4 h-4" />
+                    Timeline
+                  </button>
+                  <button
+                    onClick={() => setRoutingViewMode('table')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      routingViewMode === 'table'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <TableCellsIcon className="w-4 h-4" />
+                    Table
+                  </button>
+                </div>
                 <button
-                  onClick={() => setRoutingViewMode('timeline')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    routingViewMode === 'timeline'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  onClick={() => setIsAddRoutingModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                 >
-                  <Bars3BottomLeftIcon className="w-4 h-4" />
-                  Timeline
-                </button>
-                <button
-                  onClick={() => setRoutingViewMode('table')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    routingViewMode === 'table'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <TableCellsIcon className="w-4 h-4" />
-                  Table
+                  <PlusCircleIcon className="w-4 h-4" />
+                  Add Step
                 </button>
               </div>
             </div>
@@ -930,6 +1006,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 {routing.notes}
                               </p>
                             )}
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                              <button
+                                onClick={() => handleEditRouting(routing)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                <PencilIcon className="w-3.5 h-3.5" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRouting(routing)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -967,6 +1061,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Status
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Actions
                         </th>
                       </tr>
                     </thead>
@@ -1061,6 +1158,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                               >
                                 {routing.is_active ? "Active" : "Inactive"}
                               </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleEditRouting(routing)}
+                                  className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                  title="Edit"
+                                >
+                                  <PencilIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRouting(routing)}
+                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1230,6 +1345,96 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <>
                       <TrashIcon className="w-5 h-5" />
                       <span>Remove</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Routing Modal */}
+      <AddRoutingModal
+        isOpen={isAddRoutingModalOpen}
+        onClose={() => setIsAddRoutingModalOpen(false)}
+        onRoutingAdded={reloadRoutings}
+        productId={parseInt(product_id)}
+        operations={allOperations}
+        workCenters={allWorkCenters}
+        existingRoutings={productRoutings}
+      />
+
+      {/* Edit Routing Modal */}
+      <EditRoutingModal
+        isOpen={isEditRoutingModalOpen}
+        onClose={() => {
+          setIsEditRoutingModalOpen(false);
+          setRoutingToEdit(null);
+        }}
+        onRoutingUpdated={reloadRoutings}
+        routing={routingToEdit}
+        operations={allOperations}
+        workCenters={allWorkCenters}
+        existingRoutings={productRoutings}
+        currentDependencies={routingDependencies}
+      />
+
+      {/* Delete Routing Confirmation Modal */}
+      {showDeleteRoutingConfirm && routingToDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => !isDeletingRouting && setShowDeleteRoutingConfirm(false)}
+          />
+          
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+              {/* Warning Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                Delete Routing Step
+              </h3>
+              
+              {/* Message */}
+              <p className="text-gray-600 text-center mb-6">
+                Are you sure you want to delete step #{routingToDelete.sequence_number} ({routingToDelete.operation?.operation_name || 'Unknown'})? This action cannot be undone.
+              </p>
+              
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteRoutingConfirm(false)}
+                  disabled={isDeletingRouting}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteRouting}
+                  disabled={isDeletingRouting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeletingRouting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-5 h-5" />
+                      <span>Delete</span>
                     </>
                   )}
                 </button>
