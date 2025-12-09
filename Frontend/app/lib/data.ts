@@ -218,6 +218,21 @@ export async function fetchOperationDependencies(): Promise<
   return fetchData<OperationDependency>("/operation-dependencies");
 }
 
+export async function updateOperation(operationId: number, data: Partial<Operation>): Promise<Operation> {
+  return updateData<Operation>(`/operations/${operationId}`, data);
+}
+
+export async function deleteOperation(operationId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/operations/${operationId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete operation: ${error}`);
+  }
+}
+
 // =====================================================
 // PRODUCTION TRACKING FETCHERS
 // =====================================================
