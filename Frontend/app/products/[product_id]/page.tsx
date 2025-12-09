@@ -8,7 +8,7 @@ import { Routing } from "@/app/types/Routing";
 import { Operation, OperationDependency } from "@/app/types/Operation";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import { fetchProductById, fetchBOM, fetchProducts, updateProduct, deleteProduct, deleteBOM, fetchRouting, fetchOperations, fetchWorkCenters, fetchOperationDependencies, deleteRouting } from "@/app/lib/data";
-import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon, ArrowLongRightIcon, TableCellsIcon, Bars3BottomLeftIcon, ClockIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PlusCircleIcon, ArrowLongRightIcon, TableCellsIcon, Bars3BottomLeftIcon, ClockIcon, PencilIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import AddBOMItemModal from "@/app/components/modals/AddBOMItemModal";
 import AddRoutingModal from "@/app/components/modals/AddRoutingModal";
@@ -92,7 +92,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
         // Filter routing for this product and map details
         const productRoutingsData = routingsData
-          .filter((r) => r.product_id === productId && r.is_active)
+          .filter((r) => r.product_id === productId)
           .map((r) => ({
             ...r,
             operation: operationsData.find((o) => o.id === r.operation_id),
@@ -145,7 +145,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       ]);
 
       const productRoutingsData = routingsData
-        .filter((r) => r.product_id === productId && r.is_active)
+        .filter((r) => r.product_id === productId)
         .map((r) => ({
           ...r,
           operation: allOperations.find((o) => o.id === r.operation_id),
@@ -910,19 +910,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     const deps = routingDependencies.filter(d => d.routing_id === routing.id);
                     const isLast = index === productRoutings.length - 1;
                     
-                    // Get color based on dependency type or default
-                    const dotColor = deps.length > 0 
-                      ? deps[0].dependency_type === 'FS' ? 'bg-teal-500' 
-                      : deps[0].dependency_type === 'SS' ? 'bg-amber-500'
-                      : deps[0].dependency_type === 'FF' ? 'bg-red-500'
-                      : 'bg-blue-500'
-                      : 'bg-teal-500';
+                    // Get color based on dependency type or default (gray for inactive)
+                    const dotColor = !routing.is_active 
+                      ? 'bg-gray-300'
+                      : deps.length > 0 
+                        ? deps[0].dependency_type === 'FS' ? 'bg-teal-500' 
+                        : deps[0].dependency_type === 'SS' ? 'bg-amber-500'
+                        : deps[0].dependency_type === 'FF' ? 'bg-red-500'
+                        : 'bg-blue-500'
+                        : 'bg-teal-500';
                     
                     return (
-                      <div key={routing.id} className="flex gap-6">
+                      <div key={routing.id} className={`flex gap-6 ${!routing.is_active ? 'opacity-60' : ''}`}>
                         {/* Left side - Sequence number */}
                         <div className="w-16 flex-shrink-0 text-right pt-1">
-                          <span className="text-2xl font-bold text-gray-700">
+                          <span className={`text-2xl font-bold ${routing.is_active ? 'text-gray-700' : 'text-gray-400'}`}>
                             {routing.sequence_number}
                           </span>
                           <p className="text-xs text-gray-400">Step</p>
@@ -940,7 +942,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         
                         {/* Right side - Card */}
                         <div className={`flex-1 ${!isLast ? 'pb-6' : ''}`}>
-                          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                          <div className={`border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow ${routing.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300 border-dashed'}`}>
                             {/* Status Badge */}
                             <div className="mb-3">
                               <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
@@ -958,13 +960,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                               )}
                             </div>
                             
-                            {/* Operation Title */}
-                            <Link
-                              href={`/operations/${routing.operation_id}`}
-                              className="text-lg font-bold text-gray-900 hover:text-blue-600 hover:underline block mb-2"
-                            >
+                            {/* Operation Title - Plain text */}
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">
                               {routing.operation?.operation_name || "Unknown Operation"}
-                            </Link>
+                            </h3>
                             
                             {/* Details */}
                             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
@@ -974,14 +973,32 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 </svg>
                                 <Link
                                   href={`/workcenter/${routing.work_center_id}`}
-                                  className="hover:text-blue-600 hover:underline"
+                                  className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 transition-colors ${
+                                    routing.workCenter && routing.workCenter.status !== 'active' 
+                                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' 
+                                      : 'hover:text-blue-600 hover:underline'
+                                  }`}
                                 >
                                   {routing.workCenter?.work_center_code || "Unknown"}
+                                  {routing.workCenter && routing.workCenter.status !== 'active' && (
+                                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" title={`Work center is ${routing.workCenter.status}`} />
+                                  )}
                                 </Link>
                               </div>
-                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                              {/* Operation Code - Link with warning icon */}
+                              <Link
+                                href={`/operations/${routing.operation_id}`}
+                                className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 transition-colors ${
+                                  routing.operation && !routing.operation.is_active 
+                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                                }`}
+                              >
                                 {routing.operation?.operation_code}
-                              </span>
+                                {routing.operation && !routing.operation.is_active && (
+                                  <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-600" title="This operation is inactive" />
+                                )}
+                              </Link>
                             </div>
                             
                             {/* Time info */}
@@ -1083,24 +1100,56 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               {routing.operation ? (
-                                <Link
-                                  href={`/operations/${routing.operation_id}`}
-                                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  {routing.operation.operation_code}
-                                </Link>
+                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
+                                  !routing.operation.is_active 
+                                    ? 'bg-amber-100 border border-amber-300' 
+                                    : ''
+                                }`}>
+                                  <Link
+                                    href={`/operations/${routing.operation_id}`}
+                                    className={`text-sm font-medium hover:underline ${
+                                      !routing.operation.is_active 
+                                        ? 'text-amber-800 hover:text-amber-900' 
+                                        : 'text-blue-600 hover:text-blue-800'
+                                    }`}
+                                  >
+                                    {routing.operation.operation_code}
+                                  </Link>
+                                  {!routing.operation.is_active && (
+                                    <ExclamationTriangleIcon 
+                                      className="w-4 h-4 text-amber-600" 
+                                      title="This operation is inactive" 
+                                    />
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               {routing.workCenter ? (
-                                <Link
-                                  href={`/workcenter/${routing.work_center_id}`}
-                                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  {routing.workCenter.work_center_code}
-                                </Link>
+                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
+                                  routing.workCenter.status !== 'active' 
+                                    ? 'bg-amber-100 border border-amber-300' 
+                                    : ''
+                                }`}>
+                                  <Link
+                                    href={`/workcenter/${routing.work_center_id}`}
+                                    className={`text-sm font-medium hover:underline ${
+                                      routing.workCenter.status !== 'active' 
+                                        ? 'text-amber-800 hover:text-amber-900' 
+                                        : 'text-blue-600 hover:text-blue-800'
+                                    }`}
+                                  >
+                                    {routing.workCenter.work_center_code}
+                                  </Link>
+                                  {routing.workCenter.status !== 'active' && (
+                                    <ExclamationTriangleIcon 
+                                      className="w-4 h-4 text-amber-600" 
+                                      title={`Work center is ${routing.workCenter.status}`} 
+                                    />
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}

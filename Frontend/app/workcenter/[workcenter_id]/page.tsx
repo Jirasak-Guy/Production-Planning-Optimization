@@ -727,28 +727,40 @@ export default function WorkCenterDetailPage({
 
                     <div className="p-3 space-y-2 min-h-[120px]">
                       {day.shifts.length > 0 ? (
-                        day.shifts.map((wcShift) => (
-                          <div
-                            key={wcShift.id}
-                            className="bg-blue-50 border border-blue-200 rounded p-2 group relative"
-                          >
-                            <button
-                              onClick={() => setShiftToDelete(wcShift)}
-                              className="absolute top-1 right-1 p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        day.shifts.map((wcShift) => {
+                          const isShiftActive = wcShift.shift?.is_active !== false;
+                          return (
+                            <div
+                              key={wcShift.id}
+                              className={`border rounded p-2 group relative ${
+                                isShiftActive 
+                                  ? 'bg-blue-50 border-blue-200' 
+                                  : 'bg-red-50 border-red-300'
+                              }`}
                             >
-                              <TrashIcon className="w-3 h-3" />
-                            </button>
-                            <p className="text-xs font-semibold text-blue-900 mb-1">
-                              {wcShift.shift?.shift_name || "Shift"}
-                            </p>
-                            <div className="flex items-center gap-1 text-xs text-blue-700">
-                              <ClockIcon className="w-3 h-3" />
-                              <span>
-                                {wcShift.shift?.start_time} - {wcShift.shift?.end_time}
-                              </span>
+                              <button
+                                onClick={() => setShiftToDelete(wcShift)}
+                                className="absolute top-1 right-1 p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <TrashIcon className="w-3 h-3" />
+                              </button>
+                              <div className="flex items-center gap-1 mb-1">
+                                <p className={`text-xs font-semibold ${isShiftActive ? 'text-blue-900' : 'text-red-900'}`}>
+                                  {wcShift.shift?.shift_name || "Shift"}
+                                </p>
+                                {!isShiftActive && (
+                                  <ExclamationTriangleIcon className="w-3 h-3 text-red-600" title="This shift is inactive" />
+                                )}
+                              </div>
+                              <div className={`flex items-center gap-1 text-xs ${isShiftActive ? 'text-blue-700' : 'text-red-700'}`}>
+                                <ClockIcon className="w-3 h-3" />
+                                <span>
+                                  {wcShift.shift?.start_time} - {wcShift.shift?.end_time}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="flex items-center justify-center h-full">
                           <p className="text-xs text-gray-400">No shifts</p>
