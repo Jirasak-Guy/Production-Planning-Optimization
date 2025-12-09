@@ -116,6 +116,10 @@ export async function fetchBOM(): Promise<BOM[]> {
   return fetchData<BOM>("/bom");
 }
 
+export async function updateBOM(bomId: number, data: Partial<BOM>): Promise<BOM> {
+  return updateData<BOM>(`/bom/${bomId}`, data);
+}
+
 // =====================================================
 // SHIFT AND CALENDAR FETCHERS
 // =====================================================

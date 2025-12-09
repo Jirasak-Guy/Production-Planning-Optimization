@@ -13,6 +13,7 @@ import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react
 import AddBOMItemModal from "@/app/components/modals/AddBOMItemModal";
 import AddRoutingModal from "@/app/components/modals/AddRoutingModal";
 import EditRoutingModal from "@/app/components/modals/EditRoutingModal";
+import EditBOMModal from "@/app/components/modals/EditBOMModal";
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -57,6 +58,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [routingToDelete, setRoutingToDelete] = useState<RoutingWithDetails | null>(null);
   const [showDeleteRoutingConfirm, setShowDeleteRoutingConfirm] = useState(false);
   const [isDeletingRouting, setIsDeletingRouting] = useState(false);
+  const [bomItemToEdit, setBomItemToEdit] = useState<BOMWithProduct | null>(null);
+  const [isEditBOMModalOpen, setIsEditBOMModalOpen] = useState(false);
 
   useEffect(() => {
     const loadProductData = async () => {
@@ -831,13 +834,25 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => handleDeleteBOMItem(bom)}
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete component"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => {
+                            setBomItemToEdit(bom);
+                            setIsEditBOMModalOpen(true);
+                          }}
+                          className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit component"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBOMItem(bom)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete component"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -858,7 +873,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Production Flow
+                  Routing
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   Routing steps and dependencies for manufacturing this product
@@ -895,7 +910,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                 >
                   <PlusCircleIcon className="w-4 h-4" />
-                  Add Step
+                  Add Routing
                 </button>
               </div>
             </div>
@@ -1492,6 +1507,18 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
         </div>
       )}
+
+      {/* Edit BOM Modal */}
+      <EditBOMModal
+        isOpen={isEditBOMModalOpen}
+        onClose={() => {
+          setIsEditBOMModalOpen(false);
+          setBomItemToEdit(null);
+        }}
+        bomItem={bomItemToEdit}
+        componentProduct={bomItemToEdit?.component || null}
+        onSuccess={reloadBOMItems}
+      />
     </div>
   );
 }
