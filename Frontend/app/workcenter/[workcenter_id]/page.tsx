@@ -65,7 +65,7 @@ export default function WorkCenterDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   
   // UI States
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);

@@ -263,6 +263,10 @@ export async function fetchWorkCenterSchedule(): Promise<WorkCenterSchedule[]> {
   return fetchData<WorkCenterSchedule>("/work-center-schedule");
 }
 
+export async function updateProductionOrder(productionOrderId: number, data: Partial<ProductionOrder>): Promise<ProductionOrder> {
+  return updateData<ProductionOrder>(`/production-orders/${productionOrderId}`, data);
+}
+
 // =====================================================
 // CREATE FUNCTIONS
 // =====================================================
