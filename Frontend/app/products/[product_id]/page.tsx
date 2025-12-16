@@ -27,7 +27,6 @@ interface BOMWithProduct extends BOM {
 
 interface RoutingWithDetails extends Routing {
   operation?: Operation;
-  workCenter?: WorkCenter;
 }
 
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
@@ -99,10 +98,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           .map((r) => ({
             ...r,
             operation: operationsData.find((o) => o.id === r.operation_id),
-            workCenter: workCentersData.find((w) => w.id === r.work_center_id),
           }))
           .sort((a, b) => a.sequence_number - b.sequence_number);
-        
+
         setProductRoutings(productRoutingsData);
 
         // Filter dependencies for this product's routings
@@ -152,7 +150,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         .map((r) => ({
           ...r,
           operation: allOperations.find((o) => o.id === r.operation_id),
-          workCenter: allWorkCenters.find((w) => w.id === r.work_center_id),
         }))
         .sort((a, b) => a.sequence_number - b.sequence_number);
 
@@ -180,7 +177,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const confirmDeleteRouting = async () => {
     if (!routingToDelete) return;
-    
+
     setIsDeletingRouting(true);
     try {
       await deleteRouting(routingToDelete.id);
@@ -201,11 +198,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const handleSaveField = async (field: string) => {
     if (!product) return;
-    
+
     setIsSaving(true);
     try {
       const updateData: Partial<ProductData> = {};
-      
+
       if (field === "product_code") {
         updateData.product_code = editValue;
       } else if (field === "product_name") {
@@ -242,7 +239,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const confirmDelete = async () => {
     if (!product) return;
-    
+
     setIsDeleting(true);
     try {
       await deleteProduct(product.id);
@@ -262,7 +259,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const confirmDeleteBOM = async () => {
     if (!bomItemToDelete) return;
-    
+
     setIsDeletingBOM(true);
     try {
       await deleteBOM(bomItemToDelete.id);
@@ -389,11 +386,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 ) : (
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                        product.is_active
-                          ? "bg-green-100 text-green-700 border-green-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                      }`}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${product.is_active
+                        ? "bg-green-100 text-green-700 border-green-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                        }`}
                     >
                       {product.is_active ? "ACTIVE" : "INACTIVE"}
                     </span>
@@ -619,9 +615,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <p className="text-base font-medium text-gray-900">
                       {product.standard_cost != null
                         ? `$${Number(product.standard_cost).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}`
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`
                         : "-"}
                     </p>
                     <button
@@ -824,11 +820,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
-                          bom.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                        className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${bom.is_active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {bom.is_active ? "Active" : "Inactive"}
                       </span>
@@ -884,22 +879,20 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setRoutingViewMode('timeline')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      routingViewMode === 'timeline'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${routingViewMode === 'timeline'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
                   >
                     <Bars3BottomLeftIcon className="w-4 h-4" />
                     Timeline
                   </button>
                   <button
                     onClick={() => setRoutingViewMode('table')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      routingViewMode === 'table'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${routingViewMode === 'table'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
                   >
                     <TableCellsIcon className="w-4 h-4" />
                     Table
@@ -924,17 +917,17 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   {productRoutings.map((routing, index) => {
                     const deps = routingDependencies.filter(d => d.routing_id === routing.id);
                     const isLast = index === productRoutings.length - 1;
-                    
+
                     // Get color based on dependency type or default (gray for inactive)
-                    const dotColor = !routing.is_active 
+                    const dotColor = !routing.is_active
                       ? 'bg-gray-300'
-                      : deps.length > 0 
-                        ? deps[0].dependency_type === 'FS' ? 'bg-teal-500' 
-                        : deps[0].dependency_type === 'SS' ? 'bg-amber-500'
-                        : deps[0].dependency_type === 'FF' ? 'bg-red-500'
-                        : 'bg-blue-500'
+                      : deps.length > 0
+                        ? deps[0].dependency_type === 'FS' ? 'bg-teal-500'
+                          : deps[0].dependency_type === 'SS' ? 'bg-amber-500'
+                            : deps[0].dependency_type === 'FF' ? 'bg-red-500'
+                              : 'bg-blue-500'
                         : 'bg-teal-500';
-                    
+
                     return (
                       <div key={routing.id} className={`flex gap-6 ${!routing.is_active ? 'opacity-60' : ''}`}>
                         {/* Left side - Sequence number */}
@@ -944,7 +937,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           </span>
                           <p className="text-xs text-gray-400">Step</p>
                         </div>
-                        
+
                         {/* Timeline line and dot */}
                         <div className="relative flex flex-col items-center">
                           {/* Dot */}
@@ -954,17 +947,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             <div className="w-0.5 bg-gray-300 flex-1 min-h-[80px]"></div>
                           )}
                         </div>
-                        
+
                         {/* Right side - Card */}
                         <div className={`flex-1 ${!isLast ? 'pb-6' : ''}`}>
                           <div className={`border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow ${routing.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300 border-dashed'}`}>
                             {/* Status Badge */}
                             <div className="mb-3">
-                              <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                                routing.is_active 
-                                  ? "bg-green-500 text-white" 
-                                  : "bg-gray-400 text-white"
-                              }`}>
+                              <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${routing.is_active
+                                ? "bg-green-500 text-white"
+                                : "bg-gray-400 text-white"
+                                }`}>
                                 {routing.is_active ? "Active" : "Inactive"}
                               </span>
                               {deps.length > 0 && (
@@ -974,40 +966,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 </span>
                               )}
                             </div>
-                            
+
                             {/* Operation Title - Plain text */}
                             <h3 className="text-lg font-bold text-gray-900 mb-2">
                               {routing.operation?.operation_name || "Unknown Operation"}
                             </h3>
-                            
+
                             {/* Details */}
                             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <Link
-                                  href={`/workcenter/${routing.work_center_id}`}
-                                  className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 transition-colors ${
-                                    routing.workCenter && routing.workCenter.status !== 'active' 
-                                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' 
-                                      : 'hover:text-blue-600 hover:underline'
-                                  }`}
-                                >
-                                  {routing.workCenter?.work_center_code || "Unknown"}
-                                  {routing.workCenter && routing.workCenter.status !== 'active' && (
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" title={`Work center is ${routing.workCenter.status}`} />
-                                  )}
-                                </Link>
-                              </div>
                               {/* Operation Code - Link with warning icon */}
                               <Link
                                 href={`/operations/${routing.operation_id}`}
-                                className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 transition-colors ${
-                                  routing.operation && !routing.operation.is_active 
-                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
-                                }`}
+                                className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 transition-colors ${routing.operation && !routing.operation.is_active
+                                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                                  }`}
                               >
                                 {routing.operation?.operation_code}
                                 {routing.operation && !routing.operation.is_active && (
@@ -1015,7 +988,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 )}
                               </Link>
                             </div>
-                            
+
                             {/* Time info */}
                             <div className="flex gap-4 mt-3 pt-3 border-t border-gray-100 text-sm">
                               <div className="flex items-center gap-1 text-gray-500">
@@ -1031,7 +1004,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 <span>Per unit: <strong className="text-gray-700">{routing.time_per_unit_minutes}m</strong></span>
                               </div>
                             </div>
-                            
+
                             {/* Notes if any */}
                             {routing.notes && (
                               <p className="mt-3 text-sm text-gray-500 italic">
@@ -1076,9 +1049,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Operation
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Work Center
-                        </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Setup Time
                         </th>
@@ -1102,7 +1072,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <tbody className="divide-y divide-gray-200">
                       {productRoutings.map((routing) => {
                         const deps = routingDependencies.filter(d => d.routing_id === routing.id && d.is_active);
-                        
+
                         return (
                           <tr
                             key={routing.id}
@@ -1115,53 +1085,23 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               {routing.operation ? (
-                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
-                                  !routing.operation.is_active 
-                                    ? 'bg-amber-100 border border-amber-300' 
-                                    : ''
-                                }`}>
+                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded ${!routing.operation.is_active
+                                  ? 'bg-amber-100 border border-amber-300'
+                                  : ''
+                                  }`}>
                                   <Link
                                     href={`/operations/${routing.operation_id}`}
-                                    className={`text-sm font-medium hover:underline ${
-                                      !routing.operation.is_active 
-                                        ? 'text-amber-800 hover:text-amber-900' 
-                                        : 'text-blue-600 hover:text-blue-800'
-                                    }`}
+                                    className={`text-sm font-medium hover:underline ${!routing.operation.is_active
+                                      ? 'text-amber-800 hover:text-amber-900'
+                                      : 'text-blue-600 hover:text-blue-800'
+                                      }`}
                                   >
                                     {routing.operation.operation_code}
                                   </Link>
                                   {!routing.operation.is_active && (
-                                    <ExclamationTriangleIcon 
-                                      className="w-4 h-4 text-amber-600" 
-                                      title="This operation is inactive" 
-                                    />
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              {routing.workCenter ? (
-                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
-                                  routing.workCenter.status !== 'active' 
-                                    ? 'bg-amber-100 border border-amber-300' 
-                                    : ''
-                                }`}>
-                                  <Link
-                                    href={`/workcenter/${routing.work_center_id}`}
-                                    className={`text-sm font-medium hover:underline ${
-                                      routing.workCenter.status !== 'active' 
-                                        ? 'text-amber-800 hover:text-amber-900' 
-                                        : 'text-blue-600 hover:text-blue-800'
-                                    }`}
-                                  >
-                                    {routing.workCenter.work_center_code}
-                                  </Link>
-                                  {routing.workCenter.status !== 'active' && (
-                                    <ExclamationTriangleIcon 
-                                      className="w-4 h-4 text-amber-600" 
-                                      title={`Work center is ${routing.workCenter.status}`} 
+                                    <ExclamationTriangleIcon
+                                      className="w-4 h-4 text-amber-600"
+                                      title="This operation is inactive"
                                     />
                                   )}
                                 </div>
@@ -1214,11 +1154,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               <span
-                                className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
-                                  routing.is_active
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
+                                className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${routing.is_active
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-600"
+                                  }`}
                               >
                                 {routing.is_active ? "Active" : "Inactive"}
                               </span>
@@ -1261,11 +1200,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => !isDeleting && setShowDeleteConfirm(false)}
           />
-          
+
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
@@ -1275,12 +1214,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
-              
+
               {/* Title */}
               <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
                 Delete Product
               </h3>
-              
+
               {/* Message */}
               <p className="text-gray-600 text-center mb-2">
                 Are you sure you want to delete product
@@ -1288,14 +1227,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <p className="text-lg font-semibold text-gray-900 text-center mb-4">
                 "{product.product_code}"?
               </p>
-              
+
               {/* Warning Text */}
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
                 <p className="text-sm text-red-700 text-center">
                   ⚠️ This action cannot be undone. All product data will be permanently deleted.
                 </p>
               </div>
-              
+
               {/* Buttons */}
               <div className="flex gap-3">
                 <button
@@ -1344,11 +1283,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       {showDeleteBOMConfirm && bomItemToDelete && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => !isDeletingBOM && setShowDeleteBOMConfirm(false)}
           />
-          
+
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
@@ -1356,12 +1295,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-orange-100 mb-4">
                 <TrashIcon className="h-8 w-8 text-orange-600" />
               </div>
-              
+
               {/* Title */}
               <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
                 Remove Component
               </h3>
-              
+
               {/* Message */}
               <p className="text-gray-600 text-center mb-2">
                 Are you sure you want to remove
@@ -1372,14 +1311,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <p className="text-gray-500 text-center text-sm mb-4">
                 Quantity: {bomItemToDelete.quantity_required.toLocaleString()} {bomItemToDelete.unit}
               </p>
-              
+
               {/* Warning Text */}
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-6">
                 <p className="text-sm text-orange-700 text-center">
                   This component will be removed from the BOM.
                 </p>
               </div>
-              
+
               {/* Buttons */}
               <div className="flex gap-3">
                 <button
@@ -1425,7 +1364,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         onRoutingAdded={reloadRoutings}
         productId={parseInt(product_id)}
         operations={allOperations}
-        workCenters={allWorkCenters}
         existingRoutings={productRoutings}
       />
 
@@ -1439,7 +1377,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         onRoutingUpdated={reloadRoutings}
         routing={routingToEdit}
         operations={allOperations}
-        workCenters={allWorkCenters}
         existingRoutings={productRoutings}
         currentDependencies={routingDependencies}
       />
@@ -1448,11 +1385,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       {showDeleteRoutingConfirm && routingToDelete && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => !isDeletingRouting && setShowDeleteRoutingConfirm(false)}
           />
-          
+
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
@@ -1462,17 +1399,17 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
-              
+
               {/* Title */}
               <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
                 Delete Routing Step
               </h3>
-              
+
               {/* Message */}
               <p className="text-gray-600 text-center mb-6">
                 Are you sure you want to delete step #{routingToDelete.sequence_number} ({routingToDelete.operation?.operation_name || 'Unknown'})? This action cannot be undone.
               </p>
-              
+
               {/* Actions */}
               <div className="flex gap-3">
                 <button

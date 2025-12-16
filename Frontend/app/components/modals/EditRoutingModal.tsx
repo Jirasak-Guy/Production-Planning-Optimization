@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { XMarkIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Operation, OperationDependency } from "@/app/types/Operation";
-import { WorkCenter } from "@/app/types/WorkCenter";
 import { Routing } from "@/app/types/Routing";
 import { updateRouting, createOperationDependency, deleteOperationDependency } from "@/app/lib/data";
 
@@ -11,9 +10,8 @@ interface EditRoutingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRoutingUpdated: () => void;
-  routing: (Routing & { operation?: Operation; workCenter?: WorkCenter }) | null;
+  routing: (Routing & { operation?: Operation }) | null;
   operations: Operation[];
-  workCenters: WorkCenter[];
   existingRoutings: Array<Routing & { operation?: Operation }>;
   currentDependencies: OperationDependency[];
 }
@@ -33,12 +31,10 @@ export default function EditRoutingModal({
   onRoutingUpdated,
   routing,
   operations,
-  workCenters,
   existingRoutings,
   currentDependencies,
 }: EditRoutingModalProps) {
   const [operationId, setOperationId] = useState<number | "">("");
-  const [workCenterId, setWorkCenterId] = useState<number | "">("");
   const [sequenceNumber, setSequenceNumber] = useState<string>("");
   const [setupTimeMinutes, setSetupTimeMinutes] = useState<string>("");
   const [timePerUnitMinutes, setTimePerUnitMinutes] = useState<string>("");
@@ -46,7 +42,7 @@ export default function EditRoutingModal({
   const [isActive, setIsActive] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Dependencies
   const [dependencies, setDependencies] = useState<DependencyInput[]>([]);
 
@@ -54,14 +50,13 @@ export default function EditRoutingModal({
   useEffect(() => {
     if (routing && isOpen) {
       setOperationId(routing.operation_id);
-      setWorkCenterId(routing.work_center_id);
       setSequenceNumber(String(routing.sequence_number));
       setSetupTimeMinutes(String(routing.setup_time_minutes));
       setTimePerUnitMinutes(String(routing.time_per_unit_minutes));
       setNotes(routing.notes || "");
       setIsActive(routing.is_active);
       setError(null);
-      
+
       // Load existing dependencies for this routing
       const routingDeps = currentDependencies
         .filter(d => d.routing_id === routing.id && d.is_active)
@@ -120,11 +115,6 @@ export default function EditRoutingModal({
       return;
     }
 
-    if (!workCenterId) {
-      setError("Please select a work center");
-      return;
-    }
-
     const seqNum = parseInt(sequenceNumber) || 0;
     if (seqNum <= 0) {
       setError("Sequence number must be greater than 0");
@@ -152,7 +142,6 @@ export default function EditRoutingModal({
       // Update the routing
       await updateRouting(routing.id, {
         operation_id: operationId as number,
-        work_center_id: workCenterId as number,
         sequence_number: seqNum,
         setup_time_minutes: parseInt(setupTimeMinutes) || 0,
         time_per_unit_minutes: timePerUnit,
@@ -190,13 +179,12 @@ export default function EditRoutingModal({
 
   if (!isOpen || !routing) return null;
 
-  // Filter active operations and work centers
+  // Filter active operations
   const activeOperations = operations.filter((op) => op.is_active);
-  const activeWorkCenters = workCenters.filter((wc) => wc.status === "active");
-  
+
   // Filter out current routing and only show other routings for dependency selection
   const availableRoutings = existingRoutings.filter(r => r.id !== routing.id);
-  
+
   // Filter out deleted dependencies for display
   const visibleDependencies = dependencies.filter(d => !d.toDelete);
 
@@ -244,26 +232,9 @@ export default function EditRoutingModal({
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Work Center */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Work Center <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={workCenterId}
-                onChange={(e) => setWorkCenterId(e.target.value ? Number(e.target.value) : "")}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                required
-              >
-                <option value="">Select a work center</option>
-                {activeWorkCenters.map((wc) => (
-                  <option key={wc.id} value={wc.id}>
-                    {wc.work_center_code} - {wc.work_center_name}
-                  </option>
-                ))}
-              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Work centers for this operation are managed in the Operations section
+              </p>
             </div>
 
             {/* Sequence Number */}
@@ -372,7 +343,7 @@ export default function EditRoutingModal({
                 <div className="space-y-3">
                   {dependencies.map((dep, index) => {
                     if (dep.toDelete) return null;
-                    
+
                     return (
                       <div
                         key={dep.id || `new-${index}`}
@@ -442,7 +413,7 @@ export default function EditRoutingModal({
                   })}
                 </div>
               )}
-              
+
               {/* Show count of deleted dependencies */}
               {dependencies.filter(d => d.toDelete).length > 0 && (
                 <p className="text-xs text-red-500 mt-2">

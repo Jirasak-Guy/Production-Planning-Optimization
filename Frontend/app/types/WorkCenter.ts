@@ -7,6 +7,7 @@ export interface WorkCenter {
     work_center_code: string;
     work_center_name: string;
     description?: string;
+    operation_id: number;  // Operation this work center performs
     capacity_per_hour: number;
     number_of_workers_required: number;
     default_shift_id?: number;

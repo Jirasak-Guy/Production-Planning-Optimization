@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/app/components/ui/Modal";
-import { createWorkCenter } from "@/app/lib/data";
+import { createWorkCenter, fetchOperations } from "@/app/lib/data";
+import { Operation } from "@/app/types/Operation";
 
 interface AddWorkCenterModalProps {
     isOpen: boolean;
@@ -16,16 +17,33 @@ export default function AddWorkCenterModal({
     onSuccess,
 }: AddWorkCenterModalProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [operations, setOperations] = useState<Operation[]>([]);
     const [formData, setFormData] = useState({
         work_center_code: "",
         work_center_name: "",
         description: "",
+        operation_id: "",
         capacity_per_hour: "",
         number_of_workers_required: "",
         cost_per_hour: "",
         status: "active",
         is_active: true,
     });
+
+    // Load operations when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            const loadOperations = async () => {
+                try {
+                    const ops = await fetchOperations();
+                    setOperations(ops.filter(op => op.is_active));
+                } catch (error) {
+                    console.error("Failed to fetch operations:", error);
+                }
+            };
+            loadOperations();
+        }
+    }, [isOpen]);
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -46,6 +64,7 @@ export default function AddWorkCenterModal({
                 work_center_code: formData.work_center_code,
                 work_center_name: formData.work_center_name,
                 description: formData.description || undefined,
+                operation_id: parseInt(formData.operation_id),
                 capacity_per_hour: parseInt(formData.capacity_per_hour),
                 number_of_workers_required: parseInt(formData.number_of_workers_required),
                 cost_per_hour: formData.cost_per_hour ? parseFloat(formData.cost_per_hour) : undefined,
@@ -68,6 +87,7 @@ export default function AddWorkCenterModal({
             work_center_code: "",
             work_center_name: "",
             description: "",
+            operation_id: "",
             capacity_per_hour: "",
             number_of_workers_required: "",
             cost_per_hour: "",
@@ -131,6 +151,30 @@ export default function AddWorkCenterModal({
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Enter work center name"
                     />
+                </div>
+
+                {/* Operation Selection */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Operation <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                        name="operation_id"
+                        value={formData.operation_id}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="">Select an operation</option>
+                        {operations.map((op) => (
+                            <option key={op.id} value={op.id}>
+                                {op.operation_code} - {op.operation_name}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                        The operation this work center can perform
+                    </p>
                 </div>
 
                 <div>

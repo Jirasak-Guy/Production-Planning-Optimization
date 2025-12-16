@@ -226,6 +226,18 @@ export async function updateOperation(operationId: number, data: Partial<Operati
   return updateData<Operation>(`/operations/${operationId}`, data);
 }
 
+export async function fetchWorkCentersByOperation(operationId: number): Promise<WorkCenter[]> {
+  const response = await fetch(`${API_BASE_URL}/operations/${operationId}/work-centers`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch work centers for operation ${operationId}`);
+  }
+  return response.json();
+}
+
 export async function deleteOperation(operationId: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/operations/${operationId}`, {
     method: "DELETE",

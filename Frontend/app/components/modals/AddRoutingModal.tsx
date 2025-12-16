@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { XMarkIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Operation } from "@/app/types/Operation";
-import { WorkCenter } from "@/app/types/WorkCenter";
 import { Routing } from "@/app/types/Routing";
 import { createRouting, createOperationDependency } from "@/app/lib/data";
 
@@ -13,7 +12,6 @@ interface AddRoutingModalProps {
   onRoutingAdded: () => void;
   productId: number;
   operations: Operation[];
-  workCenters: WorkCenter[];
   existingRoutings: Array<Routing & { operation?: Operation }>;
 }
 
@@ -29,11 +27,9 @@ export default function AddRoutingModal({
   onRoutingAdded,
   productId,
   operations,
-  workCenters,
   existingRoutings,
 }: AddRoutingModalProps) {
   const [operationId, setOperationId] = useState<number | "">("");
-  const [workCenterId, setWorkCenterId] = useState<number | "">("");
   const [sequenceNumber, setSequenceNumber] = useState<string>("10");
   const [setupTimeMinutes, setSetupTimeMinutes] = useState<string>("");
   const [timePerUnitMinutes, setTimePerUnitMinutes] = useState<string>("");
@@ -41,7 +37,7 @@ export default function AddRoutingModal({
   const [isActive, setIsActive] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Dependencies
   const [dependencies, setDependencies] = useState<DependencyInput[]>([]);
 
@@ -62,7 +58,6 @@ export default function AddRoutingModal({
   useEffect(() => {
     if (isOpen) {
       setOperationId("");
-      setWorkCenterId("");
       setSetupTimeMinutes("");
       setTimePerUnitMinutes("");
       setNotes("");
@@ -104,11 +99,6 @@ export default function AddRoutingModal({
       return;
     }
 
-    if (!workCenterId) {
-      setError("Please select a work center");
-      return;
-    }
-
     const seqNum = parseInt(sequenceNumber) || 0;
     if (seqNum <= 0) {
       setError("Sequence number must be greater than 0");
@@ -132,11 +122,10 @@ export default function AddRoutingModal({
     setIsSubmitting(true);
 
     try {
-      // Create the routing first
+      // Create the routing
       const newRouting = await createRouting({
         product_id: productId,
         operation_id: operationId as number,
-        work_center_id: workCenterId as number,
         sequence_number: seqNum,
         setup_time_minutes: parseFloat(setupTimeMinutes) || 0,
         time_per_unit_minutes: timePerUnit,
@@ -166,9 +155,8 @@ export default function AddRoutingModal({
 
   if (!isOpen) return null;
 
-  // Filter active operations and work centers
+  // Filter active operations
   const activeOperations = operations.filter((op) => op.is_active);
-  const activeWorkCenters = workCenters.filter((wc) => wc.status === "active");
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -214,26 +202,9 @@ export default function AddRoutingModal({
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Work Center */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Work Center <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={workCenterId}
-                onChange={(e) => setWorkCenterId(e.target.value ? Number(e.target.value) : "")}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                required
-              >
-                <option value="">Select a work center</option>
-                {activeWorkCenters.map((wc) => (
-                  <option key={wc.id} value={wc.id}>
-                    {wc.work_center_code} - {wc.work_center_name}
-                  </option>
-                ))}
-              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Work centers for this operation are managed in the Operations section
+              </p>
             </div>
 
             {/* Sequence Number */}

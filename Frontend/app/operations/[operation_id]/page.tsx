@@ -12,6 +12,7 @@ import {
   fetchRouting,
   fetchProducts,
   fetchWorkCenters,
+  fetchWorkCentersByOperation,
   updateOperation,
   deleteOperation,
 } from "@/app/lib/data";
@@ -22,6 +23,8 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   WrenchScrewdriverIcon,
+  BuildingOffice2Icon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 
@@ -33,7 +36,6 @@ interface OperationDetailPageProps {
 
 interface RoutingWithDetails extends Routing {
   product?: ProductData;
-  workCenter?: WorkCenter;
 }
 
 export default function OperationDetailPage({
@@ -43,41 +45,43 @@ export default function OperationDetailPage({
   const { operation_id } = use(params);
   const [operation, setOperation] = useState<Operation | null>(null);
   const [routings, setRoutings] = useState<RoutingWithDetails[]>([]);
+  const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Edit states
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Delete states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // UI states
   const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<"workcenters" | "routing">("workcenters");
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
         const operationId = parseInt(operation_id);
-        const [operationData, routingsData, productsData, workCentersData] =
+        const [operationData, routingsData, productsData, opWorkCenters] =
           await Promise.all([
             fetchOperationById(operationId),
             fetchRouting(),
             fetchProducts(),
-            fetchWorkCenters(),
+            fetchWorkCentersByOperation(operationId),
           ]);
 
         setOperation(operationData);
+        setWorkCenters(opWorkCenters);
 
         const opRoutings = routingsData
           .filter((r) => r.operation_id === operationId && r.is_active)
           .map((r) => ({
             ...r,
             product: productsData.find((p) => p.id === r.product_id),
-            workCenter: workCentersData.find((w) => w.id === r.work_center_id),
           }));
 
         setRoutings(opRoutings);
@@ -129,6 +133,16 @@ export default function OperationDetailPage({
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const refreshWorkCenters = async () => {
+    try {
+      const operationId = parseInt(operation_id);
+      const opWorkCenters = await fetchWorkCentersByOperation(operationId);
+      setWorkCenters(opWorkCenters);
+    } catch (error) {
+      console.error("Failed to refresh work centers:", error);
     }
   };
 
@@ -239,11 +253,10 @@ export default function OperationDetailPage({
                 ) : (
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                        operation.is_active
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${operation.is_active
                           ? "bg-green-100 text-green-700 border-green-200"
                           : "bg-gray-100 text-gray-600 border-gray-200"
-                      }`}
+                        }`}
                     >
                       {operation.is_active ? "ACTIVE" : "INACTIVE"}
                     </span>
@@ -447,101 +460,209 @@ export default function OperationDetailPage({
         )}
       </div>
 
-      {/* Routing Table */}
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-8">
+        <div className="flex gap-6">
+          <button
+            onClick={() => setActiveTab("workcenters")}
+            className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === "workcenters"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+          >
+            <div className="flex items-center gap-2">
+              <BuildingOffice2Icon className="w-5 h-5" />
+              <span>Work Centers ({workCenters.length})</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("routing")}
+            className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === "routing"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+          >
+            <div className="flex items-center gap-2">
+              <ClockIcon className="w-5 h-5" />
+              <span>Routing ({routings.length})</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
       <div className="flex-1 overflow-auto bg-gray-50 p-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Routing Information
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Products and work centers using this operation
-            </p>
-          </div>
+        {activeTab === "workcenters" && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Work Centers
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Work centers that can perform this operation
+                </p>
+              </div>
+              <Link
+                href="/workcenter"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                <PlusIcon className="w-4 h-4" />
+                Add Work Center
+              </Link>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Product
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Work Center
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                    Sequence
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Setup Time
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Time/Unit
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {routings.map((routing) => (
-                  <tr key={routing.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      {routing.product ? (
-                        <Link
-                          href={`/products/${routing.product_id}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          {routing.product.product_code}
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {routing.workCenter ? (
-                        <Link
-                          href={`/workcenter/${routing.work_center_id}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          {routing.workCenter.work_center_code}
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
-                        {routing.sequence_number}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
-                        <ClockIcon className="w-4 h-4 text-gray-400" />
-                        <span>{routing.setup_time_minutes} min</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm text-gray-900">
-                      {routing.time_per_unit_minutes} min
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {routing.notes || "-"}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Code
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Name
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Capacity/Hour
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Workers Required
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {workCenters.map((wc) => (
+                    <tr key={wc.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <Link
+                          href={`/workcenter/${wc.id}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {wc.work_center_code}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {wc.work_center_name}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-900">
+                        {wc.capacity_per_hour}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-900">
+                        {wc.number_of_workers_required}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${wc.status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : wc.status === "maintenance"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                        >
+                          {wc.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {routings.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No routing information found</p>
-              <p className="text-sm text-gray-400 mt-1">
-                This operation is not used in any product routing yet
+            {workCenters.length === 0 && (
+              <div className="text-center py-12">
+                <BuildingOffice2Icon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No work centers assigned</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Add a work center and assign this operation to it
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "routing" && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Routing Information
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Products using this operation in their routing
               </p>
             </div>
-          )}
-        </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Product
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Sequence
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Setup Time
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Time/Unit
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Notes
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {routings.map((routing) => (
+                    <tr key={routing.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        {routing.product ? (
+                          <Link
+                            href={`/products/${routing.product_id}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {routing.product.product_code}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
+                          {routing.sequence_number}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
+                          <ClockIcon className="w-4 h-4 text-gray-400" />
+                          <span>{routing.setup_time_minutes} min</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-900">
+                        {routing.time_per_unit_minutes} min
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {routing.notes || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {routings.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No routing information found</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  This operation is not used in any product routing yet
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -555,7 +676,7 @@ export default function OperationDetailPage({
               </div>
               <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Delete Operation</h3>
               <p className="text-gray-600 text-center mb-6">
-                Are you sure you want to delete <strong>{operation.operation_code}</strong>? 
+                Are you sure you want to delete <strong>{operation.operation_code}</strong>?
                 This action cannot be undone.
               </p>
               <div className="flex gap-3">

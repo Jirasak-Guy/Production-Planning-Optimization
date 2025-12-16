@@ -165,6 +165,15 @@ def read_operation(operation_id: int, session: SessionDep):
     return operation
 
 
+@app.get("/operations/{operation_id}/work-centers", response_model=list[WorkCenter])
+def read_work_centers_by_operation(operation_id: int, session: SessionDep):
+    """Get all work centers that can perform this operation"""
+    operation = session.get(Operation, operation_id)
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return session.exec(select(WorkCenter).where(WorkCenter.operation_id == operation_id)).all()
+
+
 @app.get("/routing", response_model=list[Routing])
 def read_routing(session: SessionDep):
     return session.exec(select(Routing)).all()
@@ -517,18 +526,6 @@ def delete_work_center(work_center_id: int, session: SessionDep):
     )).all()
     for schedule in schedules:
         session.delete(schedule)
-    
-    # Delete related routing entries
-    routings = session.exec(select(Routing).where(Routing.work_center_id == work_center_id)).all()
-    for routing in routings:
-        # Delete operation dependencies for each routing first
-        deps = session.exec(select(OperationDependency).where(
-            (OperationDependency.routing_id == routing.id) | 
-            (OperationDependency.predecessor_routing_id == routing.id)
-        )).all()
-        for dep in deps:
-            session.delete(dep)
-        session.delete(routing)
     
     session.delete(db_work_center)
     session.commit()

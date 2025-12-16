@@ -146,6 +146,7 @@ class WorkCenter(SQLModel, table=True):
     work_center_code: str = Field(max_length=50, unique=True)
     work_center_name: str = Field(max_length=200)
     description: Optional[str] = None
+    operation_id: int = Field(foreign_key="operations.id")  # Operation this work center performs
     capacity_per_hour: int = Field(gt=0)
     number_of_workers_required: int = Field(default=1, gt=0)
     default_shift_id: Optional[int] = Field(default=None, foreign_key="shifts.id")
@@ -156,10 +157,10 @@ class WorkCenter(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)
 
     # Relationships
+    operation: Optional["Operation"] = Relationship(back_populates="work_centers")
     default_shift: Optional[Shift] = Relationship(back_populates="work_centers")
     work_center_shifts: List["WorkCenterShift"] = Relationship(back_populates="work_center")
     work_center_exceptions: List["WorkCenterCalendarException"] = Relationship(back_populates="work_center")
-    routings: List["Routing"] = Relationship(back_populates="work_center")
     work_center_schedules: List["WorkCenterSchedule"] = Relationship(back_populates="work_center")
 
 
@@ -214,6 +215,7 @@ class Operation(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)
 
     # Relationships
+    work_centers: List["WorkCenter"] = Relationship(back_populates="operation")
     routings: List["Routing"] = Relationship(back_populates="operation")
     work_center_schedules: List["WorkCenterSchedule"] = Relationship(back_populates="operation")
 
@@ -224,7 +226,6 @@ class Routing(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="products.id")
     operation_id: int = Field(foreign_key="operations.id")
-    work_center_id: int = Field(foreign_key="work_centers.id")
     sequence_number: int = Field(gt=0)
     setup_time_minutes: int = Field(default=0, ge=0)
     time_per_unit_minutes: Decimal = Field(decimal_places=3, max_digits=10, gt=0)
@@ -236,7 +237,6 @@ class Routing(SQLModel, table=True):
     # Relationships
     product: Optional[Product] = Relationship(back_populates="routings")
     operation: Optional[Operation] = Relationship(back_populates="routings")
-    work_center: Optional[WorkCenter] = Relationship(back_populates="routings")
     dependencies: List["OperationDependency"] = Relationship(
         back_populates="routing",
         sa_relationship_kwargs={"foreign_keys": "[OperationDependency.routing_id]"},
