@@ -291,33 +291,77 @@ INSERT INTO operations (operation_code, operation_name, description, operation_t
 -- =====================================================
 
 INSERT INTO work_centers (work_center_code, work_center_name, description, operation_id, capacity_per_hour, number_of_workers_required, default_shift_id, cost_per_hour, status) VALUES
--- Body Shop
+-- Body Shop - Stamping (2 WCs with different capacity)
 ('WC-STAMP-01', 'Stamping Press #1', 'High-speed stamping press for body panels', (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 120, 2, 1, 450.00, 'active'),
-('WC-STAMP-02', 'Stamping Press #2', 'High-speed stamping press for body panels', (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 120, 2, 1, 450.00, 'active'),
-('WC-WELD-01', 'Body Welding Station #1', 'Robotic welding station for body assembly', (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 8, 3, 1, 380.00, 'active'),
-('WC-WELD-02', 'Body Welding Station #2', 'Robotic welding station for body assembly', (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 8, 3, 1, 380.00, 'active'),
+('WC-STAMP-02', 'Stamping Press #2', 'Older stamping press for body panels', (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 90, 2, 1, 380.00, 'active'),
+-- Body Shop - Trimming
+('WC-TRIM-01', 'Trimming Station #1', 'CNC trimming station', (SELECT id FROM operations WHERE operation_code = 'OP-TRIM'), 60, 2, 1, 280.00, 'active'),
+-- Body Shop - Welding (2 WCs with different capacity)
+('WC-WELD-01', 'Body Welding Station #1', 'Robotic welding station for body assembly', (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 10, 3, 1, 420.00, 'active'),
+('WC-WELD-02', 'Body Welding Station #2', 'Manual welding station for body assembly', (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 6, 4, 1, 350.00, 'active'),
+-- Body Shop - Body Fit
 ('WC-BODY-ASSY', 'Body Assembly Line', 'Main body assembly line', (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 6, 12, 1, 850.00, 'active'),
--- Paint Shop
+-- Body Shop - Door Assembly
+('WC-DOOR-ASSY', 'Door Assembly Station', 'Door components assembly', (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 20, 4, 1, 320.00, 'active'),
+-- Paint Shop - Cleaning
+('WC-CLEAN-01', 'Cleaning Station #1', 'Automated cleaning and degreasing line', (SELECT id FROM operations WHERE operation_code = 'OP-CLEAN'), 12, 2, 1, 250.00, 'active'),
+-- Paint Shop - Priming
 ('WC-PAINT-PREP', 'Paint Preparation', 'Surface preparation and priming', (SELECT id FROM operations WHERE operation_code = 'OP-PRIME'), 10, 4, 1, 320.00, 'active'),
-('WC-PAINT-BOOTH', 'Paint Booth', 'Automated paint application booth', (SELECT id FROM operations WHERE operation_code = 'OP-PAINT-BASE'), 8, 2, 1, 520.00, 'active'),
+-- Paint Shop - Base Coat (2 WCs with different capacity)
+('WC-PAINT-BOOTH-01', 'Paint Booth #1', 'Automated paint application booth - main', (SELECT id FROM operations WHERE operation_code = 'OP-PAINT-BASE'), 8, 2, 1, 520.00, 'active'),
+('WC-PAINT-BOOTH-02', 'Paint Booth #2', 'Secondary paint booth', (SELECT id FROM operations WHERE operation_code = 'OP-PAINT-BASE'), 6, 2, 1, 480.00, 'active'),
+-- Paint Shop - Clear Coat
+('WC-CLEAR-COAT', 'Clear Coat Booth', 'Clear coat application booth', (SELECT id FROM operations WHERE operation_code = 'OP-PAINT-CLEAR'), 8, 2, 1, 480.00, 'active'),
+-- Paint Shop - Curing
 ('WC-PAINT-CURE', 'Paint Curing Oven', 'High-temperature paint curing oven', (SELECT id FROM operations WHERE operation_code = 'OP-CURE'), 8, 1, 1, 280.00, 'active'),
--- Powertrain
-('WC-ENGINE-ASSY', 'Engine Assembly Line', 'Engine assembly station', (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 4, 6, 1, 680.00, 'active'),
+-- Paint Shop - Polishing
+('WC-POLISH-01', 'Polishing Station', 'Automated polishing station', (SELECT id FROM operations WHERE operation_code = 'OP-POLISH'), 10, 3, 1, 220.00, 'active'),
+-- Powertrain - Engine Assembly (2 WCs with different capacity)
+('WC-ENGINE-ASSY-01', 'Engine Assembly Line #1', 'Main engine assembly station', (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 4, 6, 1, 680.00, 'active'),
+('WC-ENGINE-ASSY-02', 'Engine Assembly Line #2', 'Secondary engine assembly', (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 3, 5, 1, 600.00, 'active'),
+-- Powertrain - Engine Test
+('WC-ENG-TEST', 'Engine Test Stand', 'Engine testing station', (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 8, 2, 1, 420.00, 'active'),
+-- Powertrain - Transmission Assembly
 ('WC-TRANS-ASSY', 'Transmission Assembly', 'Transmission assembly station', (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-ASSY'), 6, 4, 1, 520.00, 'active'),
-('WC-POWERTRAIN-TEST', 'Powertrain Test Stand', 'Engine and transmission testing', (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 8, 2, 1, 420.00, 'active'),
--- Chassis
-('WC-CHASSIS-WELD', 'Chassis Welding', 'Chassis frame welding station', (SELECT id FROM operations WHERE operation_code = 'OP-CHASSIS-WELD'), 6, 4, 1, 450.00, 'active'),
+-- Powertrain - Transmission Test
+('WC-TRANS-TEST', 'Transmission Test Stand', 'Transmission testing station', (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-TEST'), 10, 2, 1, 350.00, 'active'),
+-- Chassis - Chassis Welding (2 WCs with different capacity)
+('WC-CHASSIS-WELD-01', 'Chassis Welding #1', 'Main chassis frame welding station', (SELECT id FROM operations WHERE operation_code = 'OP-CHASSIS-WELD'), 6, 4, 1, 450.00, 'active'),
+('WC-CHASSIS-WELD-02', 'Chassis Welding #2', 'Secondary chassis welding', (SELECT id FROM operations WHERE operation_code = 'OP-CHASSIS-WELD'), 4, 3, 1, 380.00, 'active'),
+-- Chassis - Suspension
 ('WC-SUSPENSION', 'Suspension Assembly', 'Suspension system installation', (SELECT id FROM operations WHERE operation_code = 'OP-SUSP-INST'), 12, 3, 1, 350.00, 'active'),
--- Final Assembly
+-- Chassis - Wheel Mounting
+('WC-WHEEL-MOUNT', 'Wheel Mounting Station', 'Wheel and tire mounting', (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 20, 2, 1, 180.00, 'active'),
+-- Final Assembly - Marriage (2 WCs with different capacity)
 ('WC-FINAL-01', 'Final Assembly Line #1', 'Main final assembly line', (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 4, 18, 1, 1250.00, 'active'),
-('WC-FINAL-02', 'Final Assembly Line #2', 'Secondary final assembly line', (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 4, 18, 1, 1250.00, 'active'),
-('WC-TRIM-INT', 'Interior Trim Installation', 'Interior components installation', (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 8, 8, 1, 620.00, 'active'),
+('WC-FINAL-02', 'Final Assembly Line #2', 'Secondary final assembly line', (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 3, 15, 1, 1100.00, 'active'),
+-- Final Assembly - Engine Installation
+('WC-ENG-INST', 'Engine Installation Station', 'Engine installation into vehicle', (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 6, 4, 1, 380.00, 'active'),
+-- Final Assembly - Transmission Installation
+('WC-TRANS-INST', 'Transmission Install Station', 'Transmission installation', (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 8, 3, 1, 320.00, 'active'),
+-- Final Assembly - Interior (2 WCs with different capacity)
+('WC-TRIM-INT-01', 'Interior Trim Installation #1', 'Main interior installation line', (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 8, 8, 1, 620.00, 'active'),
+('WC-TRIM-INT-02', 'Interior Trim Installation #2', 'Secondary interior line', (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 6, 6, 1, 520.00, 'active'),
+-- Final Assembly - Electrical
 ('WC-ELEC-INST', 'Electrical Installation', 'Electrical system installation', (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 10, 6, 1, 580.00, 'active'),
--- Quality & Testing
-('WC-QC-BODY', 'Body Quality Inspection', 'Body quality check station', (SELECT id FROM operations WHERE operation_code = 'OP-QC-BODY'), 12, 3, 1, 280.00, 'active'),
+-- Final Assembly - Glass Installation
+('WC-GLASS-INST', 'Glass Installation Station', 'Windshield and window installation', (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 15, 3, 1, 280.00, 'active'),
+-- Final Assembly - Fluid Filling
+('WC-FLUID-FILL', 'Fluid Filling Station', 'All vehicle fluids filling', (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 20, 2, 1, 150.00, 'active'),
+-- Quality & Testing - Body QC (2 WCs with different capacity)
+('WC-QC-BODY-01', 'Body Quality Inspection #1', 'Main body quality check station', (SELECT id FROM operations WHERE operation_code = 'OP-QC-BODY'), 12, 3, 1, 280.00, 'active'),
+('WC-QC-BODY-02', 'Body Quality Inspection #2', 'Secondary body QC', (SELECT id FROM operations WHERE operation_code = 'OP-QC-BODY'), 8, 2, 1, 220.00, 'active'),
+-- Quality & Testing - Paint QC
+('WC-QC-PAINT', 'Paint Quality Inspection', 'Paint quality check station', (SELECT id FROM operations WHERE operation_code = 'OP-QC-PAINT'), 10, 2, 1, 250.00, 'active'),
+-- Quality & Testing - Final QC
 ('WC-QC-FINAL', 'Final Quality Inspection', 'Final vehicle inspection', (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 6, 4, 1, 350.00, 'active'),
-('WC-TEST-ROAD', 'Road Test Track', 'Vehicle road testing', (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 8, 2, 1, 420.00, 'active'),
-('WC-TEST-WATER', 'Water Leak Test', 'Water leak testing chamber', (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 12, 2, 1, 320.00, 'active');
+-- Quality & Testing - Water Test
+('WC-TEST-WATER', 'Water Leak Test', 'Water leak testing chamber', (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 12, 2, 1, 320.00, 'active'),
+-- Quality & Testing - Road Test (2 WCs with different capacity)
+('WC-TEST-ROAD-01', 'Road Test Track #1', 'Main vehicle road testing', (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 8, 2, 1, 420.00, 'active'),
+('WC-TEST-ROAD-02', 'Road Test Track #2', 'Secondary road test', (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 6, 2, 1, 380.00, 'active'),
+-- Final Detailing
+('WC-DETAIL', 'Final Detailing Station', 'Vehicle cleaning and detailing', (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 10, 4, 1, 200.00, 'active');
 
 -- =====================================================
 -- 4. WORK CENTER SHIFTS SCHEDULE
@@ -333,23 +377,23 @@ SELECT wc.id, s.id, dow
 FROM work_centers wc
 CROSS JOIN (SELECT id FROM shifts WHERE shift_code IN ('A', 'B')) s
 CROSS JOIN generate_series(1, 5) as dow
-WHERE wc.work_center_code IN ('WC-STAMP-01', 'WC-STAMP-02', 'WC-WELD-01', 'WC-WELD-02', 'WC-BODY-ASSY');
+WHERE wc.work_center_code IN ('WC-STAMP-01', 'WC-STAMP-02', 'WC-TRIM-01', 'WC-WELD-01', 'WC-WELD-02', 'WC-BODY-ASSY', 'WC-DOOR-ASSY');
 
--- Paint Shop (2 shifts, Mon-Sat for paint curing)
+-- Paint Shop (2 shifts, Mon-Sat)
 INSERT INTO work_center_shifts (work_center_id, shift_id, day_of_week) 
 SELECT wc.id, s.id, dow 
 FROM work_centers wc
 CROSS JOIN (SELECT id FROM shifts WHERE shift_code IN ('A', 'B')) s
 CROSS JOIN generate_series(1, 6) as dow
-WHERE wc.work_center_code IN ('WC-PAINT-PREP', 'WC-PAINT-BOOTH', 'WC-PAINT-CURE');
+WHERE wc.work_center_code IN ('WC-CLEAN-01', 'WC-PAINT-PREP', 'WC-PAINT-BOOTH-01', 'WC-PAINT-BOOTH-02', 'WC-CLEAR-COAT', 'WC-PAINT-CURE', 'WC-POLISH-01');
 
--- Powertrain (2 shifts, Mon-Fri)
+-- Powertrain & Chassis (2 shifts, Mon-Fri)
 INSERT INTO work_center_shifts (work_center_id, shift_id, day_of_week) 
 SELECT wc.id, s.id, dow 
 FROM work_centers wc
 CROSS JOIN (SELECT id FROM shifts WHERE shift_code IN ('A', 'B')) s
 CROSS JOIN generate_series(1, 5) as dow
-WHERE wc.work_center_code IN ('WC-ENGINE-ASSY', 'WC-TRANS-ASSY', 'WC-POWERTRAIN-TEST', 'WC-CHASSIS-WELD', 'WC-SUSPENSION');
+WHERE wc.work_center_code IN ('WC-ENGINE-ASSY-01', 'WC-ENGINE-ASSY-02', 'WC-ENG-TEST', 'WC-TRANS-ASSY', 'WC-TRANS-TEST', 'WC-CHASSIS-WELD-01', 'WC-CHASSIS-WELD-02', 'WC-SUSPENSION', 'WC-WHEEL-MOUNT');
 
 -- Final Assembly (2 shifts, Mon-Fri)
 INSERT INTO work_center_shifts (work_center_id, shift_id, day_of_week) 
@@ -357,7 +401,7 @@ SELECT wc.id, s.id, dow
 FROM work_centers wc
 CROSS JOIN (SELECT id FROM shifts WHERE shift_code IN ('A', 'B')) s
 CROSS JOIN generate_series(1, 5) as dow
-WHERE wc.work_center_code IN ('WC-FINAL-01', 'WC-FINAL-02', 'WC-TRIM-INT', 'WC-ELEC-INST');
+WHERE wc.work_center_code IN ('WC-FINAL-01', 'WC-FINAL-02', 'WC-ENG-INST', 'WC-TRANS-INST', 'WC-TRIM-INT-01', 'WC-TRIM-INT-02', 'WC-ELEC-INST', 'WC-GLASS-INST', 'WC-FLUID-FILL', 'WC-DETAIL');
 
 -- Quality & Testing (Day shift only, Mon-Sat)
 INSERT INTO work_center_shifts (work_center_id, shift_id, day_of_week) 
@@ -365,7 +409,7 @@ SELECT wc.id, s.id, dow
 FROM work_centers wc
 CROSS JOIN (SELECT id FROM shifts WHERE shift_code = 'A') s
 CROSS JOIN generate_series(1, 6) as dow
-WHERE wc.work_center_code IN ('WC-QC-BODY', 'WC-QC-FINAL', 'WC-TEST-ROAD', 'WC-TEST-WATER');
+WHERE wc.work_center_code IN ('WC-QC-BODY-01', 'WC-QC-BODY-02', 'WC-QC-PAINT', 'WC-QC-FINAL', 'WC-TEST-WATER', 'WC-TEST-ROAD-01', 'WC-TEST-ROAD-02');
 
 -- =====================================================
 -- 5. WORK CENTER CALENDAR EXCEPTIONS
@@ -373,8 +417,8 @@ WHERE wc.work_center_code IN ('WC-QC-BODY', 'WC-QC-FINAL', 'WC-TEST-ROAD', 'WC-T
 
 -- Planned maintenance for Paint Booth
 INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) VALUES
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH'), '2025-12-15', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH'), '2025-12-16', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0);
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-15', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0),
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-16', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0);
 
 -- Planned maintenance for Stamping Press
 INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) VALUES
