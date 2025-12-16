@@ -279,6 +279,16 @@ export async function updateProductionOrder(productionOrderId: number, data: Par
   return updateData<ProductionOrder>(`/production-orders/${productionOrderId}`, data);
 }
 
+export async function deleteProductionOrder(productionOrderId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/production-orders/${productionOrderId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete production order ${productionOrderId}`);
+  }
+}
+
 // =====================================================
 // CREATE FUNCTIONS
 // =====================================================

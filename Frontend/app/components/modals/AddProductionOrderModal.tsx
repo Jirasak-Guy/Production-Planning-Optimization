@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/app/components/ui/Modal";
-import { createProductionOrder } from "@/app/lib/data";
+import { createProductionOrder, fetchOrders, fetchOrderItemsByOrderId, fetchProductById } from "@/app/lib/data";
+import { Order, OrderItem, ProductData } from "@/app/types/CoreData";
 
 interface AddProductionOrderModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+}
+
+interface OrderItemWithProduct extends OrderItem {
+    product?: ProductData;
 }
 
 export default function AddProductionOrderModal({
@@ -16,9 +21,14 @@ export default function AddProductionOrderModal({
     onSuccess,
 }: AddProductionOrderModalProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [orderItems, setOrderItems] = useState<OrderItemWithProduct[]>([]);
+    const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+    const [selectedOrderItemId, setSelectedOrderItemId] = useState<string>("");
+    const [loadingOrderItems, setLoadingOrderItems] = useState(false);
+
     const [formData, setFormData] = useState({
         po_number: "",
-        product_id: "",
         quantity_planned: "",
         quantity_completed: "0",
         quantity_scrapped: "0",
@@ -28,6 +38,53 @@ export default function AddProductionOrderModal({
         priority: "1",
         notes: "",
     });
+
+    // Fetch orders when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            fetchOrders().then(setOrders).catch(console.error);
+        }
+    }, [isOpen]);
+
+    // Fetch order items when order is selected
+    useEffect(() => {
+        if (selectedOrderId) {
+            setLoadingOrderItems(true);
+            setSelectedOrderItemId("");
+            fetchOrderItemsByOrderId(parseInt(selectedOrderId))
+                .then(async (items) => {
+                    // Fetch product details for each order item
+                    const itemsWithProducts = await Promise.all(
+                        items.map(async (item) => {
+                            try {
+                                const product = await fetchProductById(item.product_id);
+                                return { ...item, product };
+                            } catch {
+                                return item;
+                            }
+                        })
+                    );
+                    setOrderItems(itemsWithProducts);
+                })
+                .catch(console.error)
+                .finally(() => setLoadingOrderItems(false));
+        } else {
+            setOrderItems([]);
+        }
+    }, [selectedOrderId]);
+
+    // Auto-fill quantity when order item is selected
+    useEffect(() => {
+        if (selectedOrderItemId) {
+            const selectedItem = orderItems.find(item => item.id === parseInt(selectedOrderItemId));
+            if (selectedItem) {
+                setFormData(prev => ({
+                    ...prev,
+                    quantity_planned: selectedItem.quantity.toString(),
+                }));
+            }
+        }
+    }, [selectedOrderItemId, orderItems]);
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -43,10 +100,18 @@ export default function AddProductionOrderModal({
         e.preventDefault();
         setIsLoading(true);
 
+        const selectedItem = orderItems.find(item => item.id === parseInt(selectedOrderItemId));
+        if (!selectedItem) {
+            alert("Please select an order item.");
+            setIsLoading(false);
+            return;
+        }
+
         try {
             await createProductionOrder({
                 po_number: formData.po_number,
-                product_id: parseInt(formData.product_id),
+                order_item_id: parseInt(selectedOrderItemId),
+                product_id: selectedItem.product_id,
                 quantity_planned: parseInt(formData.quantity_planned),
                 quantity_completed: parseInt(formData.quantity_completed),
                 quantity_scrapped: parseInt(formData.quantity_scrapped),
@@ -68,9 +133,11 @@ export default function AddProductionOrderModal({
     };
 
     const resetForm = () => {
+        setSelectedOrderId("");
+        setSelectedOrderItemId("");
+        setOrderItems([]);
         setFormData({
             po_number: "",
-            product_id: "",
             quantity_planned: "",
             quantity_completed: "0",
             quantity_scrapped: "0",
@@ -87,9 +154,72 @@ export default function AddProductionOrderModal({
         onClose();
     };
 
+    const selectedItem = orderItems.find(item => item.id === parseInt(selectedOrderItemId));
+    const selectedOrder = orders.find(order => order.id === parseInt(selectedOrderId));
+
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Add New Production Order">
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Order Selection */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Select Order <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                        value={selectedOrderId}
+                        onChange={(e) => setSelectedOrderId(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="">-- Select an Order --</option>
+                        {orders.map((order) => (
+                            <option key={order.id} value={order.id}>
+                                {order.order_number} - {order.customer_name} (Due: {order.due_date})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Order Item Selection */}
+                {selectedOrderId && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Order Item <span className="text-red-500">*</span>
+                        </label>
+                        {loadingOrderItems ? (
+                            <div className="text-gray-500 text-sm py-2">Loading order items...</div>
+                        ) : orderItems.length === 0 ? (
+                            <div className="text-orange-600 text-sm py-2">No items found for this order.</div>
+                        ) : (
+                            <select
+                                value={selectedOrderItemId}
+                                onChange={(e) => setSelectedOrderItemId(e.target.value)}
+                                required
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="">-- Select an Item --</option>
+                                {orderItems.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.product?.product_code || `Product #${item.product_id}`} - {item.product?.product_name || 'Unknown'} (Qty: {item.quantity})
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                )}
+
+                {/* Selected Item Info */}
+                {selectedItem && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="text-sm text-blue-800">
+                            <strong>Product:</strong> {selectedItem.product?.product_name || 'Unknown'} ({selectedItem.product?.product_code})
+                        </div>
+                        <div className="text-sm text-blue-800">
+                            <strong>Order Qty:</strong> {selectedItem.quantity} | <strong>Due:</strong> {selectedOrder?.due_date}
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -102,30 +232,12 @@ export default function AddProductionOrderModal({
                             onChange={handleChange}
                             required
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., PO-001"
+                            placeholder="e.g., PO-2025-001"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Product ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="product_id"
-                            value={formData.product_id}
-                            onChange={handleChange}
-                            required
-                            min="1"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter product ID"
-                        />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quantity Planned <span className="text-red-500">*</span>
+                            Quantity to Produce <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
@@ -138,6 +250,9 @@ export default function AddProductionOrderModal({
                             placeholder="0"
                         />
                     </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Priority <span className="text-red-500">*</span>
@@ -156,26 +271,25 @@ export default function AddProductionOrderModal({
                             <option value="5">5 - Lowest</option>
                         </select>
                     </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                        <option value="planned">Planned</option>
-                        <option value="released">Released</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="on-hold">On Hold</option>
-                    </select>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Status <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="planned">Planned</option>
+                            <option value="released">Released</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="on-hold">On Hold</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -200,6 +314,7 @@ export default function AddProductionOrderModal({
                             name="scheduled_end_date"
                             value={formData.scheduled_end_date}
                             onChange={handleChange}
+                            min={formData.scheduled_start_date || undefined}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
@@ -229,7 +344,7 @@ export default function AddProductionOrderModal({
                     </button>
                     <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || !selectedOrderItemId}
                         className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? "Creating..." : "Create Production Order"}

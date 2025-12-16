@@ -14,6 +14,7 @@ import {
   fetchWorkCenters,
   fetchOperations,
   updateProductionOrder,
+  deleteProductionOrder,
 } from "@/app/lib/data";
 import {
   ArrowLeftIcon,
@@ -22,7 +23,7 @@ import {
   ChevronDownIcon,
   CalendarDaysIcon,
   CubeIcon,
-  ExclamationTriangleIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 
@@ -54,6 +55,10 @@ export default function ProductionDetailPage({
 
   // UI states
   const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
+
+  // Delete states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -129,6 +134,25 @@ export default function ProductionDetailPage({
     }
   };
 
+  const handleDeleteProductionOrder = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productionOrder) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteProductionOrder(productionOrder.id);
+      router.push("/production");
+    } catch (error) {
+      console.error("Failed to delete production order:", error);
+      alert("Failed to delete production order. Please try again.");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       planned: "bg-gray-100 text-gray-700 border-gray-200",
@@ -179,123 +203,133 @@ export default function ProductionDetailPage({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-8 py-6">
-        <div className="flex items-start gap-4 mb-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors mt-1"
-          >
-            <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-4 mb-2">
-              {/* Editable PO Number */}
-              {editingField === "po_number" ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="text-3xl font-bold text-gray-900 border-2 border-blue-500 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-64"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => handleSaveField("po_number")}
-                    disabled={isSaving}
-                    className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Save"
-                  >
-                    <CheckCircleIcon className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={() => setEditingField(null)}
-                    disabled={isSaving}
-                    className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Cancel"
-                  >
-                    <XCircleIcon className="w-6 h-6" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    {productionOrder.po_number}
-                  </h1>
-                  <button
-                    onClick={() => handleEditField("po_number", productionOrder.po_number)}
-                    className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Edit PO number"
-                  >
-                    <PencilSquareIcon className="w-5 h-5" />
-                  </button>
-                </div>
-              )}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-start gap-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors mt-1"
+            >
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-2">
+                {/* Editable PO Number */}
+                {editingField === "po_number" ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="text-3xl font-bold text-gray-900 border-2 border-blue-500 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-64"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleSaveField("po_number")}
+                      disabled={isSaving}
+                      className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Save"
+                    >
+                      <CheckCircleIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={() => setEditingField(null)}
+                      disabled={isSaving}
+                      className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Cancel"
+                    >
+                      <XCircleIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {productionOrder.po_number}
+                    </h1>
+                    <button
+                      onClick={() => handleEditField("po_number", productionOrder.po_number)}
+                      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit PO number"
+                    >
+                      <PencilSquareIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
 
-              {/* Editable Status */}
-              {editingField === "status" ? (
+                {/* Editable Status */}
+                {editingField === "status" ? (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="px-3 py-1.5 rounded-md text-sm font-semibold border-2 border-blue-500 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      autoFocus
+                    >
+                      <option value="planned">PLANNED</option>
+                      <option value="released">RELEASED</option>
+                      <option value="in-progress">IN-PROGRESS</option>
+                      <option value="completed">COMPLETED</option>
+                      <option value="cancelled">CANCELLED</option>
+                      <option value="on-hold">ON-HOLD</option>
+                    </select>
+                    <button
+                      onClick={() => handleSaveField("status")}
+                      disabled={isSaving}
+                      className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Save"
+                    >
+                      <CheckCircleIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={() => setEditingField(null)}
+                      disabled={isSaving}
+                      className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Cancel"
+                    >
+                      <XCircleIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${getStatusColor(productionOrder.status)}`}
+                    >
+                      {productionOrder.status.toUpperCase()}
+                    </span>
+                    <button
+                      onClick={() => handleEditField("status", productionOrder.status)}
+                      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit status"
+                    >
+                      <PencilSquareIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Product Link */}
+              {product && (
                 <div className="flex items-center gap-2">
-                  <select
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="px-3 py-1.5 rounded-md text-sm font-semibold border-2 border-blue-500 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    autoFocus
+                  <CubeIcon className="w-5 h-5 text-gray-400" />
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="text-gray-600 text-lg hover:text-blue-600 hover:underline"
                   >
-                    <option value="planned">PLANNED</option>
-                    <option value="released">RELEASED</option>
-                    <option value="in-progress">IN-PROGRESS</option>
-                    <option value="completed">COMPLETED</option>
-                    <option value="cancelled">CANCELLED</option>
-                    <option value="on-hold">ON-HOLD</option>
-                  </select>
-                  <button
-                    onClick={() => handleSaveField("status")}
-                    disabled={isSaving}
-                    className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Save"
-                  >
-                    <CheckCircleIcon className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={() => setEditingField(null)}
-                    disabled={isSaving}
-                    className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Cancel"
-                  >
-                    <XCircleIcon className="w-6 h-6" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${getStatusColor(productionOrder.status)}`}
-                  >
-                    {productionOrder.status.toUpperCase()}
-                  </span>
-                  <button
-                    onClick={() => handleEditField("status", productionOrder.status)}
-                    className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Edit status"
-                  >
-                    <PencilSquareIcon className="w-5 h-5" />
-                  </button>
+                    {product.product_code} - {product.product_name}
+                  </Link>
                 </div>
               )}
             </div>
-
-            {/* Product Link */}
-            {product && (
-              <div className="flex items-center gap-2">
-                <CubeIcon className="w-5 h-5 text-gray-400" />
-                <Link
-                  href={`/products/${product.id}`}
-                  className="text-gray-600 text-lg hover:text-blue-600 hover:underline"
-                >
-                  {product.product_code} - {product.product_name}
-                </Link>
-              </div>
-            )}
           </div>
+          {/* Delete Button */}
+          <button
+            onClick={handleDeleteProductionOrder}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
+            title="Delete this production order"
+          >
+            <TrashIcon className="w-5 h-5" />
+            <span className="font-medium">Delete</span>
+          </button>
         </div>
-
         {/* Collapse Toggle */}
         <button
           onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
@@ -487,11 +521,10 @@ export default function ProductionDetailPage({
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${
-                      productionOrder.priority <= 3 ? 'bg-red-100 text-red-700' :
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${productionOrder.priority <= 3 ? 'bg-red-100 text-red-700' :
                       productionOrder.priority <= 5 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+                        'bg-gray-100 text-gray-700'
+                      }`}>
                       {productionOrder.priority}
                     </span>
                     <button
@@ -516,11 +549,10 @@ export default function ProductionDetailPage({
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className={`h-3 rounded-full transition-all ${
-                    progress >= 100 ? 'bg-green-600' :
+                  className={`h-3 rounded-full transition-all ${progress >= 100 ? 'bg-green-600' :
                     progress >= 50 ? 'bg-blue-600' :
-                    'bg-yellow-500'
-                  }`}
+                      'bg-yellow-500'
+                    }`}
                   style={{ width: `${Math.min(progress, 100)}%` }}
                 />
               </div>
@@ -565,8 +597,8 @@ export default function ProductionDetailPage({
                     <p className="text-base font-medium text-gray-900">
                       {productionOrder.scheduled_start_date
                         ? new Date(productionOrder.scheduled_start_date).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric"
-                          })
+                          month: "short", day: "numeric", year: "numeric"
+                        })
                         : "-"}
                     </p>
                     <button
@@ -617,8 +649,8 @@ export default function ProductionDetailPage({
                     <p className="text-base font-medium text-gray-900">
                       {productionOrder.scheduled_end_date
                         ? new Date(productionOrder.scheduled_end_date).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric"
-                          })
+                          month: "short", day: "numeric", year: "numeric"
+                        })
                         : "-"}
                     </p>
                     <button
@@ -669,8 +701,8 @@ export default function ProductionDetailPage({
                     <p className="text-base font-medium text-gray-900">
                       {productionOrder.actual_start_date
                         ? new Date(productionOrder.actual_start_date).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric"
-                          })
+                          month: "short", day: "numeric", year: "numeric"
+                        })
                         : "-"}
                     </p>
                     <button
@@ -721,8 +753,8 @@ export default function ProductionDetailPage({
                     <p className="text-base font-medium text-gray-900">
                       {productionOrder.actual_end_date
                         ? new Date(productionOrder.actual_end_date).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric"
-                          })
+                          month: "short", day: "numeric", year: "numeric"
+                        })
                         : "-"}
                     </p>
                     <button
@@ -892,11 +924,10 @@ export default function ProductionDetailPage({
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-24 bg-gray-200 rounded-full h-2">
                             <div
-                              className={`h-2 rounded-full ${
-                                scheduleProgress >= 100 ? 'bg-green-600' :
+                              className={`h-2 rounded-full ${scheduleProgress >= 100 ? 'bg-green-600' :
                                 scheduleProgress >= 50 ? 'bg-blue-600' :
-                                'bg-yellow-500'
-                              }`}
+                                  'bg-yellow-500'
+                                }`}
                               style={{ width: `${Math.min(scheduleProgress, 100)}%` }}
                             />
                           </div>
@@ -922,6 +953,77 @@ export default function ProductionDetailPage({
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+          />
+
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+              {/* Warning Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                Delete Production Order
+              </h3>
+
+              {/* Message */}
+              <p className="text-gray-600 text-center mb-2">
+                Are you sure you want to delete production order
+              </p>
+              <p className="text-lg font-semibold text-gray-900 text-center mb-4">
+                &quot;{productionOrder.po_number}&quot;?
+              </p>
+
+              {/* Warning Text */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+                <p className="text-sm text-red-700 text-center">
+                  ⚠️ This action cannot be undone. All production order data will be permanently deleted.
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-4 h-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
