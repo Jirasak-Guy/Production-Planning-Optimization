@@ -238,9 +238,26 @@ def delete_order(order_id: int, session: SessionDep):
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    # Delete related order items first
+    # Get all order items for this order
     order_items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    
     for item in order_items:
+        # Delete production orders linked to this order item
+        production_orders = session.exec(
+            select(ProductionOrder).where(ProductionOrder.order_item_id == item.id)
+        ).all()
+        
+        for po in production_orders:
+            # Delete work center schedules linked to this production order
+            schedules = session.exec(
+                select(WorkCenterSchedule).where(WorkCenterSchedule.production_order_id == po.id)
+            ).all()
+            for schedule in schedules:
+                session.delete(schedule)
+            
+            session.delete(po)
+        
+        # Delete the order item
         session.delete(item)
     
     session.delete(db_order)
@@ -351,6 +368,22 @@ def delete_order_item(order_item_id: int, session: SessionDep):
     db_order_item = session.get(OrderItem, order_item_id)
     if not db_order_item:
         raise HTTPException(status_code=404, detail="Order item not found")
+    
+    # Delete production orders linked to this order item
+    production_orders = session.exec(
+        select(ProductionOrder).where(ProductionOrder.order_item_id == order_item_id)
+    ).all()
+    
+    for po in production_orders:
+        # Delete work center schedules linked to this production order
+        schedules = session.exec(
+            select(WorkCenterSchedule).where(WorkCenterSchedule.production_order_id == po.id)
+        ).all()
+        for schedule in schedules:
+            session.delete(schedule)
+        
+        session.delete(po)
+    
     session.delete(db_order_item)
     session.commit()
     return {"message": "Order item deleted successfully"}
@@ -765,6 +798,14 @@ def delete_production_order(production_order_id: int, session: SessionDep):
     db_production_order = session.get(ProductionOrder, production_order_id)
     if not db_production_order:
         raise HTTPException(status_code=404, detail="Production order not found")
+    
+    # Delete work center schedules linked to this production order
+    schedules = session.exec(
+        select(WorkCenterSchedule).where(WorkCenterSchedule.production_order_id == production_order_id)
+    ).all()
+    for schedule in schedules:
+        session.delete(schedule)
+    
     session.delete(db_production_order)
     session.commit()
     return {"message": "Production order deleted successfully"}
