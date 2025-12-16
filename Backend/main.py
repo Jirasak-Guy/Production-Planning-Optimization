@@ -669,7 +669,40 @@ def delete_operation(operation_id: int, session: SessionDep):
     if not db_operation:
         raise HTTPException(status_code=404, detail="Operation not found")
     
-    # Delete related routing entries first
+    # 1. Delete related work center schedules first
+    # This covers schedules that perform this operation
+    schedules = session.exec(select(WorkCenterSchedule).where(WorkCenterSchedule.operation_id == operation_id)).all()
+    for schedule in schedules:
+        session.delete(schedule)
+
+    # 2. Delete related work centers (and their related data)
+    # WorkCenter has a mandatory operation_id, so they must be deleted
+    work_centers = session.exec(select(WorkCenter).where(WorkCenter.operation_id == operation_id)).all()
+    for wc in work_centers:
+        # Delete related shifts
+        shifts = session.exec(select(WorkCenterShift).where(WorkCenterShift.work_center_id == wc.id)).all()
+        for shift in shifts:
+            session.delete(shift)
+        
+        # Delete related exceptions
+        exceptions = session.exec(select(WorkCenterCalendarException).where(WorkCenterCalendarException.work_center_id == wc.id)).all()
+        for exception in exceptions:
+            session.delete(exception)
+            
+        # Delete related schedules (for this WC, if any remained - e.g. potentially different operation_id?)
+        wc_schedules = session.exec(select(WorkCenterSchedule).where(WorkCenterSchedule.work_center_id == wc.id)).all()
+        for wc_schedule in wc_schedules:
+            if wc_schedule in session: # Check if not already deleted in step 1
+                 session.delete(wc_schedule)
+            else:
+                # If it's not in session context anymore but essentially acts as a safeguard
+                # Since step 1 loaded schedules by Op ID, and we are iterating. 
+                # SQLAlchemy session identity map handles this.
+                pass
+        
+        session.delete(wc)
+
+    # 3. Delete related routing entries
     routings = session.exec(select(Routing).where(Routing.operation_id == operation_id)).all()
     for routing in routings:
         # Delete operation dependencies for each routing first
