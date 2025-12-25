@@ -19,7 +19,6 @@ import {
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
-  TrendingUpIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Home() {
@@ -83,10 +82,9 @@ export default function Home() {
     )
     .slice(0, 5);
 
-  // Get urgent production orders
-  const urgentProduction = productionOrders
-    .filter((po) => po.status === "in-progress" && po.priority <= 2)
-    .sort((a, b) => a.priority - b.priority)
+  // Get recent production orders
+  const recentProduction = productionOrders
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     .slice(0, 5);
 
   if (isLoading) {
@@ -116,12 +114,12 @@ export default function Home() {
           {/* Orders Card */}
           <Link href="/orders">
             <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="mb-4">
+                <div className="p-3 bg-blue-100 rounded-lg w-fit">
                   <DocumentTextIcon className="w-6 h-6 text-blue-600" />
                 </div>
-                <span className="text-sm text-gray-500">Total</span>
               </div>
+              <span className="text-sm text-gray-500">Total</span>
               <h3 className="text-2xl font-bold text-gray-900 mb-1">
                 {stats.totalOrders}
               </h3>
@@ -143,12 +141,12 @@ export default function Home() {
           {/* Products Card */}
           <Link href="/products">
             <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
+              <div className="mb-4">
+                <div className="p-3 bg-purple-100 rounded-lg w-fit">
                   <CubeIcon className="w-6 h-6 text-purple-600" />
                 </div>
-                <span className="text-sm text-gray-500">Total</span>
               </div>
+              <span className="text-sm text-gray-500">Total</span>
               <h3 className="text-2xl font-bold text-gray-900 mb-1">
                 {stats.totalProducts}
               </h3>
@@ -164,12 +162,12 @@ export default function Home() {
           {/* Production Card */}
           <Link href="/production">
             <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-green-100 rounded-lg">
+              <div className="mb-4">
+                <div className="p-3 bg-green-100 rounded-lg w-fit">
                   <RectangleStackIcon className="w-6 h-6 text-green-600" />
                 </div>
-                <span className="text-sm text-gray-500">Total</span>
               </div>
+              <span className="text-sm text-gray-500">Total</span>
               <h3 className="text-2xl font-bold text-gray-900 mb-1">
                 {stats.totalProduction}
               </h3>
@@ -185,12 +183,12 @@ export default function Home() {
           {/* Work Centers Card */}
           <Link href="/workcenter">
             <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-orange-100 rounded-lg">
+              <div className="mb-4">
+                <div className="p-3 bg-orange-100 rounded-lg w-fit">
                   <CogIcon className="w-6 h-6 text-orange-600" />
                 </div>
-                <span className="text-sm text-gray-500">Total</span>
               </div>
+              <span className="text-sm text-gray-500">Total</span>
               <h3 className="text-2xl font-bold text-gray-900 mb-1">
                 {stats.totalWorkCenters}
               </h3>
@@ -235,13 +233,12 @@ export default function Home() {
                           {order.order_number}
                         </span>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            order.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : order.status === "in-production"
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${order.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : order.status === "in-production"
                               ? "bg-yellow-100 text-yellow-700"
                               : "bg-gray-100 text-gray-700"
-                          }`}
+                            }`}
                         >
                           {order.status}
                         </span>
@@ -267,12 +264,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Urgent Production */}
+          {/* Production Orders */}
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Urgent Production
+                  Production Orders
                 </h2>
                 <Link
                   href="/production"
@@ -283,9 +280,16 @@ export default function Home() {
               </div>
             </div>
             <div className="divide-y divide-gray-100">
-              {urgentProduction.map((po) => {
+              {recentProduction.map((po) => {
                 const progress =
                   (po.quantity_completed / po.quantity_planned) * 100;
+                const statusStyles: { [key: string]: string } = {
+                  'completed': 'bg-green-100 text-green-700',
+                  'in-progress': 'bg-yellow-100 text-yellow-700',
+                  'released': 'bg-blue-100 text-blue-700',
+                  'planned': 'bg-gray-100 text-gray-700',
+                  'cancelled': 'bg-red-100 text-red-700',
+                };
                 return (
                   <Link
                     key={po.id}
@@ -298,12 +302,20 @@ export default function Home() {
                           <span className="font-semibold text-blue-600">
                             {po.po_number}
                           </span>
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            Priority {po.priority}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[po.status] || 'bg-gray-100 text-gray-700'}`}>
+                            {po.status}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600">
                           {po.quantity_completed} / {po.quantity_planned} units
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">End Date</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {po.scheduled_end_date
+                            ? new Date(po.scheduled_end_date).toLocaleDateString()
+                            : '-'}
                         </p>
                       </div>
                     </div>
@@ -316,9 +328,9 @@ export default function Home() {
                   </Link>
                 );
               })}
-              {urgentProduction.length === 0 && (
+              {recentProduction.length === 0 && (
                 <div className="px-6 py-8 text-center text-gray-500">
-                  No urgent production orders
+                  No production orders
                 </div>
               )}
             </div>
