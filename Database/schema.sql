@@ -238,7 +238,6 @@ CREATE TABLE routing (
     operation_id INTEGER NOT NULL,
     sequence_number INTEGER NOT NULL CHECK (sequence_number > 0),
     setup_time_minutes INTEGER DEFAULT 0 CHECK (setup_time_minutes >= 0),
-    time_per_unit_minutes DECIMAL(10,3) NOT NULL CHECK (time_per_unit_minutes > 0),
     notes TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -251,7 +250,6 @@ CREATE TABLE routing (
 COMMENT ON TABLE routing IS 'Production routing - sequence of operations for each product';
 COMMENT ON COLUMN routing.sequence_number IS 'Order of operations (1, 2, 3, ...)';
 COMMENT ON COLUMN routing.setup_time_minutes IS 'One-time setup time before production starts';
-COMMENT ON COLUMN routing.time_per_unit_minutes IS 'Processing time per unit';
 
 -- OPERATION_DEPENDENCIES Table
 CREATE TABLE operation_dependencies (
@@ -289,6 +287,31 @@ COMMENT ON COLUMN operation_dependencies.dependency_type IS
   
 - SF (Start-to-Finish): Successor cannot finish until predecessor starts [RARE]
   Example: Just-in-time scenarios where delivery cannot finish until production starts';
+
+-- =====================================================
+-- ROUTING BOM (Link between Routing and BOM)
+-- =====================================================
+
+-- ROUTING_BOM Table - Links which BOM components are consumed at which routing step
+CREATE TABLE routing_bom (
+    id SERIAL PRIMARY KEY,
+    routing_id INTEGER NOT NULL,
+    bom_id INTEGER NOT NULL,
+    consumption_timing VARCHAR(20) DEFAULT 'at_start',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_routing_bom_routing FOREIGN KEY (routing_id) REFERENCES routing(id) ON DELETE CASCADE,
+    CONSTRAINT fk_routing_bom_bom FOREIGN KEY (bom_id) REFERENCES bom(id) ON DELETE CASCADE,
+    CONSTRAINT chk_routing_bom_timing CHECK (consumption_timing IN ('at_start', 'at_end', 'proportional')),
+    CONSTRAINT uk_routing_bom UNIQUE (routing_id, bom_id)
+);
+
+COMMENT ON TABLE routing_bom IS 'Links BOM components to routing steps - defines when materials are consumed during production';
+COMMENT ON COLUMN routing_bom.routing_id IS 'The routing step where this component is consumed';
+COMMENT ON COLUMN routing_bom.bom_id IS 'The BOM component being consumed';
+COMMENT ON COLUMN routing_bom.consumption_timing IS 'When material is consumed: at_start (beginning of operation), at_end (completion), proportional (throughout)';
 
 -- =====================================================
 -- PRODUCTION TRACKING
@@ -403,6 +426,11 @@ CREATE INDEX idx_op_dep_routing_id ON operation_dependencies(routing_id);
 CREATE INDEX idx_op_dep_predecessor_id ON operation_dependencies(predecessor_routing_id);
 CREATE INDEX idx_op_dep_type ON operation_dependencies(dependency_type);
 
+-- Routing BOM indexes
+CREATE INDEX idx_routing_bom_routing_id ON routing_bom(routing_id);
+CREATE INDEX idx_routing_bom_bom_id ON routing_bom(bom_id);
+CREATE INDEX idx_routing_bom_active ON routing_bom(is_active);
+
 -- Production Orders indexes
 CREATE INDEX idx_production_orders_po_number ON production_orders(po_number);
 CREATE INDEX idx_production_orders_status ON production_orders(status);
@@ -465,6 +493,9 @@ CREATE TRIGGER update_routing_updated_at BEFORE UPDATE ON routing
 CREATE TRIGGER update_op_dependencies_updated_at BEFORE UPDATE ON operation_dependencies
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_routing_bom_updated_at BEFORE UPDATE ON routing_bom
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_production_orders_updated_at BEFORE UPDATE ON production_orders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -472,104 +503,5 @@ CREATE TRIGGER update_wc_schedule_updated_at BEFORE UPDATE ON work_center_schedu
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
--- USEFUL VIEWS
+-- END OF SCHEMA
 -- =====================================================
-
--- View: Available Work Center Capacity by Date
-CREATE OR REPLACE VIEW v_work_center_capacity AS
-SELECT 
-    wc.id as work_center_id,
-    wc.work_center_code,
-    wc.work_center_name,
-    wc.capacity_per_hour,
-    s.shift_code,
-    s.effective_working_minutes,
-    wcs.day_of_week,
-    CASE wcs.day_of_week
-        WHEN 1 THEN 'Monday'
-        WHEN 2 THEN 'Tuesday'
-        WHEN 3 THEN 'Wednesday'
-        WHEN 4 THEN 'Thursday'
-        WHEN 5 THEN 'Friday'
-        WHEN 6 THEN 'Saturday'
-        WHEN 7 THEN 'Sunday'
-    END as day_name,
-    (wc.capacity_per_hour * s.effective_working_minutes / 60.0) as shift_capacity_units
-FROM work_centers wc
-JOIN work_center_shifts wcs ON wc.id = wcs.work_center_id AND wcs.is_active = true
-JOIN shifts s ON wcs.shift_id = s.id AND s.is_active = true
-WHERE wc.is_active = true;
-
-COMMENT ON VIEW v_work_center_capacity IS 'Shows available capacity for each work center by shift and day';
-
--- View: Product BOM Structure (single level)
-CREATE OR REPLACE VIEW v_product_bom AS
-SELECT 
-    p.product_code as parent_code,
-    p.product_name as parent_name,
-    p.type as parent_type,
-    c.product_code as component_code,
-    c.product_name as component_name,
-    c.type as component_type,
-    b.quantity_required,
-    b.unit,
-    b.scrap_percentage,
-    b.is_active
-FROM bom b
-JOIN products p ON b.parent_product_id = p.id
-JOIN products c ON b.component_product_id = c.id;
-
-COMMENT ON VIEW v_product_bom IS 'Shows bill of materials with product names';
-
--- View: Production Order Status
-CREATE OR REPLACE VIEW v_production_order_status AS
-SELECT 
-    po.po_number,
-    po.status,
-    p.product_code,
-    p.product_name,
-    po.quantity_planned,
-    po.quantity_completed,
-    po.quantity_scrapped,
-    ROUND((po.quantity_completed / NULLIF(po.quantity_planned, 0) * 100), 2) as completion_percentage,
-    po.scheduled_start_date,
-    po.scheduled_end_date,
-    po.actual_start_date,
-    po.actual_end_date,
-    o.order_number,
-    o.customer_name
-FROM production_orders po
-JOIN products p ON po.product_id = p.id
-LEFT JOIN order_items oi ON po.order_item_id = oi.id
-LEFT JOIN orders o ON oi.order_id = o.id;
-
-COMMENT ON VIEW v_production_order_status IS 'Production order status with completion percentage';
-
--- View: Operation Dependencies with Details
-CREATE OR REPLACE VIEW v_operation_dependencies AS
-SELECT 
-    p.product_code,
-    p.product_name,
-    r.sequence_number as successor_seq,
-    o1.operation_code as successor_operation,
-    o1.operation_name as successor_name,
-    od.dependency_type,
-    CASE od.dependency_type
-        WHEN 'FS' THEN 'Finish-to-Start'
-        WHEN 'SS' THEN 'Start-to-Start'
-        WHEN 'FF' THEN 'Finish-to-Finish'
-        WHEN 'SF' THEN 'Start-to-Finish'
-    END as dependency_name,
-    od.lag_time_minutes,
-    pr.sequence_number as predecessor_seq,
-    o2.operation_code as predecessor_operation,
-    o2.operation_name as predecessor_name,
-    od.is_active
-FROM operation_dependencies od
-JOIN routing r ON od.routing_id = r.id
-JOIN routing pr ON od.predecessor_routing_id = pr.id
-JOIN products p ON r.product_id = p.id
-JOIN operations o1 ON r.operation_id = o1.id
-JOIN operations o2 ON pr.operation_id = o2.id;
-
-COMMENT ON VIEW v_operation_dependencies IS 'Shows operation dependencies with full routing details for scheduling';

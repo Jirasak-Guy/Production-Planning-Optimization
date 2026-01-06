@@ -18,6 +18,7 @@ from model import (
     WorkCenterCalendarException,
     Operation,
     Routing,
+    RoutingBOM,
     OperationDependency,
     ProductionOrder,
     WorkCenterSchedule,
@@ -182,6 +183,21 @@ def read_routing(session: SessionDep):
 @app.get("/operation-dependencies", response_model=list[OperationDependency])
 def read_operation_dependencies(session: SessionDep):
     return session.exec(select(OperationDependency)).all()
+
+
+@app.get("/routing-bom", response_model=list[RoutingBOM])
+def read_routing_bom(session: SessionDep):
+    """Get all routing-bom links"""
+    return session.exec(select(RoutingBOM)).all()
+
+
+@app.get("/routing/{routing_id}/bom-links", response_model=list[RoutingBOM])
+def read_routing_bom_by_routing(routing_id: int, session: SessionDep):
+    """Get all BOM components linked to a specific routing step"""
+    routing = session.get(Routing, routing_id)
+    if not routing:
+        raise HTTPException(status_code=404, detail="Routing not found")
+    return session.exec(select(RoutingBOM).where(RoutingBOM.routing_id == routing_id)).all()
 
 
 # =====================================================
@@ -420,9 +436,51 @@ def delete_bom(bom_id: int, session: SessionDep):
     db_bom = session.get(BOM, bom_id)
     if not db_bom:
         raise HTTPException(status_code=404, detail="BOM not found")
+    
+    # Delete related routing_bom links first
+    routing_bom_links = session.exec(select(RoutingBOM).where(RoutingBOM.bom_id == bom_id)).all()
+    for link in routing_bom_links:
+        session.delete(link)
+    
     session.delete(db_bom)
     session.commit()
     return {"message": "BOM deleted successfully"}
+
+
+# =====================================================
+# CRUD OPERATIONS - ROUTING BOM
+# =====================================================
+
+@app.post("/routing-bom", response_model=RoutingBOM)
+def create_routing_bom(routing_bom: RoutingBOM, session: SessionDep):
+    session.add(routing_bom)
+    session.commit()
+    session.refresh(routing_bom)
+    return routing_bom
+
+
+@app.put("/routing-bom/{routing_bom_id}", response_model=RoutingBOM)
+def update_routing_bom(routing_bom_id: int, routing_bom_data: RoutingBOM, session: SessionDep):
+    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
+    if not db_routing_bom:
+        raise HTTPException(status_code=404, detail="Routing BOM not found")
+    routing_bom_dict = routing_bom_data.model_dump(exclude_unset=True, exclude={"id"})
+    for key, value in routing_bom_dict.items():
+        setattr(db_routing_bom, key, value)
+    session.add(db_routing_bom)
+    session.commit()
+    session.refresh(db_routing_bom)
+    return db_routing_bom
+
+
+@app.delete("/routing-bom/{routing_bom_id}")
+def delete_routing_bom(routing_bom_id: int, session: SessionDep):
+    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
+    if not db_routing_bom:
+        raise HTTPException(status_code=404, detail="Routing BOM not found")
+    session.delete(db_routing_bom)
+    session.commit()
+    return {"message": "Routing BOM deleted successfully"}
 
 
 # =====================================================
@@ -750,6 +808,11 @@ def delete_routing(routing_id: int, session: SessionDep):
     db_routing = session.get(Routing, routing_id)
     if not db_routing:
         raise HTTPException(status_code=404, detail="Routing not found")
+    
+    # Delete related routing_bom links first
+    routing_bom_links = session.exec(select(RoutingBOM).where(RoutingBOM.routing_id == routing_id)).all()
+    for link in routing_bom_links:
+        session.delete(link)
     
     # Delete related operation dependencies first (both as routing_id and predecessor_routing_id)
     dependencies = session.exec(select(OperationDependency).where(

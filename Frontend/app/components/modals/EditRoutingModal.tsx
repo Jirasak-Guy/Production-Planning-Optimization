@@ -37,7 +37,6 @@ export default function EditRoutingModal({
   const [operationId, setOperationId] = useState<number | "">("");
   const [sequenceNumber, setSequenceNumber] = useState<string>("");
   const [setupTimeMinutes, setSetupTimeMinutes] = useState<string>("");
-  const [timePerUnitMinutes, setTimePerUnitMinutes] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isActive, setIsActive] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,7 +51,6 @@ export default function EditRoutingModal({
       setOperationId(routing.operation_id);
       setSequenceNumber(String(routing.sequence_number));
       setSetupTimeMinutes(String(routing.setup_time_minutes));
-      setTimePerUnitMinutes(String(routing.time_per_unit_minutes));
       setNotes(routing.notes || "");
       setIsActive(routing.is_active);
       setError(null);
@@ -121,12 +119,6 @@ export default function EditRoutingModal({
       return;
     }
 
-    const timePerUnit = parseInt(timePerUnitMinutes) || 0;
-    if (timePerUnit <= 0) {
-      setError("Time per Unit must be greater than 0");
-      return;
-    }
-
     // Validate new/modified dependencies
     const activeDeps = dependencies.filter(d => !d.toDelete);
     for (const dep of activeDeps) {
@@ -144,7 +136,6 @@ export default function EditRoutingModal({
         operation_id: operationId as number,
         sequence_number: seqNum,
         setup_time_minutes: parseInt(setupTimeMinutes) || 0,
-        time_per_unit_minutes: timePerUnit,
         notes: notes || undefined,
         is_active: isActive,
       });
@@ -253,37 +244,23 @@ export default function EditRoutingModal({
               />
             </div>
 
-            {/* Setup Time & Time Per Unit */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Setup Time (min)
-                </label>
-                <input
-                  type="number"
-                  value={setupTimeMinutes}
-                  onChange={(e) => setSetupTimeMinutes(e.target.value)}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  min="0"
-                  step="1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time per Unit (min) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={timePerUnitMinutes}
-                  onChange={(e) => setTimePerUnitMinutes(e.target.value)}
-                  placeholder="Enter time"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  min="1"
-                  step="1"
-                  required
-                />
-              </div>
+            {/* Setup Time */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Setup Time (min)
+              </label>
+              <input
+                type="number"
+                value={setupTimeMinutes}
+                onChange={(e) => setSetupTimeMinutes(e.target.value)}
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                min="0"
+                step="1"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                One-time setup time before production starts. Processing time is calculated from Work Center capacity.
+              </p>
             </div>
 
             {/* Notes */}

@@ -10,6 +10,7 @@
 TRUNCATE TABLE work_center_schedule CASCADE;
 TRUNCATE TABLE production_orders CASCADE;
 TRUNCATE TABLE operation_dependencies CASCADE;
+TRUNCATE TABLE routing_bom CASCADE;
 TRUNCATE TABLE routing CASCADE;
 TRUNCATE TABLE operations CASCADE;
 TRUNCATE TABLE bom CASCADE;
@@ -437,112 +438,112 @@ WHERE wc.work_center_code LIKE 'WC-%';
 -- Sub-assemblies (ASSY-*, SUB-*) are produced separately with their own routing.
 
 -- SEDAN MODEL A - Final Assembly Only
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
 -- Final Assembly (using pre-made sub-assemblies from BOM)
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 10, 30, 90.0, 'Join pre-made body to chassis'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 20, 20, 60.0, 'Install pre-assembled engine (ASSY-ENGINE)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 30, 15, 45.0, 'Install pre-assembled transmission (ASSY-TRANS)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 40, 25, 120.0, 'Install pre-assembled interior (ASSY-INTERIOR)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 50, 30, 90.0, 'Install pre-assembled electrical (ASSY-ELEC)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 60, 20, 40.0, 'Install windshield and windows'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 70, 10, 20.0, 'Mount pre-assembled wheels (SUB-WHEEL x4)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 80, 15, 30.0, 'Fill all vehicle fluids'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 10, 30, 'Join pre-made body to chassis'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 20, 20, 'Install pre-assembled engine'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 30, 15, 'Install pre-assembled transmission'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 40, 25, 'Install pre-assembled interior'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 50, 30, 'Install pre-assembled electrical'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 60, 20, 'Install windshield and windows'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 70, 10, 'Mount pre-assembled wheels'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 80, 15, 'Fill all vehicle fluids'),
 -- Testing and QC
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 90, 10, 20.0, 'Water leak test'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 100, 15, 45.0, 'Final vehicle inspection'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 110, 10, 30.0, 'Road test'),
-((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 120, 10, 25.0, 'Final cleaning and detailing');
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 90, 10, 'Water leak test'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 100, 15, 'Final vehicle inspection'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 110, 10, 'Road test'),
+((SELECT id FROM products WHERE product_code = 'CAR-SED-A'), (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 120, 10, 'Final cleaning and detailing');
 
 -- =====================================================
 -- SUV MODEL B - Final Assembly Only
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
 -- Final Assembly (using pre-made sub-assemblies from BOM)
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 10, 40, 110.0, 'Join pre-made body to chassis (larger SUV)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 20, 25, 75.0, 'Install pre-assembled V6 engine (ASSY-ENGINE-V6)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 30, 20, 55.0, 'Install pre-assembled transmission (ASSY-TRANS)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 40, 30, 150.0, 'Install pre-assembled premium interior (ASSY-INTERIOR)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 50, 35, 110.0, 'Install pre-assembled electrical (ASSY-ELEC)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 60, 25, 50.0, 'Install windshield and windows'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 70, 15, 25.0, 'Mount pre-assembled wheels (SUB-WHEEL x4)'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 80, 20, 40.0, 'Fill all vehicle fluids'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 10, 40, 'Join pre-made body to chassis (larger SUV)'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 20, 25, 'Install pre-assembled V6 engine'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 30, 20, 'Install pre-assembled transmission'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 40, 30, 'Install pre-assembled premium interior'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 50, 35, 'Install pre-assembled electrical'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 60, 25, 'Install windshield and windows'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 70, 15, 'Mount pre-assembled wheels'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 80, 20, 'Fill all vehicle fluids'),
 -- Testing and QC
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 90, 15, 25.0, 'Water leak test'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 100, 20, 55.0, 'Final vehicle inspection'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 110, 15, 40.0, 'Road test - includes off-road'),
-((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 120, 15, 35.0, 'Final cleaning and detailing');
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 90, 15, 'Water leak test'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 100, 20, 'Final vehicle inspection'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 110, 15, 'Road test - includes off-road'),
+((SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 120, 15, 'Final cleaning and detailing');
 
 -- =====================================================
 -- 6C. ROUTING FOR SEMI-PRODUCTS (Sub-Assemblies)
 -- =====================================================
 
 -- ENGINE ASSEMBLY 2.0L Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 10, 30, 120.0, 'Assemble engine block and internals'),
-((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 20, 10, 25.0, 'Test engine assembly');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 10, 30, 'Assemble engine block and internals'),
+((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 20, 10, 'Test engine assembly');
 
 -- ENGINE ASSEMBLY V6 Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE-V6'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 10, 40, 160.0, 'Assemble V6 engine'),
-((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE-V6'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 20, 15, 35.0, 'Test V6 engine');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE-V6'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-ASSY'), 10, 40, 'Assemble V6 engine'),
+((SELECT id FROM products WHERE product_code = 'ASSY-ENGINE-V6'), (SELECT id FROM operations WHERE operation_code = 'OP-ENG-TEST'), 20, 15, 'Test V6 engine');
 
 -- TRANSMISSION ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-TRANS'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-ASSY'), 10, 25, 90.0, 'Assemble transmission'),
-((SELECT id FROM products WHERE product_code = 'ASSY-TRANS'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-TEST'), 20, 10, 20.0, 'Test transmission');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-TRANS'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-ASSY'), 10, 25, 'Assemble transmission'),
+((SELECT id FROM products WHERE product_code = 'ASSY-TRANS'), (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-TEST'), 20, 10, 'Test transmission');
 
 -- BODY ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 45, 25.0, 'Stamp body panels'),
-((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-TRIM'), 20, 10, 6.0, 'Trim panels'),
-((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 30, 35, 90.0, 'Weld body structure'),
-((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 40, 25, 45.0, 'Fit and align panels'),
-((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-BODY'), 50, 10, 20.0, 'Body quality check');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 45, 'Stamp body panels'),
+((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-TRIM'), 20, 10, 'Trim panels'),
+((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-WELD-BODY'), 30, 35, 'Weld body structure'),
+((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 40, 25, 'Fit and align panels'),
+((SELECT id FROM products WHERE product_code = 'ASSY-BODY'), (SELECT id FROM operations WHERE operation_code = 'OP-QC-BODY'), 50, 10, 'Body quality check');
 
 -- CHASSIS ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-CHASSIS'), (SELECT id FROM operations WHERE operation_code = 'OP-CHASSIS-WELD'), 10, 30, 60.0, 'Weld chassis frame'),
-((SELECT id FROM products WHERE product_code = 'ASSY-CHASSIS'), (SELECT id FROM operations WHERE operation_code = 'OP-SUSP-INST'), 20, 20, 35.0, 'Install suspension components');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-CHASSIS'), (SELECT id FROM operations WHERE operation_code = 'OP-CHASSIS-WELD'), 10, 30, 'Weld chassis frame'),
+((SELECT id FROM products WHERE product_code = 'ASSY-CHASSIS'), (SELECT id FROM operations WHERE operation_code = 'OP-SUSP-INST'), 20, 20, 'Install suspension components');
 
 -- INTERIOR ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-INTERIOR'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 20, 80.0, 'Assemble interior components');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-INTERIOR'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 20, 'Assemble interior components');
 
 -- ELECTRICAL SYSTEM Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-ELEC'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 10, 15, 60.0, 'Assemble electrical harness');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-ELEC'), (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 10, 15, 'Assemble electrical harness');
 
 -- DASHBOARD ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'ASSY-DASH'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 15, 40.0, 'Assemble dashboard');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'ASSY-DASH'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 15, 'Assemble dashboard');
 
 -- WHEEL ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-WHEEL'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 10, 5, 8.0, 'Mount tire on rim');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-WHEEL'), (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 10, 5, 'Mount tire on rim');
 
 -- FRONT SEAT ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-SEAT-FRONT'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 10, 25.0, 'Assemble front seat');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-SEAT-FRONT'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 10, 'Assemble front seat');
 
 -- REAR SEAT ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-SEAT-REAR'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 10, 20.0, 'Assemble rear seat');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-SEAT-REAR'), (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 10, 10, 'Assemble rear seat');
 
 -- DOOR ASSEMBLIES Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-DOOR-FL'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 15.0, 'Assemble front left door'),
-((SELECT id FROM products WHERE product_code = 'SUB-DOOR-FR'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 15.0, 'Assemble front right door'),
-((SELECT id FROM products WHERE product_code = 'SUB-DOOR-RL'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 12.0, 'Assemble rear left door'),
-((SELECT id FROM products WHERE product_code = 'SUB-DOOR-RR'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 12.0, 'Assemble rear right door');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-DOOR-FL'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 'Assemble front left door'),
+((SELECT id FROM products WHERE product_code = 'SUB-DOOR-FR'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 'Assemble front right door'),
+((SELECT id FROM products WHERE product_code = 'SUB-DOOR-RL'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 'Assemble rear left door'),
+((SELECT id FROM products WHERE product_code = 'SUB-DOOR-RR'), (SELECT id FROM operations WHERE operation_code = 'OP-DOOR-ASSY'), 10, 8, 'Assemble rear right door');
 
 -- HOOD ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-HOOD'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 15, 10.0, 'Stamp hood panel'),
-((SELECT id FROM products WHERE product_code = 'SUB-HOOD'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 20, 10, 8.0, 'Fit hood hardware');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-HOOD'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 15, 'Stamp hood panel'),
+((SELECT id FROM products WHERE product_code = 'SUB-HOOD'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 20, 10, 'Fit hood hardware');
 
 -- TRUNK ASSEMBLY Routing
-INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, time_per_unit_minutes, notes) VALUES
-((SELECT id FROM products WHERE product_code = 'SUB-TRUNK'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 15, 12.0, 'Stamp trunk panel'),
-((SELECT id FROM products WHERE product_code = 'SUB-TRUNK'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 20, 10, 10.0, 'Fit trunk hardware');
+INSERT INTO routing (product_id, operation_id, sequence_number, setup_time_minutes, notes) VALUES
+((SELECT id FROM products WHERE product_code = 'SUB-TRUNK'), (SELECT id FROM operations WHERE operation_code = 'OP-STAMP'), 10, 15, 'Stamp trunk panel'),
+((SELECT id FROM products WHERE product_code = 'SUB-TRUNK'), (SELECT id FROM operations WHERE operation_code = 'OP-BODY-FIT'), 20, 10, 'Fit trunk hardware');
 
 -- =====================================================
 -- 7. OPERATION DEPENDENCIES
@@ -690,6 +691,77 @@ INSERT INTO operation_dependencies (routing_id, predecessor_routing_id, dependen
  'FS', 0, 'Fit hardware after stamping');
 
 -- =====================================================
+-- 8. ROUTING BOM (Link BOM Components to Routing Steps)
+-- =====================================================
+-- This links which materials/components are consumed at which routing step
+
+-- SEDAN MODEL A - Component consumption during final assembly
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+-- At Marriage step (seq 10): Body and Chassis assemblies
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-BODY'),
+ 'at_start', 'Body assembly consumed at marriage'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-CHASSIS'),
+ 'at_start', 'Chassis assembly consumed at marriage'),
+-- At Engine Install step (seq 20)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 20),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-ENGINE'),
+ 'at_start', 'Engine assembly consumed at engine install'),
+-- At Transmission Install step (seq 30)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 30),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-TRANS'),
+ 'at_start', 'Transmission consumed at trans install'),
+-- At Interior Install step (seq 40)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-INTERIOR'),
+ 'at_start', 'Interior consumed at interior install'),
+-- At Electrical Install step (seq 50)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 50),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'ASSY-ELEC'),
+ 'at_start', 'Electrical system consumed at elec install'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 50),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'COMP-BATTERY'),
+ 'at_start', 'Battery consumed at elec install'),
+-- At Wheel Mount step (seq 70)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 70),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'SUB-WHEEL'),
+ 'at_start', 'Wheels consumed at wheel mount');
+
+-- SUV MODEL B - Component consumption during final assembly
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+-- At Marriage step (seq 10): Body and Chassis assemblies
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-BODY'),
+ 'at_start', 'Body assembly consumed at marriage'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-CHASSIS'),
+ 'at_start', 'Chassis assembly consumed at marriage'),
+-- At Engine Install step (seq 20) - V6
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 20),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-ENGINE-V6'),
+ 'at_start', 'V6 Engine assembly consumed at engine install'),
+-- At Transmission Install step (seq 30)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 30),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-TRANS'),
+ 'at_start', 'Transmission consumed at trans install'),
+-- At Interior Install step (seq 40)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-INTERIOR'),
+ 'at_start', 'Interior consumed at interior install'),
+-- At Electrical Install step (seq 50)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 50),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'ASSY-ELEC'),
+ 'at_start', 'Electrical system consumed at elec install'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 50),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'COMP-BATTERY'),
+ 'at_start', 'Battery consumed at elec install'),
+-- At Wheel Mount step (seq 70)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 70),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'SUB-WHEEL'),
+ 'at_start', 'Wheels consumed at wheel mount');
+
+-- =====================================================
 -- 9. SAMPLE ORDERS
 -- =====================================================
 
@@ -734,6 +806,7 @@ SELECT 'BOM Lines: ' || COUNT(*) as summary FROM bom;
 SELECT 'Work Centers: ' || COUNT(*) as summary FROM work_centers;
 SELECT 'Operations: ' || COUNT(*) as summary FROM operations;
 SELECT 'Routing Steps: ' || COUNT(*) as summary FROM routing;
+SELECT 'Routing BOM Links: ' || COUNT(*) as summary FROM routing_bom;
 SELECT 'Operation Dependencies: ' || COUNT(*) as summary FROM operation_dependencies;
 SELECT 'Orders: ' || COUNT(*) as summary FROM orders;
 SELECT 'Production Orders: ' || COUNT(*) as summary FROM production_orders;

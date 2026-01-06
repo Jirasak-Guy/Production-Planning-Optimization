@@ -607,9 +607,6 @@ export default function OperationDetailPage({
                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
                       Setup Time
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                      Time/Unit
-                    </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                       Notes
                     </th>
@@ -640,9 +637,6 @@ export default function OperationDetailPage({
                           <ClockIcon className="w-4 h-4 text-gray-400" />
                           <span>{routing.setup_time_minutes} min</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-900">
-                        {routing.time_per_unit_minutes} min
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {routing.notes || "-"}

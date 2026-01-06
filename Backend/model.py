@@ -100,6 +100,7 @@ class BOM(SQLModel, table=True):
         back_populates="bom_as_component",
         sa_relationship_kwargs={"foreign_keys": "[BOM.component_product_id]"}
     )
+    routing_bom_links: List["RoutingBOM"] = Relationship(back_populates="bom")
 
 
 # =====================================================
@@ -228,7 +229,6 @@ class Routing(SQLModel, table=True):
     operation_id: int = Field(foreign_key="operations.id")
     sequence_number: int = Field(gt=0)
     setup_time_minutes: int = Field(default=0, ge=0)
-    time_per_unit_minutes: Decimal = Field(decimal_places=3, max_digits=10, gt=0)
     notes: Optional[str] = None
     is_active: bool = Field(default=True)
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
@@ -245,6 +245,7 @@ class Routing(SQLModel, table=True):
         back_populates="predecessor_routing",
         sa_relationship_kwargs={"foreign_keys": "[OperationDependency.predecessor_routing_id]"},
     )
+    routing_bom_links: List["RoutingBOM"] = Relationship(back_populates="routing")
 
 
 class OperationDependency(SQLModel, table=True):
@@ -269,6 +270,27 @@ class OperationDependency(SQLModel, table=True):
         back_populates="predecessor_of",
         sa_relationship_kwargs={"foreign_keys": "[OperationDependency.predecessor_routing_id]"},
     )
+
+
+# =====================================================
+# ROUTING BOM (Link between Routing and BOM)
+# =====================================================
+
+class RoutingBOM(SQLModel, table=True):
+    __tablename__ = "routing_bom"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    routing_id: int = Field(foreign_key="routing.id")
+    bom_id: int = Field(foreign_key="bom.id")
+    consumption_timing: str = Field(default="at_start", max_length=20)  # at_start, at_end, proportional
+    notes: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: Optional[datetime] = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.now)
+
+    # Relationships
+    routing: Optional[Routing] = Relationship(back_populates="routing_bom_links")
+    bom: Optional[BOM] = Relationship(back_populates="routing_bom_links")
 
 
 # =====================================================

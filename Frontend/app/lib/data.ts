@@ -6,7 +6,7 @@ import {
   WorkCenterCalendarException,
 } from "@/app/types/WorkCenter";
 import { Operation, OperationDependency } from "@/app/types/Operation";
-import { Routing } from "@/app/types/Routing";
+import { Routing, RoutingBOM } from "@/app/types/Routing";
 import { ProductionOrder, WorkCenterSchedule } from "@/app/types/Production";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -222,6 +222,22 @@ export async function fetchOperationDependencies(): Promise<
   return fetchData<OperationDependency>("/operation-dependencies");
 }
 
+export async function fetchRoutingBOM(): Promise<RoutingBOM[]> {
+  return fetchData<RoutingBOM>("/routing-bom");
+}
+
+export async function fetchRoutingBOMByRoutingId(routingId: number): Promise<RoutingBOM[]> {
+  const response = await fetch(`${API_BASE_URL}/routing/${routingId}/bom-links`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch routing BOM links for routing ${routingId}`);
+  }
+  return response.json();
+}
+
 export async function updateOperation(operationId: number, data: Partial<Operation>): Promise<Operation> {
   return updateData<Operation>(`/operations/${operationId}`, data);
 }
@@ -333,6 +349,10 @@ export async function createOperationDependency(data: Partial<OperationDependenc
   return createData<OperationDependency>("/operation-dependencies", data);
 }
 
+export async function createRoutingBOM(data: Partial<RoutingBOM>): Promise<RoutingBOM> {
+  return createData<RoutingBOM>("/routing-bom", data);
+}
+
 export async function createProductionOrder(data: Partial<ProductionOrder>): Promise<ProductionOrder> {
   return createData<ProductionOrder>("/production-orders", data);
 }
@@ -355,6 +375,10 @@ export async function updateOrderItem(orderItemId: number, data: Partial<OrderIt
 
 export async function updateRouting(routingId: number, data: Partial<Routing>): Promise<Routing> {
   return updateData<Routing>(`/routing/${routingId}`, data);
+}
+
+export async function updateRoutingBOM(routingBOMId: number, data: Partial<RoutingBOM>): Promise<RoutingBOM> {
+  return updateData<RoutingBOM>(`/routing-bom/${routingBOMId}`, data);
 }
 
 export async function updateShift(shiftId: number, data: Partial<Shift>): Promise<Shift> {
@@ -388,6 +412,17 @@ export async function deleteRouting(routingId: number): Promise<void> {
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`Failed to delete routing: ${error}`);
+  }
+}
+
+export async function deleteRoutingBOM(routingBOMId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/routing-bom/${routingBOMId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete routing BOM: ${error}`);
   }
 }
 
