@@ -1431,6 +1431,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         productId={parseInt(product_id)}
         operations={allOperations}
         existingRoutings={productRoutings}
+        availableBomItems={bomItems}
       />
 
       {/* Edit Routing Modal */}
@@ -1445,6 +1446,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         operations={allOperations}
         existingRoutings={productRoutings}
         currentDependencies={routingDependencies}
+        availableBomItems={bomItems}
       />
 
       {/* Delete Routing Confirmation Modal */}

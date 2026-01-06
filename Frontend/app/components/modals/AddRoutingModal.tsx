@@ -3,8 +3,17 @@
 import { useState, useEffect } from "react";
 import { XMarkIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Operation } from "@/app/types/Operation";
-import { Routing } from "@/app/types/Routing";
-import { createRouting, createOperationDependency } from "@/app/lib/data";
+import { Routing, RoutingBOM } from "@/app/types/Routing";
+import { BOM } from "@/app/types/CoreData";
+import { createRouting, createOperationDependency, createRoutingBOM } from "@/app/lib/data";
+
+interface BOMWithProduct extends BOM {
+  component?: {
+    id: number;
+    product_code: string;
+    product_name: string;
+  };
+}
 
 interface AddRoutingModalProps {
   isOpen: boolean;
@@ -13,12 +22,18 @@ interface AddRoutingModalProps {
   productId: number;
   operations: Operation[];
   existingRoutings: Array<Routing & { operation?: Operation }>;
+  availableBomItems?: BOMWithProduct[];
 }
 
 interface DependencyInput {
   predecessorRoutingId: number | "";
   dependencyType: "FS" | "SS" | "FF" | "SF";
   lagTimeMinutes: string;
+}
+
+interface MaterialInput {
+  bomId: number | "";
+  consumptionTiming: "at_start" | "at_end" | "proportional";
 }
 
 export default function AddRoutingModal({
@@ -28,6 +43,7 @@ export default function AddRoutingModal({
   productId,
   operations,
   existingRoutings,
+  availableBomItems = [],
 }: AddRoutingModalProps) {
   const [operationId, setOperationId] = useState<number | "">("");
   const [sequenceNumber, setSequenceNumber] = useState<string>("10");
@@ -39,6 +55,9 @@ export default function AddRoutingModal({
 
   // Dependencies
   const [dependencies, setDependencies] = useState<DependencyInput[]>([]);
+
+  // Materials (routing_bom)
+  const [materials, setMaterials] = useState<MaterialInput[]>([]);
 
   // Calculate next sequence number
   useEffect(() => {
@@ -62,6 +81,7 @@ export default function AddRoutingModal({
       setIsActive(true);
       setError(null);
       setDependencies([]);
+      setMaterials([]);
     }
   }, [isOpen]);
 
@@ -88,6 +108,28 @@ export default function AddRoutingModal({
     setDependencies(updated);
   };
 
+  // Material handlers
+  const addMaterial = () => {
+    setMaterials([
+      ...materials,
+      { bomId: "", consumptionTiming: "at_start" },
+    ]);
+  };
+
+  const removeMaterial = (index: number) => {
+    setMaterials(materials.filter((_, i) => i !== index));
+  };
+
+  const updateMaterial = (index: number, field: keyof MaterialInput, value: string | number) => {
+    const updated = [...materials];
+    if (field === "bomId") {
+      updated[index].bomId = value === "" ? "" : Number(value);
+    } else if (field === "consumptionTiming") {
+      updated[index].consumptionTiming = value as "at_start" | "at_end" | "proportional";
+    }
+    setMaterials(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -107,6 +149,14 @@ export default function AddRoutingModal({
     for (const dep of dependencies) {
       if (!dep.predecessorRoutingId) {
         setError("Please select a predecessor for all dependencies");
+        return;
+      }
+    }
+
+    // Validate materials
+    for (const mat of materials) {
+      if (!mat.bomId) {
+        setError("Please select a material for all material entries");
         return;
       }
     }
@@ -135,6 +185,16 @@ export default function AddRoutingModal({
         });
       }
 
+      // Create routing_bom links if any
+      for (const mat of materials) {
+        await createRoutingBOM({
+          routing_id: newRouting.id,
+          bom_id: mat.bomId as number,
+          consumption_timing: mat.consumptionTiming,
+          is_active: true,
+        });
+      }
+
       onRoutingAdded();
       onClose();
     } catch (err) {
@@ -148,6 +208,15 @@ export default function AddRoutingModal({
 
   // Filter active operations
   const activeOperations = operations.filter((op) => op.is_active);
+
+  // Get BOM items that are not already selected
+  const getAvailableBomForSelect = (currentIndex: number) => {
+    const selectedBomIds = materials
+      .filter((_, i) => i !== currentIndex)
+      .map(m => m.bomId)
+      .filter(id => id !== "");
+    return availableBomItems.filter(bom => !selectedBomIds.includes(bom.id));
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -261,6 +330,82 @@ export default function AddRoutingModal({
               <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
                 Active
               </label>
+            </div>
+
+            {/* Materials Section */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  Materials Used
+                </label>
+                <button
+                  type="button"
+                  onClick={addMaterial}
+                  disabled={availableBomItems.length === 0}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add Material
+                </button>
+              </div>
+
+              {availableBomItems.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  No BOM components available. Add components in the BOM section first.
+                </p>
+              ) : materials.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  No materials selected. Add materials that will be consumed in this step.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {materials.map((mat, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"
+                    >
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        {/* BOM Selection */}
+                        <select
+                          value={mat.bomId}
+                          onChange={(e) => updateMaterial(index, "bomId", e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white"
+                        >
+                          <option value="">Select material</option>
+                          {getAvailableBomForSelect(index).map((bom) => (
+                            <option key={bom.id} value={bom.id}>
+                              {bom.component?.product_code} - {bom.component?.product_name} (×{bom.quantity_required})
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Consumption Timing */}
+                        <select
+                          value={mat.consumptionTiming}
+                          onChange={(e) => updateMaterial(index, "consumptionTiming", e.target.value)}
+                          className="px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white"
+                        >
+                          <option value="at_start">At Start</option>
+                          <option value="at_end">At End</option>
+                          <option value="proportional">Proportional</option>
+                        </select>
+                      </div>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => removeMaterial(index)}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Dependencies Section */}
