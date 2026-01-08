@@ -114,13 +114,6 @@ CREATE TABLE shifts (
 COMMENT ON TABLE shifts IS 'Work shift definitions';
 COMMENT ON COLUMN shifts.effective_working_minutes IS 'Net working minutes per shift excluding breaks';
 
--- Insert default shifts
-INSERT INTO shifts (shift_code, shift_name, start_time, end_time, break_duration_minutes, effective_working_minutes) VALUES
-('A', 'Morning Shift', '08:00:00', '16:00:00', 60, 420),
-('B', 'Afternoon Shift', '16:00:00', '00:00:00', 60, 420),
-('C', 'Night Shift', '00:00:00', '08:00:00', 60, 420),
-('DAY', 'Day Shift', '08:00:00', '17:00:00', 60, 480);
-
 -- COMPANY_CALENDAR Table
 CREATE TABLE company_calendar (
     id SERIAL PRIMARY KEY,
@@ -135,17 +128,6 @@ CREATE TABLE company_calendar (
 
 COMMENT ON TABLE company_calendar IS 'Company calendar including holidays and special working days';
 COMMENT ON COLUMN company_calendar.day_type IS 'Day type: working-day, weekend, holiday, special-working-day';
-
--- Insert some sample calendar data for 2025
-INSERT INTO company_calendar (calendar_date, day_type, description, is_working_day) VALUES
-('2025-01-01', 'holiday', 'New Year''s Day', false),
-('2025-04-13', 'holiday', 'Songkran Festival', false),
-('2025-04-14', 'holiday', 'Songkran Festival', false),
-('2025-04-15', 'holiday', 'Songkran Festival', false),
-('2025-05-01', 'holiday', 'Labour Day', false),
-('2025-12-05', 'holiday', 'King''s Birthday', false),
-('2025-12-10', 'holiday', 'Constitution Day', false),
-('2025-12-31', 'holiday', 'New Year''s Eve', false);
 
 -- =====================================================
 -- OPERATIONS (must be before work_centers due to FK)

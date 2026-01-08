@@ -20,6 +20,37 @@ TRUNCATE TABLE work_center_calendar_exceptions CASCADE;
 TRUNCATE TABLE work_center_shifts CASCADE;
 TRUNCATE TABLE work_centers CASCADE;
 TRUNCATE TABLE products CASCADE;
+TRUNCATE TABLE shifts CASCADE;
+TRUNCATE TABLE company_calendar CASCADE;
+
+-- Insert default shifts
+INSERT INTO shifts (shift_code, shift_name, start_time, end_time, break_duration_minutes, effective_working_minutes) VALUES
+('A', 'Morning Shift', '08:00:00', '16:00:00', 60, 420),
+('B', 'Afternoon Shift', '16:00:00', '00:00:00', 60, 420),
+('C', 'Night Shift', '00:00:00', '08:00:00', 60, 420),
+('DAY', 'Day Shift', '08:00:00', '17:00:00', 60, 480);
+
+-- Insert some sample calendar data for 2025
+INSERT INTO company_calendar (calendar_date, day_type, description, is_working_day) VALUES
+('2025-01-01', 'holiday', 'New Year''s Day', false),
+('2025-04-13', 'holiday', 'Songkran Festival', false),
+('2025-04-14', 'holiday', 'Songkran Festival', false),
+('2025-04-15', 'holiday', 'Songkran Festival', false),
+('2025-05-01', 'holiday', 'Labour Day', false),
+('2025-12-05', 'holiday', 'King''s Birthday', false),
+('2025-12-10', 'holiday', 'Constitution Day', false),
+('2025-12-31', 'holiday', 'New Year''s Eve', false);
+
+-- Insert some sample calendar data for 2026
+INSERT INTO company_calendar (calendar_date, day_type, description, is_working_day) VALUES
+('2026-01-01', 'holiday', 'New Year''s Day', false),
+('2026-04-13', 'holiday', 'Songkran Festival', false),
+('2026-04-14', 'holiday', 'Songkran Festival', false),
+('2026-04-15', 'holiday', 'Songkran Festival', false),
+('2026-05-01', 'holiday', 'Labour Day', false),
+('2026-12-05', 'holiday', 'King''s Birthday', false),
+('2026-12-10', 'holiday', 'Constitution Day', false),
+('2026-12-31', 'holiday', 'New Year''s Eve', false);
 
 -- =====================================================
 -- 1. PRODUCTS (Hierarchical Structure)
@@ -759,7 +790,287 @@ INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
 -- At Wheel Mount step (seq 70)
 ((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 70),
  (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'SUB-WHEEL'),
- 'at_start', 'Wheels consumed at wheel mount');
+ 'at_start', 'Wheels consumed at wheel mount'),
+-- Consumables for CAR-SUV-B (Paint, Clearcoat, Bolt-kit) at Final Detail step (seq 120)
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 120),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'RM-PAINT'),
+ 'at_start', 'Paint consumed during final assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 120),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'RM-CLEARCOAT'),
+ 'at_start', 'Clearcoat consumed during final assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SUV-B' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SUV-B' AND c.product_code = 'RM-BOLT-KIT'),
+ 'proportional', 'Bolt kit consumed throughout assembly');
+
+-- SEDAN MODEL A - Additional consumables
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 120),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'RM-PAINT'),
+ 'at_start', 'Paint consumed during final assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 120),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'RM-CLEARCOAT'),
+ 'at_start', 'Clearcoat consumed during final assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'CAR-SED-A' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'CAR-SED-A' AND c.product_code = 'RM-BOLT-KIT'),
+ 'proportional', 'Bolt kit consumed throughout assembly');
+
+-- =====================================================
+-- 8B. ROUTING BOM FOR SEMI-PRODUCTS
+-- =====================================================
+-- Link all BOM components to their corresponding routing steps for semi-products
+
+-- ENGINE ASSEMBLY 2.0L - Routing BOM
+-- All engine components consumed at first step (Engine Assembly)
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-ENGINE-BLOCK'),
+ 'at_start', 'Engine block consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-CYLINDER-HEAD'),
+ 'at_start', 'Cylinder head consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-CRANKSHAFT'),
+ 'at_start', 'Crankshaft consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-PISTON-SET'),
+ 'at_start', 'Piston set consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-CAMSHAFT'),
+ 'at_start', 'Camshafts consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-ALTERNATOR'),
+ 'at_end', 'Alternator installed at assembly end'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-STARTER'),
+ 'at_end', 'Starter motor installed at assembly end'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE' AND c.product_code = 'COMP-ECU'),
+ 'at_end', 'ECU installed at assembly end');
+
+-- ENGINE ASSEMBLY V6 - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-ENGINE-BLOCK'),
+ 'at_start', 'V6 engine block consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-CYLINDER-HEAD'),
+ 'at_start', 'Cylinder heads (2) consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-CRANKSHAFT'),
+ 'at_start', 'Crankshaft consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-PISTON-SET'),
+ 'at_start', 'Piston set (1.5) consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-CAMSHAFT'),
+ 'at_start', 'Camshafts (4) consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-ALTERNATOR'),
+ 'at_end', 'Alternator installed at assembly end'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-STARTER'),
+ 'at_end', 'Starter motor installed at assembly end'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ENGINE-V6' AND c.product_code = 'COMP-ECU'),
+ 'at_end', 'ECU installed at assembly end');
+
+-- TRANSMISSION ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-TRANS' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-TRANS' AND c.product_code = 'COMP-TRANS-CASE'),
+ 'at_start', 'Transmission case consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-TRANS' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-TRANS' AND c.product_code = 'COMP-GEARSET'),
+ 'at_start', 'Gear set consumed at assembly start'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-TRANS' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-TRANS' AND c.product_code = 'COMP-TORQUE-CONV'),
+ 'at_end', 'Torque converter installed at assembly end');
+
+-- BODY ASSEMBLY - Routing BOM
+-- Stamping step (seq 10): Steel and aluminum sheets
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for stamping body panels'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'RM-ALUMINUM'),
+ 'at_start', 'Aluminum sheet consumed for stamping');
+-- Welding step (seq 30): Adhesive
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 30),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'RM-ADHESIVE'),
+ 'proportional', 'Structural adhesive used during welding'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 30),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'RM-PRIMER'),
+ 'at_end', 'Primer applied after welding');
+-- Body fit-up step (seq 40): Doors, hood, trunk, components
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-DOOR-FL'),
+ 'at_start', 'Front left door installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-DOOR-FR'),
+ 'at_start', 'Front right door installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-DOOR-RL'),
+ 'at_start', 'Rear left door installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-DOOR-RR'),
+ 'at_start', 'Rear right door installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-HOOD'),
+ 'at_start', 'Hood installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'SUB-TRUNK'),
+ 'at_start', 'Trunk installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-WINDSHIELD'),
+ 'at_end', 'Windshield installed at body fit-up end'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-BUMPER-F'),
+ 'at_start', 'Front bumper installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-BUMPER-R'),
+ 'at_start', 'Rear bumper installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-HEADLIGHT'),
+ 'at_end', 'Headlights installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-TAILLIGHT'),
+ 'at_end', 'Taillights installed during body fit-up'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-BODY' AND r.sequence_number = 40),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-BODY' AND c.product_code = 'COMP-MIRROR'),
+ 'at_end', 'Side mirrors installed during body fit-up');
+
+-- CHASSIS ASSEMBLY - Routing BOM
+-- Chassis welding step (seq 10): Steel tube and bolt kit
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-CHASSIS' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-CHASSIS' AND c.product_code = 'RM-STEEL-TUBE'),
+ 'at_start', 'Steel tube consumed for chassis frame welding'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-CHASSIS' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-CHASSIS' AND c.product_code = 'RM-BOLT-KIT'),
+ 'proportional', 'Bolt kit used throughout chassis welding');
+-- Suspension install step (seq 20): Shocks and springs
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-CHASSIS' AND r.sequence_number = 20),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-CHASSIS' AND c.product_code = 'COMP-SHOCK'),
+ 'at_start', 'Shock absorbers installed in suspension step'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-CHASSIS' AND r.sequence_number = 20),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-CHASSIS' AND c.product_code = 'COMP-SPRING'),
+ 'at_start', 'Coil springs installed in suspension step');
+
+-- INTERIOR ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-INTERIOR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-INTERIOR' AND c.product_code = 'SUB-SEAT-FRONT'),
+ 'at_start', 'Front seats installed in interior assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-INTERIOR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-INTERIOR' AND c.product_code = 'SUB-SEAT-REAR'),
+ 'at_start', 'Rear seat installed in interior assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-INTERIOR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-INTERIOR' AND c.product_code = 'ASSY-DASH'),
+ 'at_start', 'Dashboard assembly installed in interior'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-INTERIOR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-INTERIOR' AND c.product_code = 'COMP-STEERING'),
+ 'at_end', 'Steering wheel installed in interior'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-INTERIOR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-INTERIOR' AND c.product_code = 'COMP-AIRBAG'),
+ 'at_end', 'Airbags installed in interior');
+
+-- ELECTRICAL SYSTEM - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ELEC' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ELEC' AND c.product_code = 'COMP-WIRING'),
+ 'at_start', 'Wiring harness consumed in electrical assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-ELEC' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-ELEC' AND c.product_code = 'COMP-ECU'),
+ 'at_end', 'ECU installed in electrical system');
+
+-- DASHBOARD ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'ASSY-DASH' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'ASSY-DASH' AND c.product_code = 'COMP-DASHBOARD'),
+ 'at_start', 'Dashboard molding consumed in dashboard assembly');
+
+-- WHEEL ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-WHEEL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-WHEEL' AND c.product_code = 'COMP-TIRE'),
+ 'at_start', 'Tire consumed in wheel assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-WHEEL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-WHEEL' AND c.product_code = 'COMP-RIM'),
+ 'at_start', 'Alloy rim consumed in wheel assembly');
+
+-- FRONT SEAT ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND c.product_code = 'COMP-SEAT-FRAME'),
+ 'at_start', 'Seat frame consumed in front seat assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND c.product_code = 'COMP-SEAT-FOAM'),
+ 'at_start', 'Seat foam consumed in front seat assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-FRONT' AND c.product_code = 'COMP-SEAT-COVER'),
+ 'at_end', 'Seat cover installed in front seat assembly');
+
+-- REAR SEAT ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-REAR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-REAR' AND c.product_code = 'COMP-SEAT-FRAME'),
+ 'at_start', 'Seat frame consumed in rear seat assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-REAR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-REAR' AND c.product_code = 'COMP-SEAT-FOAM'),
+ 'at_start', 'Seat foam consumed in rear seat assembly'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-SEAT-REAR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-SEAT-REAR' AND c.product_code = 'COMP-SEAT-COVER'),
+ 'at_end', 'Seat cover installed in rear seat assembly');
+
+-- DOOR ASSEMBLIES - Routing BOM
+-- Front Left Door
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-FL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-FL' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for FL door panel'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-FL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-FL' AND c.product_code = 'COMP-WINDOW'),
+ 'at_end', 'Window glass installed in FL door');
+-- Front Right Door
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-FR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-FR' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for FR door panel'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-FR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-FR' AND c.product_code = 'COMP-WINDOW'),
+ 'at_end', 'Window glass installed in FR door');
+-- Rear Left Door
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-RL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-RL' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for RL door panel'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-RL' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-RL' AND c.product_code = 'COMP-WINDOW'),
+ 'at_end', 'Window glass installed in RL door');
+-- Rear Right Door
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-RR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-RR' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for RR door panel'),
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-DOOR-RR' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-DOOR-RR' AND c.product_code = 'COMP-WINDOW'),
+ 'at_end', 'Window glass installed in RR door');
+
+-- HOOD ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-HOOD' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-HOOD' AND c.product_code = 'RM-ALUMINUM'),
+ 'at_start', 'Aluminum sheet consumed for hood stamping');
+
+-- TRUNK ASSEMBLY - Routing BOM
+INSERT INTO routing_bom (routing_id, bom_id, consumption_timing, notes) VALUES
+((SELECT r.id FROM routing r JOIN products p ON r.product_id = p.id WHERE p.product_code = 'SUB-TRUNK' AND r.sequence_number = 10),
+ (SELECT b.id FROM bom b JOIN products p ON b.parent_product_id = p.id JOIN products c ON b.component_product_id = c.id WHERE p.product_code = 'SUB-TRUNK' AND c.product_code = 'RM-STEEL-SHEET'),
+ 'at_start', 'Steel sheet consumed for trunk stamping');
 
 -- =====================================================
 -- 9. SAMPLE ORDERS
