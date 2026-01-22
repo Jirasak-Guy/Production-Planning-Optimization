@@ -10,7 +10,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusCircleIcon,
-  FunnelIcon,
+  ArrowsUpDownIcon,
   CalendarDaysIcon,
   TableCellsIcon,
 } from "@heroicons/react/24/outline";
@@ -27,6 +27,7 @@ export default function CompanyCalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "date">("id");
 
   const loadCalendarData = async () => {
     setIsLoading(true);
@@ -45,13 +46,20 @@ export default function CompanyCalendarPage() {
   }, []);
 
   const filteredCalendarData = useMemo(() => {
-    return calendarData.filter(
-      (item) =>
-        item.calendar_date.includes(searchTerm) ||
-        item.day_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [calendarData, searchTerm]);
+    return calendarData
+      .filter(
+        (item) =>
+          item.calendar_date.includes(searchTerm) ||
+          item.day_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return new Date(a.calendar_date).getTime() - new Date(b.calendar_date).getTime();
+      });
+  }, [calendarData, searchTerm, sortKey]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -206,13 +214,16 @@ export default function CompanyCalendarPage() {
           <h2 className="text-2xl font-bold text-gray-800">Company Calendar</h2>
 
           <div className="flex items-center gap-3">
-            {/* Filter Button */}
+            {/* Sort Button */}
             <button
-              onClick={() => console.log("Filter clicked")}
-              className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title="Filter"
+              onClick={() => setSortKey(sortKey === "id" ? "date" : "id")}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              title={`Sort by ${sortKey === "id" ? "Date" : "ID"}`}
             >
-              <FunnelIcon className="w-6 h-6" />
+              <ArrowsUpDownIcon className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                {sortKey === "id" ? "ID" : "Date"}
+              </span>
             </button>
 
             {/* View Mode Toggle Button */}

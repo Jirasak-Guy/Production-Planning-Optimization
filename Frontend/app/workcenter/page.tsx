@@ -15,6 +15,7 @@ export default function WorkCenterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "work_center_code">("id");
 
   useEffect(() => {
     const loadWorkCenters = async () => {
@@ -33,22 +34,26 @@ export default function WorkCenterPage() {
   }, []);
 
   const filteredWorkCenters = useMemo(() => {
-    return workCenters.filter(
-      (wc) =>
-        wc.work_center_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wc.work_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wc.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, workCenters]);
+    return workCenters
+      .filter(
+        (wc) =>
+          wc.work_center_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          wc.work_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          wc.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return a.work_center_code.localeCompare(b.work_center_code);
+      });
+  }, [searchTerm, workCenters, sortKey]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
-    // TODO: Implement filter dialog
-  };
+
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -92,7 +97,8 @@ export default function WorkCenterPage() {
     <div className="flex flex-col h-full">
       <WorkCenterHeader
         onSearch={handleSearch}
-        onFilter={handleFilter}
+        onSortToggle={() => setSortKey(sortKey === "id" ? "work_center_code" : "id")}
+        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
         viewMode={viewMode}

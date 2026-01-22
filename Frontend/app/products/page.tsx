@@ -15,6 +15,7 @@ export default function Products() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "type">("id");
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -33,22 +34,26 @@ export default function Products() {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(
-      (product) =>
-        product.product_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, products]);
+    return products
+      .filter(
+        (product) =>
+          product.product_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return a.type.localeCompare(b.type);
+      });
+  }, [searchTerm, products, sortKey]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
-    // TODO: Implement filter dialog
-  };
+
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -82,7 +87,8 @@ export default function Products() {
     <div className="flex flex-col h-full">
       <ProductsHeader
         onSearch={handleSearch}
-        onFilter={handleFilter}
+        onSortToggle={() => setSortKey(sortKey === "id" ? "type" : "id")}
+        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
         viewMode={viewMode}
@@ -148,13 +154,12 @@ export default function Products() {
                           {product.product_name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            product.type === 'finished-product' 
-                              ? 'bg-purple-100 text-purple-800'
-                              : product.type === 'semi-product'
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.type === 'finished-product'
+                            ? 'bg-purple-100 text-purple-800'
+                            : product.type === 'semi-product'
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}>
+                            }`}>
                             {product.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </td>
@@ -162,8 +167,8 @@ export default function Products() {
                           {product.unit}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                          {product.standard_cost !== undefined && product.standard_cost !== null 
-                            ? `฿${product.standard_cost.toLocaleString()}` 
+                          {product.standard_cost !== undefined && product.standard_cost !== null
+                            ? `฿${product.standard_cost.toLocaleString()}`
                             : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">

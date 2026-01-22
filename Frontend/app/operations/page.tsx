@@ -15,6 +15,7 @@ export default function OperationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "operation_code">("id");
 
   useEffect(() => {
     const loadOperations = async () => {
@@ -33,21 +34,26 @@ export default function OperationsPage() {
   }, []);
 
   const filteredOperations = useMemo(() => {
-    return operations.filter(
-      (op) =>
-        op.operation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        op.operation_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        op.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, operations]);
+    return operations
+      .filter(
+        (op) =>
+          op.operation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          op.operation_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          op.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return a.operation_code.localeCompare(b.operation_code);
+      });
+  }, [searchTerm, operations, sortKey]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
-  };
+
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -81,7 +87,8 @@ export default function OperationsPage() {
     <div className="flex flex-col h-full">
       <OperationsHeader
         onSearch={handleSearch}
-        onFilter={handleFilter}
+        onSortToggle={() => setSortKey(sortKey === "id" ? "operation_code" : "id")}
+        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
         viewMode={viewMode}

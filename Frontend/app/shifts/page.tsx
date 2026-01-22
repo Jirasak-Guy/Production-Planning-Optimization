@@ -9,7 +9,7 @@ import {
   ArrowPathIcon,
   ClockIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
+  ArrowsUpDownIcon,
   PlusCircleIcon,
   Squares2X2Icon,
   TableCellsIcon,
@@ -24,6 +24,7 @@ export default function ShiftsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "shift_code">("id");
 
   const loadShifts = async () => {
     setIsLoading(true);
@@ -41,12 +42,19 @@ export default function ShiftsPage() {
     loadShifts();
   }, []);
 
-  const filteredShifts = shifts.filter(
-    (shift) =>
-      shift.shift_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shift.shift_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shift.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredShifts = shifts
+    .filter(
+      (shift) =>
+        shift.shift_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shift.shift_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shift.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortKey === "id") {
+        return a.id - b.id;
+      }
+      return a.shift_code.localeCompare(b.shift_code);
+    });
 
   const getShiftColor = (index: number) => {
     const colors = [
@@ -128,13 +136,16 @@ export default function ShiftsPage() {
               <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
 
-            {/* Filter Button */}
+            {/* Sort Button */}
             <button
-              onClick={() => console.log("Filter clicked")}
-              className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title="Filter"
+              onClick={() => setSortKey(sortKey === "id" ? "shift_code" : "id")}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              title={`Sort by ${sortKey === "id" ? "Code" : "ID"}`}
             >
-              <FunnelIcon className="w-6 h-6" />
+              <ArrowsUpDownIcon className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                {sortKey === "id" ? "ID" : "Code"}
+              </span>
             </button>
 
             {/* View Mode Toggle Button */}

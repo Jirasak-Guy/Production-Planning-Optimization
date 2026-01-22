@@ -15,6 +15,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "order_number">("id");
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -33,22 +34,26 @@ export default function Orders() {
   }, []);
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(
-      (order) =>
-        order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, orders]);
+    return orders
+      .filter(
+        (order) =>
+          order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return a.order_number.localeCompare(b.order_number);
+      });
+  }, [searchTerm, orders, sortKey]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
-    // TODO: Implement filter dialog
-  };
+
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -93,7 +98,8 @@ export default function Orders() {
     <div className="flex flex-col h-full">
       <OrdersHeader
         onSearch={handleSearch}
-        onFilter={handleFilter}
+        onSortToggle={() => setSortKey(sortKey === "id" ? "order_number" : "id")}
+        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
         viewMode={viewMode}

@@ -2,7 +2,7 @@
 
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
+  ArrowsUpDownIcon,
   ArrowPathIcon,
   PlusCircleIcon,
   Squares2X2Icon,
@@ -13,7 +13,8 @@ export type ViewMode = "card" | "table";
 
 interface ProductsHeaderProps {
   onSearch: (value: string) => void;
-  onFilter: () => void;
+  onSortToggle: () => void;
+  sortKey: "id" | "type";
   onRefresh: () => void;
   onAdd: () => void;
   viewMode: ViewMode;
@@ -22,7 +23,8 @@ interface ProductsHeaderProps {
 
 export default function ProductsHeader({
   onSearch,
-  onFilter,
+  onSortToggle,
+  sortKey,
   onRefresh,
   onAdd,
   viewMode,
@@ -45,13 +47,16 @@ export default function ProductsHeader({
             <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
 
-          {/* Filter Button */}
+          {/* Sort Button */}
           <button
-            onClick={onFilter}
-            className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title="Filter"
+            onClick={onSortToggle}
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            title={`Sort by ${sortKey === "id" ? "Type" : "ID"}`}
           >
-            <FunnelIcon className="w-6 h-6" />
+            <ArrowsUpDownIcon className="w-5 h-5" />
+            <span className="text-sm font-medium">
+              {sortKey === "id" ? "ID" : "Type"}
+            </span>
           </button>
 
           {/* View Mode Toggle Button */}

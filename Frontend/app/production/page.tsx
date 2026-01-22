@@ -17,6 +17,7 @@ export default function ProductionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<"id" | "po_number">("id");
 
   useEffect(() => {
     const loadProductionOrders = async () => {
@@ -35,20 +36,25 @@ export default function ProductionPage() {
   }, []);
 
   const filteredOrders = useMemo(() => {
-    return productionOrders.filter(
-      (po) =>
-        po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        po.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, productionOrders]);
+    return productionOrders
+      .filter(
+        (po) =>
+          po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          po.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortKey === "id") {
+          return a.id - b.id;
+        }
+        return a.po_number.localeCompare(b.po_number);
+      });
+  }, [searchTerm, productionOrders, sortKey]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const handleFilter = () => {
-    console.log("Filter clicked");
-  };
+
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -94,7 +100,8 @@ export default function ProductionPage() {
     <div className="flex flex-col h-full">
       <ProductionHeader
         onSearch={handleSearch}
-        onFilter={handleFilter}
+        onSortToggle={() => setSortKey(sortKey === "id" ? "po_number" : "id")}
+        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
         viewMode={viewMode}
