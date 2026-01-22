@@ -49,7 +49,7 @@ app.add_middleware(
 
 
 # =====================================================
-# CORE ENDPOINTS
+# ORDERS
 # =====================================================
 
 @app.get("/orders", response_model=list[Order])
@@ -64,167 +64,6 @@ def read_order(order_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Order not found")
     return order
 
-
-@app.get("/products", response_model=list[Product])
-def read_products(session: SessionDep):
-    return session.exec(select(Product)).all()
-
-
-@app.get("/products/{product_id}", response_model=Product)
-def read_product(product_id: int, session: SessionDep):
-    product = session.get(Product, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
-
-@app.get("/order-items", response_model=list[OrderItem])
-def read_order_items(session: SessionDep):
-    return session.exec(select(OrderItem)).all()
-
-
-@app.get("/orders/{order_id}/order-items", response_model=list[OrderItem])
-def read_order_items_by_order_id(order_id: int, session: SessionDep):
-    order = session.get(Order, order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
-
-
-@app.get("/bom", response_model=list[BOM])
-def read_bom(session: SessionDep):
-    return session.exec(select(BOM)).all()
-
-
-# =====================================================
-# WORK CENTER AND SHIFT ENDPOINTS
-# =====================================================
-
-@app.get("/shifts", response_model=list[Shift])
-def read_shifts(session: SessionDep):
-    return session.exec(select(Shift)).all()
-
-
-@app.get("/shifts/{shift_id}", response_model=Shift)
-def read_shift(shift_id: int, session: SessionDep):
-    shift = session.get(Shift, shift_id)
-    if not shift:
-        raise HTTPException(status_code=404, detail="Shift not found")
-    return shift
-
-
-@app.get("/company-calendar", response_model=list[CompanyCalendar])
-def read_company_calendar(session: SessionDep):
-    return session.exec(select(CompanyCalendar)).all()
-
-
-@app.get("/company-calendar/{calendar_id}", response_model=CompanyCalendar)
-def read_company_calendar_entry(calendar_id: int, session: SessionDep):
-    calendar = session.get(CompanyCalendar, calendar_id)
-    if not calendar:
-        raise HTTPException(status_code=404, detail="Calendar entry not found")
-    return calendar
-
-
-@app.get("/work-centers", response_model=list[WorkCenter])
-def read_work_centers(session: SessionDep):
-    return session.exec(select(WorkCenter)).all()
-
-
-@app.get("/work-centers/{work_center_id}", response_model=WorkCenter)
-def read_work_center(work_center_id: int, session: SessionDep):
-    work_center = session.get(WorkCenter, work_center_id)
-    if not work_center:
-        raise HTTPException(status_code=404, detail="Work center not found")
-    return work_center
-
-
-@app.get("/work-center-shifts", response_model=list[WorkCenterShift])
-def read_work_center_shifts(session: SessionDep):
-    return session.exec(select(WorkCenterShift)).all()
-
-
-@app.get("/work-center-calendar-exceptions", response_model=list[WorkCenterCalendarException])
-def read_work_center_calendar_exceptions(session: SessionDep):
-    return session.exec(select(WorkCenterCalendarException)).all()
-
-
-# =====================================================
-# OPERATIONS AND ROUTING ENDPOINTS
-# =====================================================
-
-@app.get("/operations", response_model=list[Operation])
-def read_operations(session: SessionDep):
-    return session.exec(select(Operation)).all()
-
-
-@app.get("/operations/{operation_id}", response_model=Operation)
-def read_operation(operation_id: int, session: SessionDep):
-    operation = session.get(Operation, operation_id)
-    if not operation:
-        raise HTTPException(status_code=404, detail="Operation not found")
-    return operation
-
-
-@app.get("/operations/{operation_id}/work-centers", response_model=list[WorkCenter])
-def read_work_centers_by_operation(operation_id: int, session: SessionDep):
-    """Get all work centers that can perform this operation"""
-    operation = session.get(Operation, operation_id)
-    if not operation:
-        raise HTTPException(status_code=404, detail="Operation not found")
-    return session.exec(select(WorkCenter).where(WorkCenter.operation_id == operation_id)).all()
-
-
-@app.get("/routing", response_model=list[Routing])
-def read_routing(session: SessionDep):
-    return session.exec(select(Routing)).all()
-
-
-@app.get("/operation-dependencies", response_model=list[OperationDependency])
-def read_operation_dependencies(session: SessionDep):
-    return session.exec(select(OperationDependency)).all()
-
-
-@app.get("/routing-bom", response_model=list[RoutingBOM])
-def read_routing_bom(session: SessionDep):
-    """Get all routing-bom links"""
-    return session.exec(select(RoutingBOM)).all()
-
-
-@app.get("/routing/{routing_id}/bom-links", response_model=list[RoutingBOM])
-def read_routing_bom_by_routing(routing_id: int, session: SessionDep):
-    """Get all BOM components linked to a specific routing step"""
-    routing = session.get(Routing, routing_id)
-    if not routing:
-        raise HTTPException(status_code=404, detail="Routing not found")
-    return session.exec(select(RoutingBOM).where(RoutingBOM.routing_id == routing_id)).all()
-
-
-# =====================================================
-# PRODUCTION TRACKING ENDPOINTS
-# =====================================================
-
-@app.get("/production-orders", response_model=list[ProductionOrder])
-def read_production_orders(session: SessionDep):
-    return session.exec(select(ProductionOrder)).all()
-
-
-@app.get("/production-orders/{production_order_id}", response_model=ProductionOrder)
-def read_production_order(production_order_id: int, session: SessionDep):
-    production_order = session.get(ProductionOrder, production_order_id)
-    if not production_order:
-        raise HTTPException(status_code=404, detail="Production order not found")
-    return production_order
-
-
-@app.get("/work-center-schedule", response_model=list[WorkCenterSchedule])
-def read_work_center_schedule(session: SessionDep):
-    return session.exec(select(WorkCenterSchedule)).all()
-
-
-# =====================================================
-# CRUD OPERATIONS - ORDERS
-# =====================================================
 
 @app.post("/orders", response_model=Order)
 def create_order(order: Order, session: SessionDep):
@@ -281,9 +120,30 @@ def delete_order(order_id: int, session: SessionDep):
     return {"message": "Order deleted successfully"}
 
 
+@app.get("/orders/{order_id}/order-items", response_model=list[OrderItem])
+def read_order_items_by_order_id(order_id: int, session: SessionDep):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+
+
 # =====================================================
-# CRUD OPERATIONS - PRODUCTS
+# PRODUCTS
 # =====================================================
+
+@app.get("/products", response_model=list[Product])
+def read_products(session: SessionDep):
+    return session.exec(select(Product)).all()
+
+
+@app.get("/products/{product_id}", response_model=Product)
+def read_product(product_id: int, session: SessionDep):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
 
 @app.post("/products", response_model=Product)
 def create_product(product: Product, session: SessionDep):
@@ -354,8 +214,21 @@ def delete_product(product_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - ORDER ITEMS
+# ORDER ITEMS
 # =====================================================
+
+@app.get("/order-items", response_model=list[OrderItem])
+def read_order_items(session: SessionDep):
+    return session.exec(select(OrderItem)).all()
+
+
+@app.get("/order-items/{order_item_id}", response_model=OrderItem)
+def read_order_item(order_item_id: int, session: SessionDep):
+    item = session.get(OrderItem, order_item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Order item not found")
+    return item
+
 
 @app.post("/order-items", response_model=OrderItem)
 def create_order_item(order_item: OrderItem, session: SessionDep):
@@ -406,8 +279,21 @@ def delete_order_item(order_item_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - BOM
+# BOM
 # =====================================================
+
+@app.get("/bom", response_model=list[BOM])
+def read_bom(session: SessionDep):
+    return session.exec(select(BOM)).all()
+
+
+@app.get("/bom/{bom_id}", response_model=BOM)
+def read_bom_entry(bom_id: int, session: SessionDep):
+    bom = session.get(BOM, bom_id)
+    if not bom:
+        raise HTTPException(status_code=404, detail="BOM entry not found")
+    return bom
+
 
 @app.post("/bom", response_model=BOM)
 def create_bom(bom: BOM, session: SessionDep):
@@ -448,44 +334,21 @@ def delete_bom(bom_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - ROUTING BOM
+# SHIFTS
 # =====================================================
 
-@app.post("/routing-bom", response_model=RoutingBOM)
-def create_routing_bom(routing_bom: RoutingBOM, session: SessionDep):
-    session.add(routing_bom)
-    session.commit()
-    session.refresh(routing_bom)
-    return routing_bom
+@app.get("/shifts", response_model=list[Shift])
+def read_shifts(session: SessionDep):
+    return session.exec(select(Shift)).all()
 
 
-@app.put("/routing-bom/{routing_bom_id}", response_model=RoutingBOM)
-def update_routing_bom(routing_bom_id: int, routing_bom_data: RoutingBOM, session: SessionDep):
-    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
-    if not db_routing_bom:
-        raise HTTPException(status_code=404, detail="Routing BOM not found")
-    routing_bom_dict = routing_bom_data.model_dump(exclude_unset=True, exclude={"id"})
-    for key, value in routing_bom_dict.items():
-        setattr(db_routing_bom, key, value)
-    session.add(db_routing_bom)
-    session.commit()
-    session.refresh(db_routing_bom)
-    return db_routing_bom
+@app.get("/shifts/{shift_id}", response_model=Shift)
+def read_shift(shift_id: int, session: SessionDep):
+    shift = session.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    return shift
 
-
-@app.delete("/routing-bom/{routing_bom_id}")
-def delete_routing_bom(routing_bom_id: int, session: SessionDep):
-    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
-    if not db_routing_bom:
-        raise HTTPException(status_code=404, detail="Routing BOM not found")
-    session.delete(db_routing_bom)
-    session.commit()
-    return {"message": "Routing BOM deleted successfully"}
-
-
-# =====================================================
-# CRUD OPERATIONS - SHIFTS
-# =====================================================
 
 @app.post("/shifts", response_model=Shift)
 def create_shift(shift: Shift, session: SessionDep):
@@ -530,10 +393,22 @@ def delete_shift(shift_id: int, session: SessionDep):
     return {"message": "Shift deleted successfully"}
 
 
+# =====================================================
+# COMPANY CALENDAR
+# =====================================================
 
-# =====================================================
-# CRUD OPERATIONS - COMPANY CALENDAR
-# =====================================================
+@app.get("/company-calendar", response_model=list[CompanyCalendar])
+def read_company_calendar(session: SessionDep):
+    return session.exec(select(CompanyCalendar)).all()
+
+
+@app.get("/company-calendar/{calendar_id}", response_model=CompanyCalendar)
+def read_company_calendar_entry(calendar_id: int, session: SessionDep):
+    calendar = session.get(CompanyCalendar, calendar_id)
+    if not calendar:
+        raise HTTPException(status_code=404, detail="Calendar entry not found")
+    return calendar
+
 
 @app.post("/company-calendar", response_model=CompanyCalendar)
 def create_company_calendar(calendar: CompanyCalendar, session: SessionDep):
@@ -568,8 +443,21 @@ def delete_company_calendar(calendar_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - WORK CENTERS
+# WORK CENTERS
 # =====================================================
+
+@app.get("/work-centers", response_model=list[WorkCenter])
+def read_work_centers(session: SessionDep):
+    return session.exec(select(WorkCenter)).all()
+
+
+@app.get("/work-centers/{work_center_id}", response_model=WorkCenter)
+def read_work_center(work_center_id: int, session: SessionDep):
+    work_center = session.get(WorkCenter, work_center_id)
+    if not work_center:
+        raise HTTPException(status_code=404, detail="Work center not found")
+    return work_center
+
 
 @app.post("/work-centers", response_model=WorkCenter)
 def create_work_center(work_center: WorkCenter, session: SessionDep):
@@ -624,8 +512,21 @@ def delete_work_center(work_center_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - WORK CENTER SHIFTS
+# WORK CENTER SHIFTS
 # =====================================================
+
+@app.get("/work-center-shifts", response_model=list[WorkCenterShift])
+def read_work_center_shifts(session: SessionDep):
+    return session.exec(select(WorkCenterShift)).all()
+
+
+@app.get("/work-center-shifts/{work_center_shift_id}", response_model=WorkCenterShift)
+def read_work_center_shift(work_center_shift_id: int, session: SessionDep):
+    shift = session.get(WorkCenterShift, work_center_shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Work center shift not found")
+    return shift
+
 
 @app.post("/work-center-shifts", response_model=WorkCenterShift)
 def create_work_center_shift(work_center_shift: WorkCenterShift, session: SessionDep):
@@ -660,8 +561,21 @@ def delete_work_center_shift(work_center_shift_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - WORK CENTER CALENDAR EXCEPTIONS
+# WORK CENTER CALENDAR EXCEPTIONS
 # =====================================================
+
+@app.get("/work-center-calendar-exceptions", response_model=list[WorkCenterCalendarException])
+def read_work_center_calendar_exceptions(session: SessionDep):
+    return session.exec(select(WorkCenterCalendarException)).all()
+
+
+@app.get("/work-center-calendar-exceptions/{exception_id}", response_model=WorkCenterCalendarException)
+def read_work_center_calendar_exception(exception_id: int, session: SessionDep):
+    exception = session.get(WorkCenterCalendarException, exception_id)
+    if not exception:
+        raise HTTPException(status_code=404, detail="Work center calendar exception not found")
+    return exception
+
 
 @app.post("/work-center-calendar-exceptions", response_model=WorkCenterCalendarException)
 def create_work_center_calendar_exception(exception: WorkCenterCalendarException, session: SessionDep):
@@ -696,8 +610,21 @@ def delete_work_center_calendar_exception(exception_id: int, session: SessionDep
 
 
 # =====================================================
-# CRUD OPERATIONS - OPERATIONS
+# OPERATIONS
 # =====================================================
+
+@app.get("/operations", response_model=list[Operation])
+def read_operations(session: SessionDep):
+    return session.exec(select(Operation)).all()
+
+
+@app.get("/operations/{operation_id}", response_model=Operation)
+def read_operation(operation_id: int, session: SessionDep):
+    operation = session.get(Operation, operation_id)
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return operation
+
 
 @app.post("/operations", response_model=Operation)
 def create_operation(operation: Operation, session: SessionDep):
@@ -777,9 +704,31 @@ def delete_operation(operation_id: int, session: SessionDep):
     return {"message": "Operation deleted successfully"}
 
 
+@app.get("/operations/{operation_id}/work-centers", response_model=list[WorkCenter])
+def read_work_centers_by_operation(operation_id: int, session: SessionDep):
+    """Get all work centers that can perform this operation"""
+    operation = session.get(Operation, operation_id)
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return session.exec(select(WorkCenter).where(WorkCenter.operation_id == operation_id)).all()
+
+
 # =====================================================
-# CRUD OPERATIONS - ROUTING
+# ROUTING
 # =====================================================
+
+@app.get("/routing", response_model=list[Routing])
+def read_routing(session: SessionDep):
+    return session.exec(select(Routing)).all()
+
+
+@app.get("/routing/{routing_id}", response_model=Routing)
+def read_routing_entry(routing_id: int, session: SessionDep):
+    routing = session.get(Routing, routing_id)
+    if not routing:
+        raise HTTPException(status_code=404, detail="Routing not found")
+    return routing
+
 
 @app.post("/routing", response_model=Routing)
 def create_routing(routing: Routing, session: SessionDep):
@@ -827,9 +776,81 @@ def delete_routing(routing_id: int, session: SessionDep):
     return {"message": "Routing deleted successfully"}
 
 
+@app.get("/routing/{routing_id}/bom-links", response_model=list[RoutingBOM])
+def read_routing_bom_by_routing(routing_id: int, session: SessionDep):
+    """Get all BOM components linked to a specific routing step"""
+    routing = session.get(Routing, routing_id)
+    if not routing:
+        raise HTTPException(status_code=404, detail="Routing not found")
+    return session.exec(select(RoutingBOM).where(RoutingBOM.routing_id == routing_id)).all()
+
+
 # =====================================================
-# CRUD OPERATIONS - OPERATION DEPENDENCIES
+# ROUTING BOM
 # =====================================================
+
+@app.get("/routing-bom", response_model=list[RoutingBOM])
+def read_routing_bom(session: SessionDep):
+    """Get all routing-bom links"""
+    return session.exec(select(RoutingBOM)).all()
+
+
+@app.get("/routing-bom/{routing_bom_id}", response_model=RoutingBOM)
+def read_routing_bom_entry(routing_bom_id: int, session: SessionDep):
+    entry = session.get(RoutingBOM, routing_bom_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Routing BOM not found")
+    return entry
+
+
+@app.post("/routing-bom", response_model=RoutingBOM)
+def create_routing_bom(routing_bom: RoutingBOM, session: SessionDep):
+    session.add(routing_bom)
+    session.commit()
+    session.refresh(routing_bom)
+    return routing_bom
+
+
+@app.put("/routing-bom/{routing_bom_id}", response_model=RoutingBOM)
+def update_routing_bom(routing_bom_id: int, routing_bom_data: RoutingBOM, session: SessionDep):
+    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
+    if not db_routing_bom:
+        raise HTTPException(status_code=404, detail="Routing BOM not found")
+    routing_bom_dict = routing_bom_data.model_dump(exclude_unset=True, exclude={"id"})
+    for key, value in routing_bom_dict.items():
+        setattr(db_routing_bom, key, value)
+    session.add(db_routing_bom)
+    session.commit()
+    session.refresh(db_routing_bom)
+    return db_routing_bom
+
+
+@app.delete("/routing-bom/{routing_bom_id}")
+def delete_routing_bom(routing_bom_id: int, session: SessionDep):
+    db_routing_bom = session.get(RoutingBOM, routing_bom_id)
+    if not db_routing_bom:
+        raise HTTPException(status_code=404, detail="Routing BOM not found")
+    session.delete(db_routing_bom)
+    session.commit()
+    return {"message": "Routing BOM deleted successfully"}
+
+
+# =====================================================
+# OPERATION DEPENDENCIES
+# =====================================================
+
+@app.get("/operation-dependencies", response_model=list[OperationDependency])
+def read_operation_dependencies(session: SessionDep):
+    return session.exec(select(OperationDependency)).all()
+
+
+@app.get("/operation-dependencies/{dependency_id}", response_model=OperationDependency)
+def read_operation_dependency(dependency_id: int, session: SessionDep):
+    dep = session.get(OperationDependency, dependency_id)
+    if not dep:
+        raise HTTPException(status_code=404, detail="Operation dependency not found")
+    return dep
+
 
 @app.post("/operation-dependencies", response_model=OperationDependency)
 def create_operation_dependency(dependency: OperationDependency, session: SessionDep):
@@ -864,8 +885,21 @@ def delete_operation_dependency(dependency_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - PRODUCTION ORDERS
+# PRODUCTION ORDERS
 # =====================================================
+
+@app.get("/production-orders", response_model=list[ProductionOrder])
+def read_production_orders(session: SessionDep):
+    return session.exec(select(ProductionOrder)).all()
+
+
+@app.get("/production-orders/{production_order_id}", response_model=ProductionOrder)
+def read_production_order(production_order_id: int, session: SessionDep):
+    production_order = session.get(ProductionOrder, production_order_id)
+    if not production_order:
+        raise HTTPException(status_code=404, detail="Production order not found")
+    return production_order
+
 
 @app.post("/production-orders", response_model=ProductionOrder)
 def create_production_order(production_order: ProductionOrder, session: SessionDep):
@@ -908,8 +942,21 @@ def delete_production_order(production_order_id: int, session: SessionDep):
 
 
 # =====================================================
-# CRUD OPERATIONS - WORK CENTER SCHEDULE
+# WORK CENTER SCHEDULE
 # =====================================================
+
+@app.get("/work-center-schedule", response_model=list[WorkCenterSchedule])
+def read_work_center_schedule(session: SessionDep):
+    return session.exec(select(WorkCenterSchedule)).all()
+
+
+@app.get("/work-center-schedule/{schedule_id}", response_model=WorkCenterSchedule)
+def read_work_center_schedule_entry(schedule_id: int, session: SessionDep):
+    schedule = session.get(WorkCenterSchedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Work center schedule not found")
+    return schedule
+
 
 @app.post("/work-center-schedule", response_model=WorkCenterSchedule)
 def create_work_center_schedule(schedule: WorkCenterSchedule, session: SessionDep):
