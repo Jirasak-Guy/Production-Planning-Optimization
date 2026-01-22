@@ -990,6 +990,164 @@ def delete_work_center_schedule(schedule_id: int, session: SessionDep):
     return {"message": "Work center schedule deleted successfully"}
 
 
+# =====================================================
+# GANTT CHART DATA API
+# =====================================================
+
+from pydantic import BaseModel
+from datetime import date as date_type
+from typing import Optional
+
+class GanttScheduleItem(BaseModel):
+    id: int
+    work_center_id: int
+    work_center_code: str
+    work_center_name: str
+    production_order_id: int
+    po_number: str
+    product_id: int
+    product_code: str
+    product_name: str
+    operation_id: int
+    operation_code: str
+    operation_name: str
+    scheduled_start: str
+    scheduled_end: str
+    actual_start: Optional[str] = None
+    actual_end: Optional[str] = None
+    status: str
+    quantity_planned: float
+    quantity_completed: float
+
+class GanttWorkCenter(BaseModel):
+    id: int
+    code: str
+    name: str
+
+class GanttDateRange(BaseModel):
+    start: str
+    end: str
+
+class GanttData(BaseModel):
+    schedules: list[GanttScheduleItem]
+    work_centers: list[GanttWorkCenter]
+    date_range: GanttDateRange
+    holidays: list[str]
+
+
+@app.get("/gantt-data", response_model=GanttData)
+def get_gantt_data(
+    session: SessionDep,
+    start_date: Optional[str] = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date filter (YYYY-MM-DD)")
+):
+    """
+    Get comprehensive Gantt chart data with all related information
+    """
+    from datetime import datetime, timedelta
+    
+    # Get all schedules with related data
+    schedules = session.exec(select(WorkCenterSchedule)).all()
+    
+    gantt_schedules = []
+    min_date = None
+    max_date = None
+    
+    for schedule in schedules:
+        # Get related entities
+        work_center = session.get(WorkCenter, schedule.work_center_id)
+        production_order = session.get(ProductionOrder, schedule.production_order_id)
+        product = session.get(Product, schedule.product_id)
+        operation = session.get(Operation, schedule.operation_id)
+        
+        if not all([work_center, production_order, product, operation]):
+            continue
+        
+        # Parse dates for filtering
+        sched_start = schedule.scheduled_start
+        sched_end = schedule.scheduled_end
+        
+        # Apply date filters if provided
+        if start_date:
+            filter_start = datetime.fromisoformat(start_date.replace('Z', '+00:00') if 'T' in start_date else f"{start_date}T00:00:00")
+            if sched_end < filter_start:
+                continue
+        
+        if end_date:
+            filter_end = datetime.fromisoformat(end_date.replace('Z', '+00:00') if 'T' in end_date else f"{end_date}T23:59:59")
+            if sched_start > filter_end:
+                continue
+        
+        # Track date range
+        if min_date is None or sched_start < min_date:
+            min_date = sched_start
+        if max_date is None or sched_end > max_date:
+            max_date = sched_end
+        
+        gantt_schedules.append(GanttScheduleItem(
+            id=schedule.id,
+            work_center_id=work_center.id,
+            work_center_code=work_center.work_center_code,
+            work_center_name=work_center.work_center_name,
+            production_order_id=production_order.id,
+            po_number=production_order.po_number,
+            product_id=product.id,
+            product_code=product.product_code,
+            product_name=product.product_name,
+            operation_id=operation.id,
+            operation_code=operation.operation_code,
+            operation_name=operation.operation_name,
+            scheduled_start=schedule.scheduled_start.isoformat(),
+            scheduled_end=schedule.scheduled_end.isoformat(),
+            actual_start=schedule.actual_start.isoformat() if schedule.actual_start else None,
+            actual_end=schedule.actual_end.isoformat() if schedule.actual_end else None,
+            status=schedule.status,
+            quantity_planned=float(schedule.quantity_planned),
+            quantity_completed=float(schedule.quantity_completed)
+        ))
+    
+    # Get unique work centers that have schedules
+    work_center_ids = list(set(s.work_center_id for s in gantt_schedules))
+    gantt_work_centers = []
+    for wc_id in work_center_ids:
+        wc = session.get(WorkCenter, wc_id)
+        if wc:
+            gantt_work_centers.append(GanttWorkCenter(
+                id=wc.id,
+                code=wc.work_center_code,
+                name=wc.work_center_name
+            ))
+    
+    # Sort work centers by code
+    gantt_work_centers.sort(key=lambda x: x.code)
+    
+    # Determine date range
+    if min_date and max_date:
+        date_range = GanttDateRange(
+            start=min_date.date().isoformat() if hasattr(min_date, 'date') else min_date.isoformat()[:10],
+            end=max_date.date().isoformat() if hasattr(max_date, 'date') else max_date.isoformat()[:10]
+        )
+    else:
+        today = datetime.now().date()
+        date_range = GanttDateRange(
+            start=today.isoformat(),
+            end=(today + timedelta(days=30)).isoformat()
+        )
+    
+    # Get holidays within the date range
+    holidays = []
+    calendar_entries = session.exec(select(CompanyCalendar).where(CompanyCalendar.is_working_day == False)).all()
+    for entry in calendar_entries:
+        holidays.append(entry.calendar_date.isoformat())
+    
+    return GanttData(
+        schedules=gantt_schedules,
+        work_centers=gantt_work_centers,
+        date_range=date_range,
+        holidays=holidays
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

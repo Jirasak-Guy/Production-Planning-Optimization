@@ -332,6 +332,7 @@ CREATE TABLE work_center_schedule (
     id SERIAL PRIMARY KEY,
     work_center_id INTEGER NOT NULL,
     production_order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
     operation_id INTEGER NOT NULL,
     shift_id INTEGER,
     scheduled_start TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -346,6 +347,7 @@ CREATE TABLE work_center_schedule (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_wc_schedule_work_center FOREIGN KEY (work_center_id) REFERENCES work_centers(id) ON DELETE RESTRICT,
     CONSTRAINT fk_wc_schedule_production_order FOREIGN KEY (production_order_id) REFERENCES production_orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_wc_schedule_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
     CONSTRAINT fk_wc_schedule_operation FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE RESTRICT,
     CONSTRAINT fk_wc_schedule_shift FOREIGN KEY (shift_id) REFERENCES shifts(id) ON DELETE SET NULL,
     CONSTRAINT chk_wc_schedule_status CHECK (status IN ('scheduled', 'in-progress', 'completed', 'cancelled')),
@@ -422,6 +424,7 @@ CREATE INDEX idx_production_orders_scheduled_dates ON production_orders(schedule
 -- Work Center Schedule indexes
 CREATE INDEX idx_wc_schedule_work_center_id ON work_center_schedule(work_center_id);
 CREATE INDEX idx_wc_schedule_production_order_id ON work_center_schedule(production_order_id);
+CREATE INDEX idx_wc_schedule_product_id ON work_center_schedule(product_id);
 CREATE INDEX idx_wc_schedule_dates ON work_center_schedule(scheduled_start, scheduled_end);
 CREATE INDEX idx_wc_schedule_status ON work_center_schedule(status);
 

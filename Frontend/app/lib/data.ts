@@ -7,7 +7,7 @@ import {
 } from "@/app/types/WorkCenter";
 import { Operation, OperationDependency } from "@/app/types/Operation";
 import { Routing, RoutingBOM } from "@/app/types/Routing";
-import { ProductionOrder, WorkCenterSchedule } from "@/app/types/Production";
+import { ProductionOrder, WorkCenterSchedule, GanttData } from "@/app/types/Production";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -289,6 +289,24 @@ export async function fetchProductionOrderById(
 
 export async function fetchWorkCenterSchedule(): Promise<WorkCenterSchedule[]> {
   return fetchData<WorkCenterSchedule>("/work-center-schedule");
+}
+
+export async function fetchGanttData(startDate?: string, endDate?: string): Promise<GanttData> {
+  let url = `${API_BASE_URL}/gantt-data`;
+  const params = new URLSearchParams();
+  if (startDate) params.append("start_date", startDate);
+  if (endDate) params.append("end_date", endDate);
+  if (params.toString()) url += `?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch Gantt data");
+  }
+  return response.json();
 }
 
 export async function updateProductionOrder(productionOrderId: number, data: Partial<ProductionOrder>): Promise<ProductionOrder> {

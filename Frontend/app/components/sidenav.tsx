@@ -11,12 +11,14 @@ import {
   CogIcon,
   WrenchScrewdriverIcon,
   RectangleStackIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
 const menuItems = [
   { name: "Home", href: "/", icon: HomeIcon },
   { name: "Orders", href: "/orders", icon: DocumentTextIcon },
   { name: "Production", href: "/production", icon: RectangleStackIcon },
+  { name: "Gantt Chart", href: "/gantt", icon: ChartBarIcon },
   { name: "Products", href: "/products", icon: CubeIcon },
   { name: "Operations", href: "/operations", icon: WrenchScrewdriverIcon },
   { name: "Work Centers", href: "/workcenter", icon: CogIcon },

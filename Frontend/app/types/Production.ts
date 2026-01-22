@@ -25,6 +25,7 @@ export interface WorkCenterSchedule {
     id: number;
     work_center_id: number;
     production_order_id: number;
+    product_id: number;
     operation_id: number;
     shift_id?: number;
     scheduled_start: string;
@@ -37,4 +38,41 @@ export interface WorkCenterSchedule {
     notes?: string;
     created_at: string;
     updated_at: string;
+}
+
+// Gantt Chart Types
+export interface GanttScheduleItem {
+    id: number;
+    work_center_id: number;
+    work_center_code: string;
+    work_center_name: string;
+    production_order_id: number;
+    po_number: string;
+    product_id: number;
+    product_code: string;
+    product_name: string;
+    operation_id: number;
+    operation_code: string;
+    operation_name: string;
+    scheduled_start: string;
+    scheduled_end: string;
+    actual_start?: string;
+    actual_end?: string;
+    status: string;
+    quantity_planned: number;
+    quantity_completed: number;
+}
+
+export interface GanttData {
+    schedules: GanttScheduleItem[];
+    work_centers: {
+        id: number;
+        code: string;
+        name: string;
+    }[];
+    date_range: {
+        start: string;
+        end: string;
+    };
+    holidays: string[];
 }

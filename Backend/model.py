@@ -54,6 +54,7 @@ class Product(SQLModel, table=True):
     )
     routings: List["Routing"] = Relationship(back_populates="product")
     production_orders: List["ProductionOrder"] = Relationship(back_populates="product")
+    work_center_schedules: List["WorkCenterSchedule"] = Relationship(back_populates="product")
 
 
 class OrderItem(SQLModel, table=True):
@@ -329,6 +330,7 @@ class WorkCenterSchedule(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     work_center_id: int = Field(foreign_key="work_centers.id")
     production_order_id: int = Field(foreign_key="production_orders.id")
+    product_id: int = Field(foreign_key="products.id")
     operation_id: int = Field(foreign_key="operations.id")
     shift_id: Optional[int] = Field(default=None, foreign_key="shifts.id")
     scheduled_start: datetime
@@ -345,6 +347,7 @@ class WorkCenterSchedule(SQLModel, table=True):
     # Relationships
     work_center: Optional[WorkCenter] = Relationship(back_populates="work_center_schedules")
     production_order: Optional[ProductionOrder] = Relationship(back_populates="work_center_schedules")
+    product: Optional[Product] = Relationship(back_populates="work_center_schedules")
     operation: Optional[Operation] = Relationship(back_populates="work_center_schedules")
     shift: Optional[Shift] = Relationship(back_populates="work_center_schedules")
 
