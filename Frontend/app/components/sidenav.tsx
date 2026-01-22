@@ -28,20 +28,21 @@ export default function SideNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-16 bg-gray-800 flex flex-col items-center py-4 gap-2">
+    <aside className="w-16 shrink-0 bg-gray-800 flex flex-col items-center py-4 gap-2">
       {menuItems.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname === item.href;
+        const isActive =
+          pathname === item.href ||
+          (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
         return (
           <Link
             key={item.name}
             href={item.href}
-            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              isActive
-                ? "bg-red-600 text-white"
-                : "text-gray-400 hover:bg-gray-700 hover:text-white"
-            }`}
+            className={`w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${isActive
+              ? "bg-red-600 text-white"
+              : "text-gray-400 hover:bg-gray-700 hover:text-white"
+              }`}
             title={item.name}
           >
             <Icon className="w-6 h-6" />
