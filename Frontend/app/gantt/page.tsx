@@ -292,41 +292,41 @@ export default function GanttPage() {
     // Group schedules by work center and merge consecutive tasks with same product_id
     const schedulesByWorkCenter = useMemo(() => {
         if (!ganttData) return new Map<number, GanttScheduleItem[]>();
-        
+
         const map = new Map<number, GanttScheduleItem[]>();
-        
+
         // First, group by work center
         ganttData.schedules.forEach((schedule) => {
             const existing = map.get(schedule.work_center_id) || [];
             existing.push(schedule);
             map.set(schedule.work_center_id, existing);
         });
-        
+
         // Then, for each work center, merge consecutive tasks with same product_id
         map.forEach((tasks, wcId) => {
             // Sort by scheduled_start
             tasks.sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
-            
+
             const mergedTasks: GanttScheduleItem[] = [];
-            
+
             for (let i = 0; i < tasks.length; i++) {
                 const current = tasks[i];
-                
+
                 if (mergedTasks.length === 0) {
                     // First task, just add a copy
                     mergedTasks.push({ ...current });
                     continue;
                 }
-                
+
                 const last = mergedTasks[mergedTasks.length - 1];
-                
+
                 // Check if this task should be merged with the last one
                 // Conditions: same product_id AND same production_order_id AND consecutive (end time approx start time)
                 const lastEnd = new Date(last.scheduled_end).getTime();
                 const currentStart = new Date(current.scheduled_start).getTime();
                 // Allow a gap of up to 1.5 minutes (90000ms) to account for minute-based scheduling gaps (e.g., 12:52 -> 12:53)
-                const isConsecutive = (currentStart - lastEnd) <= 90000; 
-                
+                const isConsecutive = (currentStart - lastEnd) <= 90000;
+
                 if (
                     current.product_id === last.product_id &&
                     current.production_order_id === last.production_order_id &&
@@ -334,7 +334,7 @@ export default function GanttPage() {
                 ) {
                     // Merge: extend the last task's end time to current task's end time
                     last.scheduled_end = current.scheduled_end;
-                    
+
                     // User requested NOT to sum up quantities
                     // last.quantity_planned += current.quantity_planned;
                     // last.quantity_completed += current.quantity_completed;
@@ -343,10 +343,10 @@ export default function GanttPage() {
                     mergedTasks.push({ ...current });
                 }
             }
-            
+
             map.set(wcId, mergedTasks);
         });
-        
+
         return map;
     }, [ganttData]);
 
@@ -537,34 +537,6 @@ export default function GanttPage() {
                                 </div>
                             )}
                         </div>
-
-                        {/* Scheduler Settings Info */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                            </svg>
-                            <span className="text-sm text-purple-700 font-medium">{schedulerSettings.max_workers}</span>
-                            <span className="text-purple-300">|</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-sm text-purple-700 font-medium">{schedulerSettings.time_limit_seconds}s</span>
-                        </div>
-
-                        {/* Settings Button */}
-                        <button
-                            onClick={() => {
-                                setEditingSettings(schedulerSettings);
-                                setShowSettingsModal(true);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors shadow-sm"
-                            title="Scheduler Settings"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                            </svg>
-                            Settings
-                        </button>
 
                         {/* Refresh Button */}
                         <button

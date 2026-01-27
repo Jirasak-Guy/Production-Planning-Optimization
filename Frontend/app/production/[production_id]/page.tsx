@@ -469,7 +469,7 @@ export default function ProductionDetailPage({
             <button
               onClick={handleOptimize}
               disabled={isOptimizing || productionOrder.schedule_status === 'Optimizing'}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               title="Optimize schedule for this production order"
             >
               {isOptimizing || productionOrder.schedule_status === 'Optimizing' ? (
