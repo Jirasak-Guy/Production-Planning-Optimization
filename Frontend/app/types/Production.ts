@@ -12,8 +12,7 @@ export interface ProductionOrder {
     quantity_scrapped: number;
     scheduled_start_date?: string;
     scheduled_end_date?: string;
-    actual_start_date?: string;
-    actual_end_date?: string;
+    schedule_status?: string; // Unschedule, SubOptimal, Optimal, Infeasible
     status: string; // planned, released, in-progress, completed, cancelled, on-hold
     priority: number;
     notes?: string;

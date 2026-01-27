@@ -1190,6 +1190,16 @@ def schedule_production(request: ScheduleRequest):
     if not request.production_ids:
         raise HTTPException(status_code=400, detail="No production IDs provided")
     
+    # Update status to Optimizing before running scheduler
+    if request.save_to_db:
+        with Session(engine) as session:
+            for po_id in request.production_ids:
+                po = session.get(ProductionOrder, po_id)
+                if po:
+                    po.schedule_status = "Optimizing"
+                    session.add(po)
+            session.commit()
+            
     try:
         result = run_scheduling(
             engine=engine,

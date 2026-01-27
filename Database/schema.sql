@@ -310,8 +310,7 @@ CREATE TABLE production_orders (
     quantity_scrapped DECIMAL(15,3) DEFAULT 0 CHECK (quantity_scrapped >= 0),
     scheduled_start_date DATE,
     scheduled_end_date DATE,
-    actual_start_date DATE,
-    actual_end_date DATE,
+    schedule_status VARCHAR(50) DEFAULT 'Unschedule',
     status VARCHAR(50) NOT NULL DEFAULT 'planned',
     priority INTEGER DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
     notes TEXT,
@@ -320,8 +319,7 @@ CREATE TABLE production_orders (
     CONSTRAINT fk_production_orders_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE SET NULL,
     CONSTRAINT fk_production_orders_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
     CONSTRAINT chk_production_orders_status CHECK (status IN ('planned', 'released', 'in-progress', 'completed', 'cancelled', 'on-hold')),
-    CONSTRAINT chk_production_orders_dates CHECK (scheduled_end_date IS NULL OR scheduled_end_date >= scheduled_start_date),
-    CONSTRAINT chk_production_orders_actual_dates CHECK (actual_end_date IS NULL OR actual_end_date >= actual_start_date)
+    CONSTRAINT chk_production_orders_dates CHECK (scheduled_end_date IS NULL OR scheduled_end_date >= scheduled_start_date)
 );
 
 COMMENT ON TABLE production_orders IS 'Production orders tracking';

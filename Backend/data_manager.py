@@ -402,3 +402,13 @@ class SchedulingDataManager:
                 if routing.id == routing_id:
                     return routing.operation_id
         return None
+
+    def update_production_status(self, production_ids: List[int], status: str):
+        """Update the schedule_status of specified production orders"""
+        with Session(self.engine) as session:
+            for po_id in production_ids:
+                po = session.get(ProductionOrder, po_id)
+                if po:
+                    po.schedule_status = status
+                    session.add(po)
+            session.commit()

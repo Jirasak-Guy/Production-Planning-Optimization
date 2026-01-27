@@ -574,3 +574,62 @@ export async function deleteWorkCenterCalendarException(exceptionId: number): Pr
     throw new Error(`Failed to delete calendar exception: ${error}`);
   }
 }
+
+// =====================================================
+// SCHEDULING FUNCTIONS
+// =====================================================
+
+export interface ScheduleRequest {
+  production_ids: number[];
+  max_shift_duration?: number;
+  max_workers?: number;
+  time_limit_seconds?: number;
+  save_to_db?: boolean;
+}
+
+export interface ScheduleSegment {
+  job: string;
+  machine: string;
+  start: string;
+  finish: string;
+}
+
+export interface ScheduleResponse {
+  status: string;
+  makespan: number | null;
+  solve_time_seconds: number | null;
+  message: string | null;
+  segments: ScheduleSegment[] | null;
+  tasks: ScheduleSegment[] | null;
+}
+
+export async function scheduleProductionOrder(
+  productionIds: number[],
+  options?: {
+    maxShiftDuration?: number;
+    maxWorkers?: number;
+    timeLimitSeconds?: number;
+    saveToDb?: boolean;
+  }
+): Promise<ScheduleResponse> {
+  const requestBody: ScheduleRequest = {
+    production_ids: productionIds,
+    max_shift_duration: options?.maxShiftDuration,
+    max_workers: options?.maxWorkers,
+    time_limit_seconds: options?.timeLimitSeconds ?? 60,
+    save_to_db: options?.saveToDb ?? true,
+  };
+
+  const response = await fetch(`${API_BASE_URL}/schedule`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to schedule production: ${error}`);
+  }
+
+  return response.json();
+}

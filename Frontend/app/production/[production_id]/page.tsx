@@ -18,6 +18,7 @@ import {
   fetchShifts,
   updateProductionOrder,
   deleteProductionOrder,
+  scheduleProductionOrder,
 } from "@/app/lib/data";
 import {
   ArrowLeftIcon,
@@ -27,6 +28,7 @@ import {
   CalendarDaysIcon,
   CubeIcon,
   TrashIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 
@@ -64,6 +66,10 @@ export default function ProductionDetailPage({
   // Delete states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Optimize states
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeResult, setOptimizeResult] = useState<{ status: string; message: string | null } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -129,8 +135,7 @@ export default function ProductionDetailPage({
       else if (field === "quantity_scrapped") updateData.quantity_scrapped = parseInt(editValue) || 0;
       else if (field === "scheduled_start_date") updateData.scheduled_start_date = editValue || undefined;
       else if (field === "scheduled_end_date") updateData.scheduled_end_date = editValue || undefined;
-      else if (field === "actual_start_date") updateData.actual_start_date = editValue || undefined;
-      else if (field === "actual_end_date") updateData.actual_end_date = editValue || undefined;
+      else if (field === "scheduled_end_date") updateData.scheduled_end_date = editValue || undefined;
       else if (field === "notes") updateData.notes = editValue || undefined;
 
       const updated = await updateProductionOrder(productionOrder.id, updateData);
@@ -159,6 +164,62 @@ export default function ProductionDetailPage({
       alert("Failed to delete production order. Please try again.");
       setIsDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleOptimize = async () => {
+    if (!productionOrder) return;
+
+    setIsOptimizing(true);
+    setOptimizeResult(null);
+    try {
+      const result = await scheduleProductionOrder([productionOrder.id], {
+        saveToDb: true,
+        timeLimitSeconds: 60,
+      });
+      setOptimizeResult({
+        status: result.status,
+        message: result.message,
+      });
+      // Reload schedule data after optimization
+      const schedulesData = await fetchWorkCenterSchedule();
+      const [workCentersData, operationsData, allProducts, allShifts] = await Promise.all([
+        fetchWorkCenters(),
+        fetchOperations(),
+        fetchProducts(),
+        fetchShifts(),
+      ]);
+      const poSchedules = schedulesData
+        .filter((s) => s.production_order_id === productionOrder.id)
+        .map((s) => ({
+          ...s,
+          workCenter: workCentersData.find((w) => w.id === s.work_center_id),
+          operation: operationsData.find((o) => o.id === s.operation_id),
+          productData: allProducts.find((p) => p.id === s.product_id),
+          shiftData: allShifts.find((sh) => sh.id === s.shift_id),
+        }))
+        .sort(
+          (a, b) =>
+            new Date(a.scheduled_start).getTime() -
+            new Date(b.scheduled_start).getTime()
+        );
+      setSchedules(poSchedules);
+
+      // Reload Production Order to get updated schedule_status
+      try {
+        const updatedPO = await fetchProductionOrderById(productionOrder.id);
+        setProductionOrder(updatedPO);
+      } catch (poError) {
+        console.error("Failed to reload production order:", poError);
+      }
+    } catch (error) {
+      console.error("Failed to optimize production order:", error);
+      setOptimizeResult({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -329,16 +390,70 @@ export default function ProductionDetailPage({
               )}
             </div>
           </div>
-          {/* Delete Button */}
-          <button
-            onClick={handleDeleteProductionOrder}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
-            title="Delete this production order"
-          >
-            <TrashIcon className="w-5 h-5" />
-            <span className="font-medium">Delete</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Optimize Button */}
+            <button
+              onClick={handleOptimize}
+              disabled={isOptimizing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Optimize schedule for this production order"
+            >
+              {isOptimizing ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  <span className="font-medium">Optimizing...</span>
+                </>
+              ) : (
+                <>
+                  <SparklesIcon className="w-5 h-5" />
+                  <span className="font-medium">Optimize</span>
+                </>
+              )}
+            </button>
+
+            {/* Delete Button */}
+            <button
+              onClick={handleDeleteProductionOrder}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
+              title="Delete this production order"
+            >
+              <TrashIcon className="w-5 h-5" />
+              <span className="font-medium">Delete</span>
+            </button>
+          </div>
         </div>
+
+        {/* Optimize Result Toast */}
+        {optimizeResult && (
+          <div
+            className={`mb-4 p-4 rounded-lg flex items-center justify-between ${optimizeResult.status === "OPTIMAL" || optimizeResult.status === "FEASIBLE"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
+              }`}
+          >
+            <div className="flex items-center gap-2">
+              {optimizeResult.status === "OPTIMAL" || optimizeResult.status === "FEASIBLE" ? (
+                <CheckCircleIcon className="w-5 h-5 text-green-600" />
+              ) : (
+                <XCircleIcon className="w-5 h-5 text-red-600" />
+              )}
+              <span className="font-medium">
+                {optimizeResult.status === "OPTIMAL"
+                  ? `Schedule optimized successfully! (Status: ${optimizeResult.status})`
+                  : optimizeResult.status === "FEASIBLE"
+                    ? `Feasible schedule found! (Status: ${optimizeResult.status})`
+                    : `Optimization failed: ${optimizeResult.message || "Unknown error"} (Status: ${optimizeResult.status})`}
+              </span>
+            </div>
+            <button
+              onClick={() => setOptimizeResult(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <XCircleIcon className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         {/* Collapse Toggle */}
         <button
           onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
@@ -673,108 +788,21 @@ export default function ProductionDetailPage({
                 )}
               </div>
 
-              {/* Actual Start */}
+              {/* Schedule Status */}
               <div>
                 <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                  <ClockIcon className="w-4 h-4" />
-                  Actual Start:
+                  <SparklesIcon className="w-4 h-4" />
+                  Schedule Status:
                 </p>
-                {editingField === "actual_start_date" ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleSaveField("actual_start_date")}
-                      disabled={isSaving}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
-                      title="Save"
-                    >
-                      <CheckCircleIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setEditingField(null)}
-                      disabled={isSaving}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-                      title="Cancel"
-                    >
-                      <XCircleIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-medium text-gray-900">
-                      {productionOrder.actual_start_date
-                        ? new Date(productionOrder.actual_start_date).toLocaleDateString("en-US", {
-                          month: "short", day: "numeric", year: "numeric"
-                        })
-                        : "-"}
-                    </p>
-                    <button
-                      onClick={() => handleEditField("actual_start_date", productionOrder.actual_start_date?.split("T")[0] || "")}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                      title="Edit"
-                    >
-                      <PencilSquareIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Actual End */}
-              <div>
-                <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                  <ClockIcon className="w-4 h-4" />
-                  Actual End:
-                </p>
-                {editingField === "actual_end_date" ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleSaveField("actual_end_date")}
-                      disabled={isSaving}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
-                      title="Save"
-                    >
-                      <CheckCircleIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setEditingField(null)}
-                      disabled={isSaving}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-                      title="Cancel"
-                    >
-                      <XCircleIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-medium text-gray-900">
-                      {productionOrder.actual_end_date
-                        ? new Date(productionOrder.actual_end_date).toLocaleDateString("en-US", {
-                          month: "short", day: "numeric", year: "numeric"
-                        })
-                        : "-"}
-                    </p>
-                    <button
-                      onClick={() => handleEditField("actual_end_date", productionOrder.actual_end_date?.split("T")[0] || "")}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                      title="Edit"
-                    >
-                      <PencilSquareIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <p className={`text-base font-medium px-2 py-0.5 rounded ${productionOrder.schedule_status === 'OPTIMAL' ? 'bg-green-100 text-green-700' :
+                    productionOrder.schedule_status === 'FEASIBLE' ? 'bg-blue-100 text-blue-700' :
+                      productionOrder.schedule_status === 'INFEASIBLE' ? 'bg-red-100 text-red-700' :
+                        'text-gray-900'
+                    }`}>
+                    {productionOrder.schedule_status || "Unschedule"}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -852,9 +880,6 @@ export default function ProductionDetailPage({
                     Operation
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Shift
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
@@ -900,18 +925,6 @@ export default function ProductionDetailPage({
                             className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
                           >
                             {schedule.operation.operation_code}
-                          </Link>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {schedule.shiftData ? (
-                          <Link
-                            href={`/shifts`}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {schedule.shiftData.shift_code}
                           </Link>
                         ) : (
                           <span className="text-sm text-gray-400">-</span>

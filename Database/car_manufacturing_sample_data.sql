@@ -1093,18 +1093,18 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price
 -- 10. SAMPLE PRODUCTION ORDERS
 -- =====================================================
 
-INSERT INTO production_orders (po_number, order_item_id, product_id, quantity_planned, quantity_completed, scheduled_start_date, scheduled_end_date, status, priority, notes) VALUES
+INSERT INTO production_orders (po_number, order_item_id, product_id, quantity_planned, quantity_completed, scheduled_start_date, scheduled_end_date, schedule_status, status, priority, notes) VALUES
 -- For Order 1 (Urgent)
 ('PO-2025-0001', (SELECT id FROM order_items WHERE order_id = (SELECT id FROM orders WHERE order_number = 'ORD-2025-001') LIMIT 1), 
- (SELECT id FROM products WHERE product_code = 'CAR-SED-A'), 5, 0, '2025-12-03', '2025-12-18', 'released', 1, 'Urgent production run'),
+ (SELECT id FROM products WHERE product_code = 'CAR-SED-A'), 5, 0, '2025-12-03', '2025-12-18', 'Unschedule', 'released', 1, 'Urgent production run'),
 
 -- For Order 2 (Fleet)
 ('PO-2025-0002', (SELECT id FROM order_items WHERE order_id = (SELECT id FROM orders WHERE order_number = 'ORD-2025-002') LIMIT 1),
- (SELECT id FROM products WHERE product_code = 'CAR-SED-A'), 10, 0, '2025-12-08', '2026-01-12', 'in-progress', 3, 'Fleet production - 2 completed'),
+ (SELECT id FROM products WHERE product_code = 'CAR-SED-A'), 10, 0, '2025-12-08', '2026-01-12', 'Unschedule', 'in-progress', 3, 'Fleet production - 2 completed'),
 
 -- For Order 3 (SUV - not started yet)
 ('PO-2025-0003', (SELECT id FROM order_items WHERE order_id = (SELECT id FROM orders WHERE order_number = 'ORD-2025-003') LIMIT 1),
- (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), 3, 0, '2025-12-15', '2026-01-25', 'planned', 2, 'Premium SUV order');
+ (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'), 3, 0, '2025-12-15', '2026-01-25', 'Unschedule', 'planned', 2, 'Premium SUV order');
 
 -- =====================================================
 -- 11. WORK CENTER SCHEDULE (Mock Data for Gantt Chart)
