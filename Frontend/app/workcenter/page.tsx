@@ -2,8 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsUpDownIcon,
+} from "@heroicons/react/24/outline";
 import WorkCenterCard from "@/app/components/WorkCenterCard";
-import WorkCenterHeader, { ViewMode } from "@/app/components/WorkCenterHeader";
+import WorkCenterHeader, {
+  SortDirection,
+  ViewMode,
+  WorkCenterSortKey,
+} from "@/app/components/WorkCenterHeader";
 import AddWorkCenterModal from "@/app/components/modals/AddWorkCenterModal";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import { fetchWorkCenters } from "@/app/lib/data";
@@ -13,9 +22,10 @@ export default function WorkCenterPage() {
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "work_center_code">("id");
+  const [sortKey, setSortKey] = useState<WorkCenterSortKey>("work_center_code");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,26 +44,52 @@ export default function WorkCenterPage() {
   }, []);
 
   const filteredWorkCenters = useMemo(() => {
-    return workCenters
-      .filter(
-        (wc) =>
-          wc.work_center_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          wc.work_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          wc.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (sortKey === "id") {
+    const filtered = workCenters.filter(
+      (wc) =>
+        wc.work_center_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wc.work_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wc.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const compare = (a: WorkCenter, b: WorkCenter) => {
+      switch (sortKey) {
+        case "id":
           return a.id - b.id;
-        }
-        return a.work_center_code.localeCompare(b.work_center_code);
-      });
-  }, [searchTerm, workCenters, sortKey]);
+        case "work_center_code":
+          return a.work_center_code.localeCompare(b.work_center_code);
+        case "work_center_name":
+          return a.work_center_name.localeCompare(b.work_center_name);
+        case "description":
+          return (a.description ?? "").localeCompare(b.description ?? "");
+        case "capacity_per_hour":
+          return a.capacity_per_hour - b.capacity_per_hour;
+        case "number_of_workers_required":
+          return a.number_of_workers_required - b.number_of_workers_required;
+        case "status":
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [searchTerm, workCenters, sortKey, sortDirection]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-
+  const handleSort = (key: WorkCenterSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -75,10 +111,6 @@ export default function WorkCenterPage() {
     handleRefresh();
   };
 
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-  };
-
   const handleRowClick = (workCenterId: number) => {
     router.push(`/workcenter/${workCenterId}`);
   };
@@ -93,16 +125,29 @@ export default function WorkCenterPage() {
     return statusStyles[status] || "bg-gray-100 text-gray-800";
   };
 
+  const getSortIndicator = (key: WorkCenterSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: WorkCenterSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
+
   return (
     <div className="flex flex-col h-full">
       <WorkCenterHeader
         onSearch={handleSearch}
-        onSortToggle={() => setSortKey(sortKey === "id" ? "work_center_code" : "id")}
-        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -127,22 +172,64 @@ export default function WorkCenterPage() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Code
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("work_center_code")}
+                          onClick={() => handleSort("work_center_code")}
+                        >
+                          <span>Code</span>
+                          {getSortIndicator("work_center_code")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("work_center_name")}
+                          onClick={() => handleSort("work_center_name")}
+                        >
+                          <span>Name</span>
+                          {getSortIndicator("work_center_name")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("description")}
+                          onClick={() => handleSort("description")}
+                        >
+                          <span>Description</span>
+                          {getSortIndicator("description")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Capacity/Hour
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("capacity_per_hour")}
+                          onClick={() => handleSort("capacity_per_hour")}
+                        >
+                          <span>Capacity/Hour</span>
+                          {getSortIndicator("capacity_per_hour")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Workers
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("number_of_workers_required")}
+                          onClick={() => handleSort("number_of_workers_required")}
+                        >
+                          <span>Workers</span>
+                          {getSortIndicator("number_of_workers_required")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("status")}
+                          onClick={() => handleSort("status")}
+                        >
+                          <span>Status</span>
+                          {getSortIndicator("status")}
+                        </button>
                       </th>
                     </tr>
                   </thead>

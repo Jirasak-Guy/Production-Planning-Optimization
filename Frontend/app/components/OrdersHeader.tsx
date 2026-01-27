@@ -2,33 +2,31 @@
 
 import {
   MagnifyingGlassIcon,
-  ArrowsUpDownIcon,
   ArrowPathIcon,
   PlusCircleIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 export type ViewMode = "card" | "table";
+export type OrdersSortKey =
+  | "id"
+  | "order_number"
+  | "customer_name"
+  | "order_date"
+  | "due_date"
+  | "priority"
+  | "status";
+export type SortDirection = "asc" | "desc";
 
 interface OrdersHeaderProps {
   onSearch: (value: string) => void;
-  onSortToggle: () => void;
-  sortKey: "id" | "order_number";
   onRefresh: () => void;
   onAdd: () => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export default function OrdersHeader({
   onSearch,
-  onSortToggle,
-  sortKey,
   onRefresh,
   onAdd,
-  viewMode,
-  onViewModeChange,
 }: OrdersHeaderProps) {
   return (
     <div className="px-6 py-4">
@@ -46,31 +44,6 @@ export default function OrdersHeader({
             />
             <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
-
-          {/* Sort Button */}
-          <button
-            onClick={onSortToggle}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title={`Sort by ${sortKey === "id" ? "Order Number" : "ID"}`}
-          >
-            <ArrowsUpDownIcon className="w-5 h-5" />
-            <span className="text-sm font-medium">
-              {sortKey === "id" ? "ID" : "Order"}
-            </span>
-          </button>
-
-          {/* View Mode Toggle Button */}
-          <button
-            onClick={() => onViewModeChange(viewMode === "card" ? "table" : "card")}
-            className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title={viewMode === "card" ? "Switch to Table View" : "Switch to Card View"}
-          >
-            {viewMode === "card" ? (
-              <TableCellsIcon className="w-6 h-6" />
-            ) : (
-              <Squares2X2Icon className="w-6 h-6" />
-            )}
-          </button>
 
           {/* Refresh Button */}
           <button

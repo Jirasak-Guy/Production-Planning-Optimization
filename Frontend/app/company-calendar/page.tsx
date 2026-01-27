@@ -6,16 +6,24 @@ import { CompanyCalendar } from "@/app/types/Shift";
 import { fetchCompanyCalendar } from "@/app/lib/data";
 import AddCalendarEventModal from "@/app/components/modals/AddCalendarEventModal";
 import {
+  ArrowDownIcon,
   ArrowPathIcon,
+  ArrowUpIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MagnifyingGlassIcon,
   PlusCircleIcon,
   ArrowsUpDownIcon,
-  CalendarDaysIcon,
-  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 type ViewMode = "calendar" | "table";
+type CalendarSortKey =
+  | "id"
+  | "calendar_date"
+  | "day_type"
+  | "description"
+  | "is_working_day";
+type SortDirection = "asc" | "desc";
 
 export default function CompanyCalendarPage() {
   const router = useRouter();
@@ -24,10 +32,11 @@ export default function CompanyCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDay, setHoveredDay] = useState<CompanyCalendar | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "date">("id");
+  const [sortKey, setSortKey] = useState<CalendarSortKey>("calendar_date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const loadCalendarData = async () => {
     setIsLoading(true);
@@ -46,20 +55,47 @@ export default function CompanyCalendarPage() {
   }, []);
 
   const filteredCalendarData = useMemo(() => {
-    return calendarData
-      .filter(
-        (item) =>
-          item.calendar_date.includes(searchTerm) ||
-          item.day_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (sortKey === "id") {
+    const filtered = calendarData.filter(
+      (item) =>
+        item.calendar_date.includes(searchTerm) ||
+        item.day_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const compare = (a: CompanyCalendar, b: CompanyCalendar) => {
+      switch (sortKey) {
+        case "id":
           return a.id - b.id;
-        }
-        return new Date(a.calendar_date).getTime() - new Date(b.calendar_date).getTime();
-      });
-  }, [calendarData, searchTerm, sortKey]);
+        case "calendar_date":
+          return (
+            new Date(a.calendar_date).getTime() -
+            new Date(b.calendar_date).getTime()
+          );
+        case "day_type":
+          return a.day_type.localeCompare(b.day_type);
+        case "description":
+          return (a.description ?? "").localeCompare(b.description ?? "");
+        case "is_working_day":
+          return Number(a.is_working_day) - Number(b.is_working_day);
+        default:
+          return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [calendarData, searchTerm, sortKey, sortDirection]);
+
+  const handleSort = (key: CalendarSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -206,6 +242,23 @@ export default function CompanyCalendarPage() {
     return days;
   };
 
+  const getSortIndicator = (key: CalendarSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: CalendarSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -214,30 +267,17 @@ export default function CompanyCalendarPage() {
           <h2 className="text-2xl font-bold text-gray-800">Company Calendar</h2>
 
           <div className="flex items-center gap-3">
-            {/* Sort Button */}
-            <button
-              onClick={() => setSortKey(sortKey === "id" ? "date" : "id")}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title={`Sort by ${sortKey === "id" ? "Date" : "ID"}`}
-            >
-              <ArrowsUpDownIcon className="w-5 h-5" />
-              <span className="text-sm font-medium">
-                {sortKey === "id" ? "ID" : "Date"}
-              </span>
-            </button>
-
-            {/* View Mode Toggle Button */}
-            <button
-              onClick={() => setViewMode(viewMode === "calendar" ? "table" : "calendar")}
-              className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title={viewMode === "calendar" ? "Switch to Table View" : "Switch to Calendar View"}
-            >
-              {viewMode === "calendar" ? (
-                <TableCellsIcon className="w-6 h-6" />
-              ) : (
-                <CalendarDaysIcon className="w-6 h-6" />
-              )}
-            </button>
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search calendar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 placeholder:text-gray-400"
+              />
+              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
 
             {/* Refresh Button */}
             <button
@@ -345,16 +385,44 @@ export default function CompanyCalendarPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("calendar_date")}
+                      onClick={() => handleSort("calendar_date")}
+                    >
+                      <span>Date</span>
+                      {getSortIndicator("calendar_date")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Day Type
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("day_type")}
+                      onClick={() => handleSort("day_type")}
+                    >
+                      <span>Day Type</span>
+                      {getSortIndicator("day_type")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("description")}
+                      onClick={() => handleSort("description")}
+                    >
+                      <span>Description</span>
+                      {getSortIndicator("description")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Working Day
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("is_working_day")}
+                      onClick={() => handleSort("is_working_day")}
+                    >
+                      <span>Working Day</span>
+                      {getSortIndicator("is_working_day")}
+                    </button>
                   </th>
                 </tr>
               </thead>

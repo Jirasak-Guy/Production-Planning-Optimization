@@ -2,8 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsUpDownIcon,
+} from "@heroicons/react/24/outline";
 import OrderCard from "@/app/components/OrderCard";
-import OrdersHeader, { ViewMode } from "@/app/components/OrdersHeader";
+import OrdersHeader, {
+  OrdersSortKey,
+  SortDirection,
+  ViewMode,
+} from "@/app/components/OrdersHeader";
 import AddOrderModal from "@/app/components/modals/AddOrderModal";
 import { Order } from "@/app/types/CoreData";
 import { fetchOrders } from "@/app/lib/data";
@@ -13,9 +22,10 @@ export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "order_number">("id");
+  const [sortKey, setSortKey] = useState<OrdersSortKey>("order_number");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -34,26 +44,54 @@ export default function Orders() {
   }, []);
 
   const filteredOrders = useMemo(() => {
-    return orders
-      .filter(
-        (order) =>
-          order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (sortKey === "id") {
+    const filtered = orders.filter(
+      (order) =>
+        order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const compare = (a: Order, b: Order) => {
+      switch (sortKey) {
+        case "id":
           return a.id - b.id;
-        }
-        return a.order_number.localeCompare(b.order_number);
-      });
-  }, [searchTerm, orders, sortKey]);
+        case "order_number":
+          return a.order_number.localeCompare(b.order_number);
+        case "customer_name":
+          return a.customer_name.localeCompare(b.customer_name);
+        case "order_date":
+          return (
+            new Date(a.order_date).getTime() - new Date(b.order_date).getTime()
+          );
+        case "due_date":
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        case "priority":
+          return a.priority - b.priority;
+        case "status":
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [searchTerm, orders, sortKey, sortDirection]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-
+  const handleSort = (key: OrdersSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -75,10 +113,6 @@ export default function Orders() {
     handleRefresh();
   };
 
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-  };
-
   const handleRowClick = (orderId: number) => {
     router.push(`/orders/${orderId}`);
   };
@@ -94,16 +128,29 @@ export default function Orders() {
     return statusStyles[status] || "bg-gray-100 text-gray-800";
   };
 
+  const getSortIndicator = (key: OrdersSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: OrdersSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
+
   return (
     <div className="flex flex-col h-full">
       <OrdersHeader
         onSearch={handleSearch}
-        onSortToggle={() => setSortKey(sortKey === "id" ? "order_number" : "id")}
-        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -125,22 +172,64 @@ export default function Orders() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Order Number
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("order_number")}
+                          onClick={() => handleSort("order_number")}
+                        >
+                          <span>Order Number</span>
+                          {getSortIndicator("order_number")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Customer
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("customer_name")}
+                          onClick={() => handleSort("customer_name")}
+                        >
+                          <span>Customer</span>
+                          {getSortIndicator("customer_name")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Order Date
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("order_date")}
+                          onClick={() => handleSort("order_date")}
+                        >
+                          <span>Order Date</span>
+                          {getSortIndicator("order_date")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("due_date")}
+                          onClick={() => handleSort("due_date")}
+                        >
+                          <span>Due Date</span>
+                          {getSortIndicator("due_date")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Priority
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("priority")}
+                          onClick={() => handleSort("priority")}
+                        >
+                          <span>Priority</span>
+                          {getSortIndicator("priority")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("status")}
+                          onClick={() => handleSort("status")}
+                        >
+                          <span>Status</span>
+                          {getSortIndicator("status")}
+                        </button>
                       </th>
                     </tr>
                   </thead>

@@ -2,8 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsUpDownIcon,
+} from "@heroicons/react/24/outline";
 import OperationCard from "@/app/components/OperationCard";
-import OperationsHeader, { ViewMode } from "@/app/components/OperationsHeader";
+import OperationsHeader, {
+  OperationsSortKey,
+  SortDirection,
+  ViewMode,
+} from "@/app/components/OperationsHeader";
 import AddOperationModal from "@/app/components/modals/AddOperationModal";
 import { Operation } from "@/app/types/Operation";
 import { fetchOperations } from "@/app/lib/data";
@@ -13,9 +22,10 @@ export default function OperationsPage() {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "operation_code">("id");
+  const [sortKey, setSortKey] = useState<OperationsSortKey>("operation_code");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     const loadOperations = async () => {
@@ -34,26 +44,50 @@ export default function OperationsPage() {
   }, []);
 
   const filteredOperations = useMemo(() => {
-    return operations
-      .filter(
-        (op) =>
-          op.operation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          op.operation_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          op.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (sortKey === "id") {
+    const filtered = operations.filter(
+      (op) =>
+        op.operation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        op.operation_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        op.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const compare = (a: Operation, b: Operation) => {
+      switch (sortKey) {
+        case "id":
           return a.id - b.id;
-        }
-        return a.operation_code.localeCompare(b.operation_code);
-      });
-  }, [searchTerm, operations, sortKey]);
+        case "operation_code":
+          return a.operation_code.localeCompare(b.operation_code);
+        case "operation_name":
+          return a.operation_name.localeCompare(b.operation_name);
+        case "description":
+          return (a.description ?? "").localeCompare(b.description ?? "");
+        case "operation_type":
+          return (a.operation_type ?? "").localeCompare(b.operation_type ?? "");
+        case "is_active":
+          return Number(a.is_active) - Number(b.is_active);
+        default:
+          return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [searchTerm, operations, sortKey, sortDirection]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-
+  const handleSort = (key: OperationsSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -75,24 +109,33 @@ export default function OperationsPage() {
     handleRefresh();
   };
 
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-  };
-
   const handleRowClick = (operationId: number) => {
     router.push(`/operations/${operationId}`);
   };
+
+  const getSortIndicator = (key: OperationsSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: OperationsSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
 
   return (
     <div className="flex flex-col h-full">
       <OperationsHeader
         onSearch={handleSearch}
-        onSortToggle={() => setSortKey(sortKey === "id" ? "operation_code" : "id")}
-        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -115,19 +158,54 @@ export default function OperationsPage() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Code
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("operation_code")}
+                          onClick={() => handleSort("operation_code")}
+                        >
+                          <span>Code</span>
+                          {getSortIndicator("operation_code")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("operation_name")}
+                          onClick={() => handleSort("operation_name")}
+                        >
+                          <span>Name</span>
+                          {getSortIndicator("operation_name")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("description")}
+                          onClick={() => handleSort("description")}
+                        >
+                          <span>Description</span>
+                          {getSortIndicator("description")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("operation_type")}
+                          onClick={() => handleSort("operation_type")}
+                        >
+                          <span>Type</span>
+                          {getSortIndicator("operation_type")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("is_active")}
+                          onClick={() => handleSort("is_active")}
+                        >
+                          <span>Status</span>
+                          {getSortIndicator("is_active")}
+                        </button>
                       </th>
                     </tr>
                   </thead>

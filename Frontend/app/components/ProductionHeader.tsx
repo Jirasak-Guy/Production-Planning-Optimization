@@ -2,14 +2,21 @@
 
 import {
   MagnifyingGlassIcon,
-  ArrowsUpDownIcon,
   ArrowPathIcon,
   PlusCircleIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 export type ViewMode = "card" | "table";
+export type ProductionSortKey =
+  | "id"
+  | "po_number"
+  | "priority"
+  | "quantity_planned"
+  | "quantity_completed"
+  | "scheduled_start_date"
+  | "status"
+  | "schedule_status";
+export type SortDirection = "asc" | "desc";
 
 interface SchedulerSettings {
   max_workers: number;
@@ -19,12 +26,8 @@ interface SchedulerSettings {
 
 interface ProductionHeaderProps {
   onSearch: (value: string) => void;
-  onSortToggle: () => void;
-  sortKey: "id" | "po_number";
   onRefresh: () => void;
   onAdd: () => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
   // Scheduler Settings Props
   schedulerSettings?: SchedulerSettings;
   onOpenSettings?: () => void;
@@ -32,12 +35,8 @@ interface ProductionHeaderProps {
 
 export default function ProductionHeader({
   onSearch,
-  onSortToggle,
-  sortKey,
   onRefresh,
   onAdd,
-  viewMode,
-  onViewModeChange,
   schedulerSettings,
   onOpenSettings,
 }: ProductionHeaderProps) {
@@ -84,30 +83,6 @@ export default function ProductionHeader({
             />
             <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
-
-          <button
-            onClick={onSortToggle}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title={`Sort by ${sortKey === "id" ? "PO Number" : "ID"}`}
-          >
-            <ArrowsUpDownIcon className="w-5 h-5" />
-            <span className="text-sm font-medium">
-              {sortKey === "id" ? "ID" : "PO"}
-            </span>
-          </button>
-
-          {/* View Mode Toggle Button */}
-          <button
-            onClick={() => onViewModeChange(viewMode === "card" ? "table" : "card")}
-            className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            title={viewMode === "card" ? "Switch to Table View" : "Switch to Card View"}
-          >
-            {viewMode === "card" ? (
-              <TableCellsIcon className="w-6 h-6" />
-            ) : (
-              <Squares2X2Icon className="w-6 h-6" />
-            )}
-          </button>
 
           <button
             onClick={onRefresh}

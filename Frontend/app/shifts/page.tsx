@@ -1,30 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shift } from "@/app/types/Shift";
 import { fetchShifts } from "@/app/lib/data";
 import AddShiftModal from "@/app/components/modals/AddShiftModal";
 import {
+  ArrowDownIcon,
   ArrowPathIcon,
+  ArrowUpIcon,
   ClockIcon,
   MagnifyingGlassIcon,
   ArrowsUpDownIcon,
   PlusCircleIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 type ViewMode = "card" | "table";
+type ShiftSortKey =
+  | "id"
+  | "shift_code"
+  | "shift_name"
+  | "start_time"
+  | "end_time"
+  | "duration"
+  | "break_duration_minutes"
+  | "is_active";
+type SortDirection = "asc" | "desc";
+
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const getDurationMinutes = (start: string, end: string) => {
+  let totalMins = timeToMinutes(end) - timeToMinutes(start);
+  if (totalMins < 0) totalMins += 24 * 60; // Handle overnight shifts
+  return totalMins;
+};
 
 export default function ShiftsPage() {
   const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "shift_code">("id");
+  const [sortKey, setSortKey] = useState<ShiftSortKey>("shift_code");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const loadShifts = async () => {
     setIsLoading(true);
@@ -42,19 +64,45 @@ export default function ShiftsPage() {
     loadShifts();
   }, []);
 
-  const filteredShifts = shifts
-    .filter(
+  const filteredShifts = useMemo(() => {
+    const filtered = shifts.filter(
       (shift) =>
         shift.shift_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shift.shift_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shift.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortKey === "id") {
-        return a.id - b.id;
+    );
+
+    const compare = (a: Shift, b: Shift) => {
+      switch (sortKey) {
+        case "id":
+          return a.id - b.id;
+        case "shift_code":
+          return a.shift_code.localeCompare(b.shift_code);
+        case "shift_name":
+          return a.shift_name.localeCompare(b.shift_name);
+        case "start_time":
+          return timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
+        case "end_time":
+          return timeToMinutes(a.end_time) - timeToMinutes(b.end_time);
+        case "duration":
+          return (
+            getDurationMinutes(a.start_time, a.end_time) -
+            getDurationMinutes(b.start_time, b.end_time)
+          );
+        case "break_duration_minutes":
+          return a.break_duration_minutes - b.break_duration_minutes;
+        case "is_active":
+          return Number(a.is_active) - Number(b.is_active);
+        default:
+          return 0;
       }
-      return a.shift_code.localeCompare(b.shift_code);
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
     });
+  }, [shifts, searchTerm, sortKey, sortDirection]);
 
   const getShiftColor = (index: number) => {
     const colors = [
@@ -107,14 +155,37 @@ export default function ShiftsPage() {
   };
 
   const calculateDuration = (start: string, end: string) => {
-    const [startHours, startMins] = start.split(":").map(Number);
-    const [endHours, endMins] = end.split(":").map(Number);
-    let totalMins = endHours * 60 + endMins - (startHours * 60 + startMins);
-    if (totalMins < 0) totalMins += 24 * 60; // Handle overnight shifts
+    const totalMins = getDurationMinutes(start, end);
     const hours = Math.floor(totalMins / 60);
     const mins = totalMins % 60;
     return `${hours}h ${mins > 0 ? `${mins}m` : ""}`;
   };
+
+  const handleSort = (key: ShiftSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
+
+  const getSortIndicator = (key: ShiftSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: ShiftSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
 
   return (
     <div className="flex flex-col h-full">
@@ -137,30 +208,6 @@ export default function ShiftsPage() {
             </div>
 
             {/* Sort Button */}
-            <button
-              onClick={() => setSortKey(sortKey === "id" ? "shift_code" : "id")}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title={`Sort by ${sortKey === "id" ? "Code" : "ID"}`}
-            >
-              <ArrowsUpDownIcon className="w-5 h-5" />
-              <span className="text-sm font-medium">
-                {sortKey === "id" ? "ID" : "Code"}
-              </span>
-            </button>
-
-            {/* View Mode Toggle Button */}
-            <button
-              onClick={() => setViewMode(viewMode === "card" ? "table" : "card")}
-              className="p-2 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-              title={viewMode === "card" ? "Switch to Table View" : "Switch to Card View"}
-            >
-              {viewMode === "card" ? (
-                <TableCellsIcon className="w-6 h-6" />
-              ) : (
-                <Squares2X2Icon className="w-6 h-6" />
-              )}
-            </button>
-
             {/* Refresh Button */}
             <button
               onClick={loadShifts}
@@ -310,25 +357,74 @@ export default function ShiftsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Code
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("shift_code")}
+                      onClick={() => handleSort("shift_code")}
+                    >
+                      <span>Code</span>
+                      {getSortIndicator("shift_code")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("shift_name")}
+                      onClick={() => handleSort("shift_name")}
+                    >
+                      <span>Name</span>
+                      {getSortIndicator("shift_name")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Time
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("start_time")}
+                      onClick={() => handleSort("start_time")}
+                    >
+                      <span>Start Time</span>
+                      {getSortIndicator("start_time")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    End Time
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("end_time")}
+                      onClick={() => handleSort("end_time")}
+                    >
+                      <span>End Time</span>
+                      {getSortIndicator("end_time")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Duration
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("duration")}
+                      onClick={() => handleSort("duration")}
+                    >
+                      <span>Duration</span>
+                      {getSortIndicator("duration")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Break
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("break_duration_minutes")}
+                      onClick={() => handleSort("break_duration_minutes")}
+                    >
+                      <span>Break</span>
+                      {getSortIndicator("break_duration_minutes")}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    <button
+                      type="button"
+                      className={getHeaderButtonClass("is_active")}
+                      onClick={() => handleSort("is_active")}
+                    >
+                      <span>Status</span>
+                      {getSortIndicator("is_active")}
+                    </button>
                   </th>
                 </tr>
               </thead>

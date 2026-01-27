@@ -2,8 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsUpDownIcon,
+} from "@heroicons/react/24/outline";
 import ProductionOrderCard from "@/app/components/ProductionOrderCard";
-import ProductionHeader, { ViewMode } from "@/app/components/ProductionHeader";
+import ProductionHeader, {
+  ProductionSortKey,
+  SortDirection,
+  ViewMode,
+} from "@/app/components/ProductionHeader";
 import AddProductionOrderModal from "@/app/components/modals/AddProductionOrderModal";
 import { ProductionOrder } from "@/app/types/Production";
 import { fetchProductionOrders, scheduleProductionOrder, updateProductionOrder, fetchSchedulerSettings, updateSchedulerSettings, SchedulerSettings, clearProductionSchedule } from "@/app/lib/data";
@@ -15,9 +24,10 @@ export default function ProductionPage() {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<"id" | "po_number">("id");
+  const [sortKey, setSortKey] = useState<ProductionSortKey>("po_number");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedPoIds, setSelectedPoIds] = useState<Set<number>>(new Set());
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -72,25 +82,58 @@ export default function ProductionPage() {
   };
 
   const filteredOrders = useMemo(() => {
-    return productionOrders
-      .filter(
-        (po) =>
-          po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          po.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (sortKey === "id") {
+    const filtered = productionOrders.filter(
+      (po) =>
+        po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        po.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const getScheduledStartTime = (po: ProductionOrder) =>
+      po.scheduled_start_date
+        ? new Date(po.scheduled_start_date).getTime()
+        : Number.MAX_SAFE_INTEGER;
+
+    const compare = (a: ProductionOrder, b: ProductionOrder) => {
+      switch (sortKey) {
+        case "id":
           return a.id - b.id;
-        }
-        return a.po_number.localeCompare(b.po_number);
-      });
-  }, [searchTerm, productionOrders, sortKey]);
+        case "po_number":
+          return a.po_number.localeCompare(b.po_number);
+        case "priority":
+          return a.priority - b.priority;
+        case "quantity_planned":
+          return a.quantity_planned - b.quantity_planned;
+        case "quantity_completed":
+          return a.quantity_completed - b.quantity_completed;
+        case "scheduled_start_date":
+          return getScheduledStartTime(a) - getScheduledStartTime(b);
+        case "status":
+          return a.status.localeCompare(b.status);
+        case "schedule_status":
+          return (a.schedule_status ?? "").localeCompare(b.schedule_status ?? "");
+        default:
+          return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const result = compare(a, b);
+      return sortDirection === "asc" ? result : -result;
+    });
+  }, [searchTerm, productionOrders, sortKey, sortDirection]);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-
+  const handleSort = (key: ProductionSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -110,10 +153,6 @@ export default function ProductionPage() {
 
   const handleAddSuccess = () => {
     handleRefresh();
-  };
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
   };
 
   const handleRowClick = (poId: number) => {
@@ -233,6 +272,23 @@ export default function ProductionPage() {
     return statusStyles[status] || "bg-gray-100 text-gray-800";
   };
 
+  const getSortIndicator = (key: ProductionSortKey) => {
+    if (sortKey !== key) {
+      return <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ArrowDownIcon className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  const getHeaderButtonClass = (key: ProductionSortKey) =>
+    [
+      "flex items-center gap-1 uppercase tracking-wider",
+      sortKey === key ? "text-blue-600" : "text-gray-500 hover:text-gray-700",
+    ].join(" ");
+
   // const getScheduleStatusBadge = (status?: string) => {
   //   if (!status || status === "Unschedule") return "bg-gray-100 text-gray-600";
   //   const statusStyles: Record<string, string> = {
@@ -248,12 +304,8 @@ export default function ProductionPage() {
     <div className="flex flex-col h-full">
       <ProductionHeader
         onSearch={handleSearch}
-        onSortToggle={() => setSortKey(sortKey === "id" ? "po_number" : "id")}
-        sortKey={sortKey}
         onRefresh={handleRefresh}
         onAdd={handleAdd}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
         schedulerSettings={schedulerSettings}
         onOpenSettings={() => {
           setEditingSettings(schedulerSettings);
@@ -357,25 +409,74 @@ export default function ProductionPage() {
                         </label>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        PO Number
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("po_number")}
+                          onClick={() => handleSort("po_number")}
+                        >
+                          <span>PO Number</span>
+                          {getSortIndicator("po_number")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Priority
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("priority")}
+                          onClick={() => handleSort("priority")}
+                        >
+                          <span>Priority</span>
+                          {getSortIndicator("priority")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Qty Planned
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("quantity_planned")}
+                          onClick={() => handleSort("quantity_planned")}
+                        >
+                          <span>Qty Planned</span>
+                          {getSortIndicator("quantity_planned")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Qty Completed
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("quantity_completed")}
+                          onClick={() => handleSort("quantity_completed")}
+                        >
+                          <span>Qty Completed</span>
+                          {getSortIndicator("quantity_completed")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Scheduled Start
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("scheduled_start_date")}
+                          onClick={() => handleSort("scheduled_start_date")}
+                        >
+                          <span>Scheduled Start</span>
+                          {getSortIndicator("scheduled_start_date")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("status")}
+                          onClick={() => handleSort("status")}
+                        >
+                          <span>Status</span>
+                          {getSortIndicator("status")}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Schedule Status
+                        <button
+                          type="button"
+                          className={getHeaderButtonClass("schedule_status")}
+                          onClick={() => handleSort("schedule_status")}
+                        >
+                          <span>Schedule Status</span>
+                          {getSortIndicator("schedule_status")}
+                        </button>
                       </th>
                     </tr>
                   </thead>
