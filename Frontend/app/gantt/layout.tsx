@@ -1,8 +1,16 @@
+import Header from "@/app/components/Header";
+
 export default function GanttLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    // No Header for Gantt page - it has its own header
-    return <>{children}</>;
+    return (
+        <div className="flex flex-col h-screen">
+            <Header />
+            <main className="flex-1 overflow-hidden">
+                {children}
+            </main>
+        </div>
+    );
 }

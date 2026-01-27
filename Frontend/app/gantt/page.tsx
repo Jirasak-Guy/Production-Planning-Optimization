@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { fetchGanttData } from "@/app/lib/data";
+import { fetchGanttData, fetchShifts, fetchWorkCenterShifts } from "@/app/lib/data";
 import { GanttData, GanttScheduleItem } from "@/app/types/Production";
+import { Shift } from "@/app/types/Shift";
+import { WorkCenterShift } from "@/app/types/WorkCenter";
 
 // Color palette for products - vibrant colors for light theme
 const PRODUCT_COLORS = [
@@ -18,8 +20,21 @@ const PRODUCT_COLORS = [
     { bg: "rgba(168, 85, 247, 0.9)", border: "#9333ea", text: "#ffffff" },   // Purple
 ];
 
+// Shift background colors - subtle pastel colors
+const SHIFT_COLORS = [
+    "rgba(253, 224, 71, 0.2)",   // Yellow (Morning shift)
+    "rgba(147, 197, 253, 0.2)",  // Blue (Afternoon shift)
+    "rgba(134, 239, 172, 0.2)",  // Green (Night shift)
+    "rgba(251, 207, 232, 0.2)",  // Pink
+    "rgba(196, 181, 253, 0.2)",  // Purple
+];
+
 function getProductColor(id: number): typeof PRODUCT_COLORS[0] {
     return PRODUCT_COLORS[id % PRODUCT_COLORS.length];
+}
+
+function getShiftColor(shiftId: number): string {
+    return SHIFT_COLORS[(shiftId - 1) % SHIFT_COLORS.length];
 }
 
 // Helper function to format date
@@ -38,6 +53,7 @@ function formatDateTime(dateStr: string): string {
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "UTC", // Display as UTC to match database time
     });
 }
 
@@ -97,8 +113,44 @@ function calculateTaskPosition(
     };
 }
 
+// Parse time string (HH:MM:SS) to minutes from midnight
+function timeToMinutes(timeStr: string): number {
+    const parts = timeStr.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+// Calculate shift position and width as percentage of day
+function calculateShiftPosition(shift: Shift): { left: string; width: string } {
+    const startMinutes = timeToMinutes(shift.start_time);
+    const endMinutes = timeToMinutes(shift.end_time);
+
+    const MINUTES_IN_DAY = 24 * 60;
+
+    // Handle overnight shifts (end time < start time)
+    let duration = endMinutes - startMinutes;
+    if (duration < 0) {
+        duration = MINUTES_IN_DAY - startMinutes + endMinutes;
+    }
+
+    const leftPercent = (startMinutes / MINUTES_IN_DAY) * 100;
+    const widthPercent = (duration / MINUTES_IN_DAY) * 100;
+
+    return {
+        left: `${leftPercent}%`,
+        width: `${widthPercent}%`,
+    };
+}
+
+// Get day of week from Date (1=Monday, 7=Sunday) matching database format
+function getDayOfWeek(date: Date): number {
+    const day = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    return day === 0 ? 7 : day; // Convert to 1=Monday, ..., 7=Sunday
+}
+
 export default function GanttPage() {
     const [ganttData, setGanttData] = useState<GanttData | null>(null);
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [workCenterShifts, setWorkCenterShifts] = useState<WorkCenterShift[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dayWidth, setDayWidth] = useState(100);
@@ -116,7 +168,7 @@ export default function GanttPage() {
     const SIDEBAR_WIDTH = 200;
     const [daysToShow, setDaysToShow] = useState(7);
     const [showDaysDropdown, setShowDaysDropdown] = useState(false);
-    const DAYS_OPTIONS = [7, 14, 21, 30];
+    const DAYS_OPTIONS = [1, 3, 5, 7, 14, 21, 30];
 
     useEffect(() => {
         loadData();
@@ -140,8 +192,18 @@ export default function GanttPage() {
     async function loadData() {
         try {
             setLoading(true);
-            const data = await fetchGanttData();
+            const [data, shiftsData, wcShiftsData] = await Promise.all([
+                fetchGanttData(),
+                fetchShifts(),
+                fetchWorkCenterShifts()
+            ]);
             setGanttData(data);
+            // Only keep active shifts
+            const activeShifts = shiftsData.filter(s => s.is_active);
+            setShifts(activeShifts);
+            // Only keep active work center shifts
+            const activeWcShifts = wcShiftsData.filter(wcs => wcs.is_active);
+            setWorkCenterShifts(activeWcShifts);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load data");
         } finally {
@@ -160,6 +222,43 @@ export default function GanttPage() {
     }, [dateRange, currentStartIndex, daysToShow]);
 
     const totalHeight = (ganttData?.work_centers.length || 0) * ROW_HEIGHT;
+
+    // Create a map of shift_id -> Shift for quick lookup
+    const shiftMap = useMemo(() => {
+        const map = new Map<number, Shift>();
+        shifts.forEach(s => map.set(s.id, s));
+        return map;
+    }, [shifts]);
+
+    // Create a map of work_center_id -> Map<day_of_week, Shift[]>
+    const workCenterShiftMap = useMemo(() => {
+        const map = new Map<number, Map<number, Shift[]>>();
+
+        workCenterShifts.forEach(wcs => {
+            if (!map.has(wcs.work_center_id)) {
+                map.set(wcs.work_center_id, new Map<number, Shift[]>());
+            }
+            const dayMap = map.get(wcs.work_center_id)!;
+            if (!dayMap.has(wcs.day_of_week)) {
+                dayMap.set(wcs.day_of_week, []);
+            }
+            const shift = shiftMap.get(wcs.shift_id);
+            if (shift) {
+                dayMap.get(wcs.day_of_week)!.push(shift);
+            }
+        });
+
+        return map;
+    }, [workCenterShifts, shiftMap]);
+
+    // Get unique shifts used across all work centers for legend
+    const uniqueUsedShifts = useMemo(() => {
+        const usedShiftIds = new Set<number>();
+        workCenterShifts.forEach(wcs => usedShiftIds.add(wcs.shift_id));
+        return shifts
+            .filter(s => usedShiftIds.has(s.id))
+            .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+    }, [workCenterShifts, shifts]);
 
     // Group schedules by work center
     const schedulesByWorkCenter = useMemo(() => {
@@ -237,6 +336,14 @@ export default function GanttPage() {
     const canGoPrevious = currentStartIndex > 0;
     const canGoNext = currentStartIndex < dateRange.length - daysToShow;
 
+    // Get shifts for a work center on a specific date
+    const getWorkCenterShiftsForDate = (workCenterId: number, date: Date): Shift[] => {
+        const dayOfWeek = getDayOfWeek(date);
+        const dayMap = workCenterShiftMap.get(workCenterId);
+        if (!dayMap) return [];
+        return dayMap.get(dayOfWeek) || [];
+    };
+
     if (loading) {
         return (
             <div className="h-full flex items-center justify-center bg-gray-50">
@@ -290,6 +397,24 @@ export default function GanttPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Shift Legend */}
+                        {uniqueUsedShifts.length > 0 && (
+                            <div className="flex items-center gap-2 mr-4 px-3 py-1.5 bg-gray-100 rounded-lg">
+                                <span className="text-xs text-gray-500 font-medium">Shifts:</span>
+                                {uniqueUsedShifts.map((shift) => (
+                                    <div key={shift.id} className="flex items-center gap-1">
+                                        <div
+                                            className="w-3 h-3 rounded border border-gray-300"
+                                            style={{ backgroundColor: getShiftColor(shift.id).replace('0.2', '0.6') }}
+                                        />
+                                        <span className="text-xs text-gray-600" title={`${shift.shift_name} (${shift.start_time} - ${shift.end_time})`}>
+                                            {shift.shift_code}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Days Selector Dropdown */}
                         <div className="relative z-[100]">
                             <button
@@ -464,25 +589,23 @@ export default function GanttPage() {
                                 return (
                                     <div
                                         key={index}
-                                        className={`flex-1 flex flex-col items-center justify-center border-r border-gray-200 ${isToday
-                                            ? "bg-blue-50"
-                                            : isHoliday
-                                                ? "bg-red-50"
-                                                : isWeekend
-                                                    ? "bg-gray-100"
-                                                    : ""
+                                        className={`flex-1 flex flex-col items-center justify-center border-r border-gray-200 ${isHoliday
+                                            ? "bg-red-100"
+                                            : isToday
+                                                ? "bg-blue-50"
+                                                : ""
                                             }`}
                                     >
-                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-500" : "text-gray-500"}`}>
+                                        <div className={`text-xs ${isHoliday ? "text-red-600 font-medium" : "text-gray-500"}`}>
                                             {date.toLocaleDateString("en-US", { weekday: "short" })}
                                         </div>
                                         <div
-                                            className={`text-lg font-bold ${isToday ? "text-blue-600" : isWeekend || isHoliday ? "text-red-500" : "text-gray-800"
+                                            className={`text-lg font-bold ${isHoliday ? "text-red-600" : isToday ? "text-blue-600" : "text-gray-800"
                                                 }`}
                                         >
                                             {date.getDate()}
                                         </div>
-                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-500" : "text-gray-500"}`}>
+                                        <div className={`text-xs ${isHoliday ? "text-red-600 font-medium" : "text-gray-500"}`}>
                                             {date.toLocaleDateString("en-US", { month: "short" })}
                                         </div>
                                     </div>
@@ -492,30 +615,6 @@ export default function GanttPage() {
 
                         {/* Task Rows */}
                         <div className="relative">
-                            {/* Grid Lines */}
-                            <div className="absolute inset-0 pointer-events-none flex">
-                                {visibleDateRange.map((date, index) => {
-                                    const isToday = date.toDateString() === new Date().toDateString();
-                                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                                    const isHoliday = ganttData.holidays.includes(date.toISOString().split("T")[0]);
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className={`flex-1 h-full border-r border-gray-100 ${isToday
-                                                ? "bg-blue-50/50"
-                                                : isHoliday
-                                                    ? "bg-red-50/50"
-                                                    : isWeekend
-                                                        ? "bg-gray-50"
-                                                        : ""
-                                                }`}
-                                            style={{ height: totalHeight }}
-                                        />
-                                    );
-                                })}
-                            </div>
-
                             {/* Work Center Rows with Tasks */}
                             {ganttData.work_centers.map((wc, wcIndex) => {
                                 const tasks = schedulesByWorkCenter.get(wc.id) || [];
@@ -527,6 +626,47 @@ export default function GanttPage() {
                                             }`}
                                         style={{ height: ROW_HEIGHT }}
                                     >
+                                        {/* Shift backgrounds for this work center */}
+                                        <div className="absolute inset-0 flex pointer-events-none">
+                                            {visibleDateRange.map((date, dateIndex) => {
+                                                const isToday = date.toDateString() === new Date().toDateString();
+                                                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                                                const isHoliday = ganttData.holidays.includes(date.toISOString().split("T")[0]);
+                                                const shiftsForDay = getWorkCenterShiftsForDate(wc.id, date);
+
+                                                return (
+                                                    <div
+                                                        key={dateIndex}
+                                                        className={`flex-1 h-full border-r border-gray-100 relative ${isHoliday
+                                                            ? "bg-red-200/60"
+                                                            : isToday
+                                                                ? "bg-blue-50/30"
+                                                                : ""
+                                                            }`}
+                                                    >
+                                                        {/* Shift background stripes for each configured shift (only show if NOT a holiday) */}
+                                                        {!isHoliday && shiftsForDay.map((shift) => {
+                                                            const pos = calculateShiftPosition(shift);
+                                                            return (
+                                                                <div
+                                                                    key={shift.id}
+                                                                    className="absolute top-0 bottom-0"
+                                                                    style={{
+                                                                        left: pos.left,
+                                                                        width: pos.width,
+                                                                        backgroundColor: getShiftColor(shift.id),
+                                                                        height: '100%',
+                                                                    }}
+                                                                    title={`${shift.shift_name} (${shift.start_time} - ${shift.end_time})`}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Task bars */}
                                         {tasks.map((task) => {
                                             const { left, width, visible } = calculateTaskPosition(
                                                 task.scheduled_start,

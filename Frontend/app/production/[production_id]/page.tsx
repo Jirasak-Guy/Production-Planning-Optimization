@@ -7,12 +7,15 @@ import { ProductionOrder, WorkCenterSchedule } from "@/app/types/Production";
 import { ProductData } from "@/app/types/CoreData";
 import { WorkCenter } from "@/app/types/WorkCenter";
 import { Operation } from "@/app/types/Operation";
+import { Shift } from "@/app/types/Shift";
 import {
   fetchProductionOrderById,
   fetchProductById,
   fetchWorkCenterSchedule,
   fetchWorkCenters,
   fetchOperations,
+  fetchProducts,
+  fetchShifts,
   updateProductionOrder,
   deleteProductionOrder,
 } from "@/app/lib/data";
@@ -36,6 +39,8 @@ interface ProductionDetailPageProps {
 interface ScheduleWithDetails extends WorkCenterSchedule {
   workCenter?: WorkCenter;
   operation?: Operation;
+  productData?: ProductData;
+  shiftData?: Shift;
 }
 
 export default function ProductionDetailPage({
@@ -68,12 +73,14 @@ export default function ProductionDetailPage({
         const po = await fetchProductionOrderById(poId);
         setProductionOrder(po);
 
-        const [productData, schedulesData, workCentersData, operationsData] =
+        const [productData, schedulesData, workCentersData, operationsData, allProducts, allShifts] =
           await Promise.all([
             fetchProductById(po.product_id),
             fetchWorkCenterSchedule(),
             fetchWorkCenters(),
             fetchOperations(),
+            fetchProducts(),
+            fetchShifts(),
           ]);
 
         setProduct(productData);
@@ -84,6 +91,8 @@ export default function ProductionDetailPage({
             ...s,
             workCenter: workCentersData.find((w) => w.id === s.work_center_id),
             operation: operationsData.find((o) => o.id === s.operation_id),
+            productData: allProducts.find((p) => p.id === s.product_id),
+            shiftData: allShifts.find((sh) => sh.id === s.shift_id),
           }))
           .sort(
             (a, b) =>
@@ -837,7 +846,13 @@ export default function ProductionDetailPage({
                     Work Center
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Product
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Operation
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Shift
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Status
@@ -848,23 +863,10 @@ export default function ProductionDetailPage({
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Scheduled End
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Planned Qty
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Completed Qty
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                    Progress
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {schedules.map((schedule) => {
-                  const scheduleProgress =
-                    schedule.quantity_planned > 0
-                      ? (schedule.quantity_completed / schedule.quantity_planned) * 100
-                      : 0;
                   return (
                     <tr key={schedule.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
@@ -880,12 +882,36 @@ export default function ProductionDetailPage({
                         )}
                       </td>
                       <td className="px-6 py-4">
+                        {schedule.productData ? (
+                          <Link
+                            href={`/products/${schedule.product_id}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {schedule.productData.product_code}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         {schedule.operation ? (
                           <Link
                             href={`/operations/${schedule.operation_id}`}
                             className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
                           >
                             {schedule.operation.operation_code}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {schedule.shiftData ? (
+                          <Link
+                            href={`/shifts`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {schedule.shiftData.shift_code}
                           </Link>
                         ) : (
                           <span className="text-sm text-gray-400">-</span>
@@ -913,28 +939,6 @@ export default function ProductionDetailPage({
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-900 font-medium">
-                        {schedule.quantity_planned.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-900 font-medium">
-                        {schedule.quantity_completed.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${scheduleProgress >= 100 ? 'bg-green-600' :
-                                scheduleProgress >= 50 ? 'bg-blue-600' :
-                                  'bg-yellow-500'
-                                }`}
-                              style={{ width: `${Math.min(scheduleProgress, 100)}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-600 w-10 text-right">
-                            {Math.round(scheduleProgress)}%
-                          </span>
-                        </div>
                       </td>
                     </tr>
                   );
