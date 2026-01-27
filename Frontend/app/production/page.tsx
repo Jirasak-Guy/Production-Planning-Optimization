@@ -6,7 +6,7 @@ import ProductionOrderCard from "@/app/components/ProductionOrderCard";
 import ProductionHeader, { ViewMode } from "@/app/components/ProductionHeader";
 import AddProductionOrderModal from "@/app/components/modals/AddProductionOrderModal";
 import { ProductionOrder } from "@/app/types/Production";
-import { fetchProductionOrders } from "@/app/lib/data";
+import { fetchProductionOrders, scheduleProductionOrder, updateProductionOrder } from "@/app/lib/data";
 
 export default function ProductionPage() {
   const router = useRouter();
@@ -18,6 +18,8 @@ export default function ProductionPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [sortKey, setSortKey] = useState<"id" | "po_number">("id");
+  const [selectedPoIds, setSelectedPoIds] = useState<Set<number>>(new Set());
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   useEffect(() => {
     const loadProductionOrders = async () => {
@@ -84,6 +86,70 @@ export default function ProductionPage() {
     router.push(`/production/${poId}`);
   };
 
+  // Selection handlers for multi-select checkboxes
+  const handleSelectPo = (poId: number, checked: boolean) => {
+    setSelectedPoIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(poId);
+      } else {
+        newSet.delete(poId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = filteredOrders.map((po) => po.id);
+      setSelectedPoIds(new Set(allIds));
+    } else {
+      setSelectedPoIds(new Set());
+    }
+  };
+
+  const isAllSelected =
+    filteredOrders.length > 0 &&
+    filteredOrders.every((po) => selectedPoIds.has(po.id));
+
+  const handleOptimizeSelected = async () => {
+    if (selectedPoIds.size === 0) return;
+
+    setIsOptimizing(true);
+    const idsToOptimize = Array.from(selectedPoIds);
+
+    try {
+      // Update all selected POs to "Optimizing" status first
+      await Promise.all(
+        idsToOptimize.map((id) =>
+          updateProductionOrder(id, { schedule_status: "Optimizing" })
+        )
+      );
+
+      // Update local state to show "Optimizing" immediately
+      setProductionOrders((prev) =>
+        prev.map((po) =>
+          selectedPoIds.has(po.id)
+            ? { ...po, schedule_status: "Optimizing" }
+            : po
+        )
+      );
+
+      // Call the scheduler with all selected production IDs
+      await scheduleProductionOrder(idsToOptimize, { saveToDb: true });
+
+      // Refresh to get updated statuses
+      await handleRefresh();
+      setSelectedPoIds(new Set()); // Clear selection after optimization
+    } catch (error) {
+      console.error("Failed to optimize selected POs:", error);
+      // Refresh to get correct statuses after error
+      await handleRefresh();
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusStyles: Record<string, string> = {
       planned: "bg-gray-100 text-gray-800",
@@ -137,9 +203,51 @@ export default function ProductionPage() {
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {/* Optimize Selected Button - shows when POs are selected */}
+                {selectedPoIds.size > 0 && (
+                  <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                    <span className="text-sm text-blue-700 font-medium">
+                      {selectedPoIds.size} PO{selectedPoIds.size > 1 ? "s" : ""} selected
+                    </span>
+                    <button
+                      onClick={handleOptimizeSelected}
+                      disabled={isOptimizing}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${isOptimizing
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-sm hover:shadow-md"
+                        }`}
+                    >
+                      {isOptimizing ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Optimizing...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Optimize Selected
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
+                      <th className="px-4 py-3 text-center w-12">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                          title="Select all"
+                        />
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         PO Number
                       </th>
@@ -167,9 +275,21 @@ export default function ProductionPage() {
                     {filteredOrders.map((po) => (
                       <tr
                         key={po.id}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        className={`cursor-pointer transition-colors ${selectedPoIds.has(po.id)
+                            ? "bg-blue-50 hover:bg-blue-100"
+                            : "hover:bg-gray-50"
+                          }`}
                         onClick={() => handleRowClick(po.id)}
                       >
+                        <td className="px-4 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedPoIds.has(po.id)}
+                            onChange={(e) => handleSelectPo(po.id, e.target.checked)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                          />
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                           {po.po_number}
                         </td>
