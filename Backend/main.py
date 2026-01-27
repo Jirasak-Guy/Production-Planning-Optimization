@@ -1,6 +1,6 @@
 import os
-from typing import Annotated
-
+from typing import Annotated,List, Optional
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Session, create_engine, select
@@ -23,6 +23,7 @@ from model import (
     ProductionOrder,
     WorkCenterSchedule,
 )
+from scheduler import run_scheduling
 
 load_dotenv()
 
@@ -1147,6 +1148,94 @@ def get_gantt_data(
         holidays=holidays
     )
 
+# =====================================================
+# SCHEDULER API
+# =====================================================
+
+class ScheduleRequest(BaseModel):
+    production_ids: List[int] = Field(..., description="List of production order IDs to schedule")
+    max_shift_duration: int = Field(default=120, description="Max duration per chunk (minutes)")
+    max_workers: int = Field(default=600, description="Max workers available")
+    time_limit_seconds: int = Field(default=60, description="Solver time limit")
+    save_to_db: bool = Field(default=True, description="Save results to database")
+
+
+class ScheduleSegment(BaseModel):
+    job: str
+    machine: str
+    start: int
+    finish: int
+
+class ScheduleResponse(BaseModel):
+    status: str
+    makespan: Optional[int] = None
+    solve_time_seconds: float
+    message: str
+    segments: Optional[List[ScheduleSegment]] = None
+    tasks: Optional[List[ScheduleSegment]] = None
+
+
+
+@app.post("/schedule", response_model=ScheduleResponse)
+def schedule_production(request: ScheduleRequest):
+    """
+    Run scheduling optimization for specified production orders.
+    
+    This endpoint:
+    1. Loads the production orders and their routing/BOM
+    2. Loads existing schedules to avoid conflicts
+    3. Runs the CP-SAT solver to find optimal schedule
+    4. Optionally saves results to database
+    """
+    if not request.production_ids:
+        raise HTTPException(status_code=400, detail="No production IDs provided")
+    
+    try:
+        result = run_scheduling(
+            engine=engine,
+            production_ids=request.production_ids,
+            max_shift_duration=request.max_shift_duration,
+            max_workers=request.max_workers,
+            time_limit_seconds=request.time_limit_seconds,
+            save_to_db=request.save_to_db
+        )
+        
+        segments = None
+        tasks = None
+        
+        if result.segments:
+            segments = [
+                ScheduleSegment(
+                    job=s['Job'],
+                    machine=s['Machine'],
+                    start=s['Start'],
+                    finish=s['Finish']
+                )
+                for s in result.segments
+            ]
+        
+        if result.tasks:
+            tasks = [
+                ScheduleSegment(
+                    job=t['Job'],
+                    machine=t['Machine'],
+                    start=t['Start'],
+                    finish=t['Finish']
+                )
+                for t in result.tasks
+            ]
+        
+        return ScheduleResponse(
+            status=result.status,
+            makespan=result.makespan,
+            solve_time_seconds=result.solve_time_seconds,
+            message=result.message,
+            segments=segments,
+            tasks=tasks
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
