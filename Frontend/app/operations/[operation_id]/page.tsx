@@ -254,8 +254,8 @@ export default function OperationDetailPage({
                   <div className="flex items-center gap-2">
                     <span
                       className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${operation.is_active
-                          ? "bg-green-100 text-green-700 border-green-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
+                        ? "bg-green-100 text-green-700 border-green-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
                         }`}
                     >
                       {operation.is_active ? "ACTIVE" : "INACTIVE"}
@@ -466,8 +466,8 @@ export default function OperationDetailPage({
           <button
             onClick={() => setActiveTab("workcenters")}
             className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === "workcenters"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
           >
             <div className="flex items-center gap-2">
@@ -478,8 +478,8 @@ export default function OperationDetailPage({
           <button
             onClick={() => setActiveTab("routing")}
             className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === "routing"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
           >
             <div className="flex items-center gap-2">
@@ -529,6 +529,9 @@ export default function OperationDetailPage({
                       Workers Required
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Cost/Hour
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
                       Status
                     </th>
                   </tr>
@@ -553,13 +556,16 @@ export default function OperationDetailPage({
                       <td className="px-6 py-4 text-center text-sm text-gray-900">
                         {wc.number_of_workers_required}
                       </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-900">
+                        {wc.cost_per_hour != null ? `฿${wc.cost_per_hour.toLocaleString()}` : "-"}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${wc.status === "active"
-                              ? "bg-green-100 text-green-700"
-                              : wc.status === "maintenance"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-gray-100 text-gray-600"
+                            ? "bg-green-100 text-green-700"
+                            : wc.status === "maintenance"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-gray-100 text-gray-600"
                             }`}
                         >
                           {wc.status}

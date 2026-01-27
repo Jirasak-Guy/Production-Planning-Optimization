@@ -1102,8 +1102,8 @@ def get_gantt_data(
             actual_start=schedule.actual_start.isoformat() if schedule.actual_start else None,
             actual_end=schedule.actual_end.isoformat() if schedule.actual_end else None,
             status=schedule.status,
-            quantity_planned=float(schedule.quantity_planned),
-            quantity_completed=float(schedule.quantity_completed)
+            quantity_planned=float(production_order.quantity_planned),
+            quantity_completed=float(production_order.quantity_completed)
         ))
     
     # Get unique work centers that have schedules

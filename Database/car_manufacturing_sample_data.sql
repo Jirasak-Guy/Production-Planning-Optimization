@@ -1114,231 +1114,231 @@ INSERT INTO production_orders (po_number, order_item_id, product_id, quantity_pl
 
 -- PO-2025-0001: 5 Sedan Model A (Priority 1 - Urgent)
 -- Production Period: 2026-01-20 to 2026-01-31
-INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, quantity_planned, quantity_completed, notes) VALUES
+INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, notes) VALUES
 -- Day 1-2: Body-Chassis Marriage
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FINAL-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 1,
- '2026-01-20 08:00:00+07', '2026-01-21 16:00:00+07', 'scheduled', 5, 0, 'Body-Chassis marriage for 5 units'),
+ '2026-01-20 08:00:00+07', '2026-01-21 16:00:00+07', 'scheduled', 'Body-Chassis marriage for 5 units'),
 -- Day 2-3: Engine Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ENG-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 1,
- '2026-01-21 16:00:00+07', '2026-01-22 12:00:00+07', 'scheduled', 5, 0, 'Engine installation'),
+ '2026-01-21 16:00:00+07', '2026-01-22 12:00:00+07', 'scheduled', 'Engine installation'),
 -- Day 3: Transmission Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRANS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 1,
- '2026-01-22 13:00:00+07', '2026-01-23 10:00:00+07', 'scheduled', 5, 0, 'Transmission installation'),
+ '2026-01-22 13:00:00+07', '2026-01-23 10:00:00+07', 'scheduled', 'Transmission installation'),
 -- Day 3-4: Interior Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRIM-INT-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 1,
- '2026-01-23 10:00:00+07', '2026-01-24 14:00:00+07', 'scheduled', 5, 0, 'Interior trim installation'),
+ '2026-01-23 10:00:00+07', '2026-01-24 14:00:00+07', 'scheduled', 'Interior trim installation'),
 -- Day 4: Electrical Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ELEC-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 1,
- '2026-01-24 14:00:00+07', '2026-01-25 10:00:00+07', 'scheduled', 5, 0, 'Electrical system installation'),
+ '2026-01-24 14:00:00+07', '2026-01-25 10:00:00+07', 'scheduled', 'Electrical system installation'),
 -- Day 5: Glass Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-GLASS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 1,
- '2026-01-25 10:00:00+07', '2026-01-25 15:00:00+07', 'scheduled', 5, 0, 'Glass installation'),
+ '2026-01-25 10:00:00+07', '2026-01-25 15:00:00+07', 'scheduled', 'Glass installation'),
 -- Day 5: Wheel Mounting
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-WHEEL-MOUNT'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 1,
- '2026-01-25 15:00:00+07', '2026-01-26 09:00:00+07', 'scheduled', 5, 0, 'Wheel mounting'),
+ '2026-01-25 15:00:00+07', '2026-01-26 09:00:00+07', 'scheduled', 'Wheel mounting'),
 -- Day 6: Fluid Filling
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FLUID-FILL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 1,
- '2026-01-26 09:00:00+07', '2026-01-26 12:00:00+07', 'scheduled', 5, 0, 'Vehicle fluid filling'),
+ '2026-01-26 09:00:00+07', '2026-01-26 12:00:00+07', 'scheduled', 'Vehicle fluid filling'),
 -- Day 6: Water Test
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-WATER'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 1,
- '2026-01-26 13:00:00+07', '2026-01-26 16:00:00+07', 'scheduled', 5, 0, 'Water leak testing'),
+ '2026-01-26 13:00:00+07', '2026-01-26 16:00:00+07', 'scheduled', 'Water leak testing'),
 -- Day 7: Final QC
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-QC-FINAL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 1,
- '2026-01-27 08:00:00+07', '2026-01-27 14:00:00+07', 'scheduled', 5, 0, 'Final quality inspection'),
+ '2026-01-27 08:00:00+07', '2026-01-27 14:00:00+07', 'scheduled', 'Final quality inspection'),
 -- Day 7: Road Test
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-ROAD-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 1,
- '2026-01-27 14:00:00+07', '2026-01-28 10:00:00+07', 'scheduled', 5, 0, 'Road testing'),
+ '2026-01-27 14:00:00+07', '2026-01-28 10:00:00+07', 'scheduled', 'Road testing'),
 -- Day 8: Final Detailing
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-DETAIL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0001'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 1,
- '2026-01-28 10:00:00+07', '2026-01-28 16:00:00+07', 'scheduled', 5, 0, 'Final cleaning and detailing');
+ '2026-01-28 10:00:00+07', '2026-01-28 16:00:00+07', 'scheduled', 'Final cleaning and detailing');
 
 -- PO-2025-0002: 10 Sedan Model A (Fleet Order)
 -- Production Period: 2026-01-22 to 2026-02-10 (overlaps with PO-0001 on different work centers or times)
-INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, quantity_planned, quantity_completed, notes) VALUES
+INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, notes) VALUES
 -- Day 1-3: Body-Chassis Marriage (Using secondary line)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FINAL-02'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 1,
- '2026-01-22 08:00:00+07', '2026-01-25 16:00:00+07', 'in-progress', 10, 4, 'Body-Chassis marriage for 10 fleet units'),
+ '2026-01-22 08:00:00+07', '2026-01-25 16:00:00+07', 'in-progress', 'Body-Chassis marriage for 10 fleet units'),
 -- Day 4-5: Engine Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ENG-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 1,
- '2026-01-26 08:00:00+07', '2026-01-28 12:00:00+07', 'scheduled', 10, 0, 'Engine installation - fleet batch'),
+ '2026-01-26 08:00:00+07', '2026-01-28 12:00:00+07', 'scheduled', 'Engine installation - fleet batch'),
 -- Day 5-6: Transmission Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRANS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 1,
- '2026-01-28 13:00:00+07', '2026-01-30 10:00:00+07', 'scheduled', 10, 0, 'Transmission installation - fleet batch'),
+ '2026-01-28 13:00:00+07', '2026-01-30 10:00:00+07', 'scheduled', 'Transmission installation - fleet batch'),
 -- Day 6-8: Interior Installation (Using secondary line)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRIM-INT-02'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 1,
- '2026-01-30 10:00:00+07', '2026-02-02 14:00:00+07', 'scheduled', 10, 0, 'Interior installation - fleet batch'),
+ '2026-01-30 10:00:00+07', '2026-02-02 14:00:00+07', 'scheduled', 'Interior installation - fleet batch'),
 -- Day 8-9: Electrical Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ELEC-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 2,
- '2026-02-02 16:00:00+07', '2026-02-04 10:00:00+07', 'scheduled', 10, 0, 'Electrical system - fleet batch'),
+ '2026-02-02 16:00:00+07', '2026-02-04 10:00:00+07', 'scheduled', 'Electrical system - fleet batch'),
 -- Day 9: Glass Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-GLASS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 1,
- '2026-02-04 10:00:00+07', '2026-02-05 12:00:00+07', 'scheduled', 10, 0, 'Glass installation - fleet batch'),
+ '2026-02-04 10:00:00+07', '2026-02-05 12:00:00+07', 'scheduled', 'Glass installation - fleet batch'),
 -- Day 10: Wheel Mounting
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-WHEEL-MOUNT'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 1,
- '2026-02-05 12:00:00+07', '2026-02-06 10:00:00+07', 'scheduled', 10, 0, 'Wheel mounting - fleet batch'),
+ '2026-02-05 12:00:00+07', '2026-02-06 10:00:00+07', 'scheduled', 'Wheel mounting - fleet batch'),
 -- Day 10-11: Fluid Filling
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FLUID-FILL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 1,
- '2026-02-06 10:00:00+07', '2026-02-06 16:00:00+07', 'scheduled', 10, 0, 'Fluid filling - fleet batch'),
+ '2026-02-06 10:00:00+07', '2026-02-06 16:00:00+07', 'scheduled', 'Fluid filling - fleet batch'),
 -- Day 11: Water Test
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-WATER'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 1,
- '2026-02-07 08:00:00+07', '2026-02-07 14:00:00+07', 'scheduled', 10, 0, 'Water test - fleet batch'),
+ '2026-02-07 08:00:00+07', '2026-02-07 14:00:00+07', 'scheduled', 'Water test - fleet batch'),
 -- Day 11-12: Final QC
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-QC-FINAL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 1,
- '2026-02-07 14:00:00+07', '2026-02-08 16:00:00+07', 'scheduled', 10, 0, 'Final QC - fleet batch'),
+ '2026-02-07 14:00:00+07', '2026-02-08 16:00:00+07', 'scheduled', 'Final QC - fleet batch'),
 -- Day 12-13: Road Test (Using secondary track)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-ROAD-02'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 1,
- '2026-02-09 08:00:00+07', '2026-02-10 12:00:00+07', 'scheduled', 10, 0, 'Road test - fleet batch'),
+ '2026-02-09 08:00:00+07', '2026-02-10 12:00:00+07', 'scheduled', 'Road test - fleet batch'),
 -- Day 13: Final Detailing
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-DETAIL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0002'),
  (SELECT id FROM products WHERE product_code = 'CAR-SED-A'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 1,
- '2026-02-10 12:00:00+07', '2026-02-11 16:00:00+07', 'scheduled', 10, 0, 'Final detailing - fleet batch');
+ '2026-02-10 12:00:00+07', '2026-02-11 16:00:00+07', 'scheduled', 'Final detailing - fleet batch');
 
 -- PO-2025-0003: 3 SUV Model B (Premium Order)
 -- Production Period: 2026-01-28 to 2026-02-12
-INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, quantity_planned, quantity_completed, notes) VALUES
+INSERT INTO work_center_schedule (work_center_id, production_order_id, product_id, operation_id, shift_id, scheduled_start, scheduled_end, status, notes) VALUES
 -- Day 1-2: Body-Chassis Marriage (SUV takes longer)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FINAL-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-MARRY'), 1,
- '2026-01-29 08:00:00+07', '2026-01-31 12:00:00+07', 'scheduled', 3, 0, 'SUV Body-Chassis marriage'),
+ '2026-01-29 08:00:00+07', '2026-01-31 12:00:00+07', 'scheduled', 'SUV Body-Chassis marriage'),
 -- Day 2-3: Engine Installation (V6)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ENG-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ENGINE-INST'), 1,
- '2026-01-31 13:00:00+07', '2026-02-02 10:00:00+07', 'scheduled', 3, 0, 'V6 Engine installation for SUV'),
+ '2026-01-31 13:00:00+07', '2026-02-02 10:00:00+07', 'scheduled', 'V6 Engine installation for SUV'),
 -- Day 3-4: Transmission Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRANS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-TRANS-INST'), 1,
- '2026-02-02 10:00:00+07', '2026-02-03 14:00:00+07', 'scheduled', 3, 0, 'SUV Transmission installation'),
+ '2026-02-02 10:00:00+07', '2026-02-03 14:00:00+07', 'scheduled', 'SUV Transmission installation'),
 -- Day 4-5: Premium Interior Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TRIM-INT-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-INT-INST'), 1,
- '2026-02-03 14:00:00+07', '2026-02-05 16:00:00+07', 'scheduled', 3, 0, 'Premium interior installation'),
+ '2026-02-03 14:00:00+07', '2026-02-05 16:00:00+07', 'scheduled', 'Premium interior installation'),
 -- Day 5-6: Electrical Installation
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-ELEC-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ELEC-INST'), 1,
- '2026-02-05 16:00:00+07', '2026-02-07 12:00:00+07', 'scheduled', 3, 0, 'SUV Electrical system'),
+ '2026-02-05 16:00:00+07', '2026-02-07 12:00:00+07', 'scheduled', 'SUV Electrical system'),
 -- Day 6-7: Glass Installation (SUV larger glass)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-GLASS-INST'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-GLASS-INST'), 1,
- '2026-02-07 12:00:00+07', '2026-02-08 12:00:00+07', 'scheduled', 3, 0, 'SUV Glass installation'),
+ '2026-02-07 12:00:00+07', '2026-02-08 12:00:00+07', 'scheduled', 'SUV Glass installation'),
 -- Day 7: Wheel Mounting (Larger wheels)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-WHEEL-MOUNT'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WHEEL-MOUNT'), 1,
- '2026-02-08 12:00:00+07', '2026-02-09 10:00:00+07', 'scheduled', 3, 0, 'SUV Wheel mounting'),
+ '2026-02-08 12:00:00+07', '2026-02-09 10:00:00+07', 'scheduled', 'SUV Wheel mounting'),
 -- Day 8: Fluid Filling
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-FLUID-FILL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FLUID-FILL'), 1,
- '2026-02-09 10:00:00+07', '2026-02-09 15:00:00+07', 'scheduled', 3, 0, 'SUV Fluid filling'),
+ '2026-02-09 10:00:00+07', '2026-02-09 15:00:00+07', 'scheduled', 'SUV Fluid filling'),
 -- Day 8-9: Water Test
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-WATER'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-WATER-TEST'), 1,
- '2026-02-09 15:00:00+07', '2026-02-10 11:00:00+07', 'scheduled', 3, 0, 'SUV Water leak test'),
+ '2026-02-09 15:00:00+07', '2026-02-10 11:00:00+07', 'scheduled', 'SUV Water leak test'),
 -- Day 9: Final QC (Premium inspection)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-QC-FINAL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-QC-FINAL'), 1,
- '2026-02-10 11:00:00+07', '2026-02-11 10:00:00+07', 'scheduled', 3, 0, 'Premium SUV Final QC'),
+ '2026-02-10 11:00:00+07', '2026-02-11 10:00:00+07', 'scheduled', 'Premium SUV Final QC'),
 -- Day 10: Road Test (Including off-road)
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-ROAD-01'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-ROAD-TEST'), 1,
- '2026-02-11 10:00:00+07', '2026-02-12 14:00:00+07', 'scheduled', 3, 0, 'SUV Road test with off-road'),
+ '2026-02-11 10:00:00+07', '2026-02-12 14:00:00+07', 'scheduled', 'SUV Road test with off-road'),
 -- Day 10-11: Premium Detailing
 ((SELECT id FROM work_centers WHERE work_center_code = 'WC-DETAIL'),
  (SELECT id FROM production_orders WHERE po_number = 'PO-2025-0003'),
  (SELECT id FROM products WHERE product_code = 'CAR-SUV-B'),
  (SELECT id FROM operations WHERE operation_code = 'OP-FINAL-DETAIL'), 1,
- '2026-02-12 14:00:00+07', '2026-02-13 16:00:00+07', 'scheduled', 3, 0, 'Premium SUV final detailing');
+ '2026-02-12 14:00:00+07', '2026-02-13 16:00:00+07', 'scheduled', 'Premium SUV final detailing');
 
 -- =====================================================
 -- END OF CAR MANUFACTURING SAMPLE DATA

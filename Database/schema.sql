@@ -340,8 +340,6 @@ CREATE TABLE work_center_schedule (
     actual_start TIMESTAMP WITH TIME ZONE,
     actual_end TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) DEFAULT 'scheduled',
-    quantity_planned DECIMAL(15,3) NOT NULL,
-    quantity_completed DECIMAL(15,3) DEFAULT 0,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

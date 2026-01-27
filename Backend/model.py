@@ -338,8 +338,6 @@ class WorkCenterSchedule(SQLModel, table=True):
     actual_start: Optional[datetime] = None
     actual_end: Optional[datetime] = None
     status: str = Field(default="scheduled", max_length=50)  # scheduled, in-progress, completed, cancelled
-    quantity_planned: Decimal = Field(decimal_places=3, max_digits=15)
-    quantity_completed: Decimal = Field(default=0, decimal_places=3, max_digits=15)
     notes: Optional[str] = None
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)

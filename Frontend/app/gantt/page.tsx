@@ -3,23 +3,19 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { fetchGanttData } from "@/app/lib/data";
 import { GanttData, GanttScheduleItem } from "@/app/types/Production";
-import {
-    ChartBarIcon,
-    CalendarDaysIcon,
-} from "@heroicons/react/24/outline";
 
-// Color palette for products - vibrant colors
+// Color palette for products - vibrant colors for light theme
 const PRODUCT_COLORS = [
-    { bg: "rgba(99, 102, 241, 0.85)", border: "#4f46e5", text: "#ffffff" },   // Indigo
-    { bg: "rgba(236, 72, 153, 0.85)", border: "#db2777", text: "#ffffff" },   // Pink
-    { bg: "rgba(34, 197, 94, 0.85)", border: "#16a34a", text: "#ffffff" },    // Green
-    { bg: "rgba(249, 115, 22, 0.85)", border: "#ea580c", text: "#ffffff" },   // Orange
-    { bg: "rgba(139, 92, 246, 0.85)", border: "#7c3aed", text: "#ffffff" },   // Violet
-    { bg: "rgba(14, 165, 233, 0.85)", border: "#0284c7", text: "#ffffff" },   // Sky
-    { bg: "rgba(234, 179, 8, 0.85)", border: "#ca8a04", text: "#1f2937" },    // Yellow
-    { bg: "rgba(239, 68, 68, 0.85)", border: "#dc2626", text: "#ffffff" },    // Red
-    { bg: "rgba(20, 184, 166, 0.85)", border: "#0d9488", text: "#ffffff" },   // Teal
-    { bg: "rgba(168, 85, 247, 0.85)", border: "#9333ea", text: "#ffffff" },   // Purple
+    { bg: "rgba(99, 102, 241, 0.9)", border: "#4f46e5", text: "#ffffff" },   // Indigo
+    { bg: "rgba(236, 72, 153, 0.9)", border: "#db2777", text: "#ffffff" },   // Pink
+    { bg: "rgba(34, 197, 94, 0.9)", border: "#16a34a", text: "#ffffff" },    // Green
+    { bg: "rgba(249, 115, 22, 0.9)", border: "#ea580c", text: "#ffffff" },   // Orange
+    { bg: "rgba(139, 92, 246, 0.9)", border: "#7c3aed", text: "#ffffff" },   // Violet
+    { bg: "rgba(14, 165, 233, 0.9)", border: "#0284c7", text: "#ffffff" },   // Sky
+    { bg: "rgba(234, 179, 8, 0.9)", border: "#ca8a04", text: "#1f2937" },    // Yellow
+    { bg: "rgba(239, 68, 68, 0.9)", border: "#dc2626", text: "#ffffff" },    // Red
+    { bg: "rgba(20, 184, 166, 0.9)", border: "#0d9488", text: "#ffffff" },   // Teal
+    { bg: "rgba(168, 85, 247, 0.9)", border: "#9333ea", text: "#ffffff" },   // Purple
 ];
 
 function getProductColor(id: number): typeof PRODUCT_COLORS[0] {
@@ -116,28 +112,30 @@ export default function GanttPage() {
     const isScrollingChart = useRef(false);
 
     const ROW_HEIGHT = 50;
-    const HEADER_HEIGHT = 80;
+    const HEADER_HEIGHT = 70;
     const SIDEBAR_WIDTH = 200;
-    const DAYS_TO_SHOW = 7;
+    const [daysToShow, setDaysToShow] = useState(7);
+    const [showDaysDropdown, setShowDaysDropdown] = useState(false);
+    const DAYS_OPTIONS = [7, 14, 21, 30];
 
     useEffect(() => {
         loadData();
     }, []);
 
-    // Calculate dayWidth to show exactly 7 days in viewport
+    // Calculate dayWidth to show exactly N days in viewport
     useEffect(() => {
         const calculateDayWidth = () => {
             if (chartContainerRef.current) {
                 const containerWidth = chartContainerRef.current.clientWidth - SIDEBAR_WIDTH;
-                const calculatedWidth = Math.floor(containerWidth / DAYS_TO_SHOW);
-                setDayWidth(Math.max(calculatedWidth, 80)); // Minimum 80px per day
+                const calculatedWidth = Math.floor(containerWidth / daysToShow);
+                setDayWidth(Math.max(calculatedWidth, 60)); // Minimum 60px per day
             }
         };
 
         calculateDayWidth();
         window.addEventListener('resize', calculateDayWidth);
         return () => window.removeEventListener('resize', calculateDayWidth);
-    }, []);
+    }, [daysToShow]);
 
     async function loadData() {
         try {
@@ -156,10 +154,10 @@ export default function GanttPage() {
         return generateDateRange(ganttData.date_range.start, ganttData.date_range.end);
     }, [ganttData]);
 
-    // Get visible dates (only 7 days at a time)
+    // Get visible dates (N days at a time)
     const visibleDateRange = useMemo(() => {
-        return dateRange.slice(currentStartIndex, currentStartIndex + DAYS_TO_SHOW);
-    }, [dateRange, currentStartIndex]);
+        return dateRange.slice(currentStartIndex, currentStartIndex + daysToShow);
+    }, [dateRange, currentStartIndex, daysToShow]);
 
     const totalHeight = (ganttData?.work_centers.length || 0) * ROW_HEIGHT;
 
@@ -220,35 +218,31 @@ export default function GanttPage() {
     };
 
     const goToPreviousWeek = () => {
-        setCurrentStartIndex((prev) => Math.max(0, prev - DAYS_TO_SHOW));
+        setCurrentStartIndex((prev) => Math.max(0, prev - daysToShow));
     };
 
     const goToNextWeek = () => {
         setCurrentStartIndex((prev) =>
-            Math.min(dateRange.length - DAYS_TO_SHOW, prev + DAYS_TO_SHOW)
+            Math.min(dateRange.length - daysToShow, prev + daysToShow)
         );
     };
 
-    const goToToday = () => {
-        if (!ganttData) return;
-        const today = new Date();
-        const rangeStart = new Date(ganttData.date_range.start);
-        rangeStart.setDate(rangeStart.getDate() - 1); // Adjust for padding
-        const daysDiff = Math.floor((today.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
-        // Center today in the view
-        const targetIndex = Math.max(0, Math.min(dateRange.length - DAYS_TO_SHOW, daysDiff - Math.floor(DAYS_TO_SHOW / 2)));
-        setCurrentStartIndex(targetIndex);
+    const handleDaysChange = (days: number) => {
+        setDaysToShow(days);
+        setShowDaysDropdown(false);
+        // Adjust currentStartIndex if needed
+        setCurrentStartIndex((prev) => Math.min(prev, Math.max(0, dateRange.length - days)));
     };
 
     const canGoPrevious = currentStartIndex > 0;
-    const canGoNext = currentStartIndex < dateRange.length - DAYS_TO_SHOW;
+    const canGoNext = currentStartIndex < dateRange.length - daysToShow;
 
     if (loading) {
         return (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+            <div className="h-full flex items-center justify-center bg-gray-50">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-slate-300 text-lg">Loading Gantt Chart...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-gray-600 text-lg">Loading Gantt Chart...</p>
                 </div>
             </div>
         );
@@ -256,12 +250,12 @@ export default function GanttPage() {
 
     if (error) {
         return (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                <div className="text-center bg-red-900/30 p-8 rounded-2xl border border-red-500/30">
-                    <p className="text-red-400 text-xl mb-4">Error: {error}</p>
+            <div className="h-full flex items-center justify-center bg-gray-50">
+                <div className="text-center bg-red-50 p-8 rounded-xl border border-red-200">
+                    <p className="text-red-600 text-xl mb-4">Error: {error}</p>
                     <button
                         onClick={loadData}
-                        className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                        className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                     >
                         Retry
                     </button>
@@ -272,78 +266,83 @@ export default function GanttPage() {
 
     if (!ganttData || ganttData.schedules.length === 0) {
         return (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+            <div className="h-full flex items-center justify-center bg-gray-50">
                 <div className="text-center">
-                    <ChartBarIcon className="w-24 h-24 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-400 text-xl">No schedule data available</p>
-                    <p className="text-slate-500 mt-2">Add some work center schedules to view the Gantt chart</p>
+                    <p className="text-gray-500 text-xl">No schedule data available</p>
+                    <p className="text-gray-400 mt-2">Add some work center schedules to view the Gantt chart</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 px-6 py-4 border-b border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
+            <div className="shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/25">
-                            <ChartBarIcon className="w-6 h-6 text-white" />
-                        </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">Production Gantt Chart</h1>
-                            <p className="text-slate-400 text-sm">
+                            <h1 className="text-xl font-semibold text-gray-800">Production Gantt Chart</h1>
+                            <p className="text-gray-500 text-sm">
                                 {ganttData.schedules.length} tasks across {ganttData.work_centers.length} work centers
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* Today Button */}
-                        <button
-                            onClick={goToToday}
-                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-lg shadow-indigo-500/25"
-                        >
-                            <CalendarDaysIcon className="w-5 h-5" />
-                            Today
-                        </button>
+                        {/* Days Selector Dropdown */}
+                        <div className="relative z-[100]">
+                            <button
+                                onClick={() => setShowDaysDropdown(!showDaysDropdown)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors shadow-sm"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                </svg>
+                                {daysToShow} Days
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+
+                            {showDaysDropdown && (
+                                <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                                    {DAYS_OPTIONS.map((days) => (
+                                        <button
+                                            key={days}
+                                            onClick={() => handleDaysChange(days)}
+                                            className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors flex items-center justify-between ${daysToShow === days ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                                                }`}
+                                        >
+                                            <span>{days} Days</span>
+                                            {daysToShow === days && (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Refresh Button */}
                         <button
                             onClick={loadData}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-lg transition-colors"
                         >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                            </svg>
                             Refresh
                         </button>
                     </div>
                 </div>
 
-                {/* Legend */}
-                <div className="mt-4 flex flex-wrap gap-3">
-                    {uniquePOs.map((po) => {
-                        const color = getProductColor(po.id);
-                        return (
-                            <div
-                                key={po.id}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-                                style={{
-                                    backgroundColor: color.bg,
-                                    border: `2px solid ${color.border}`,
-                                }}
-                            >
-                                <span style={{ color: color.text }} className="font-medium">
-                                    {po.po_number}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-
                 {/* Date Range Slider */}
-                <div className="mt-4 bg-slate-800/50 rounded-xl p-4">
+                <div className="mt-4 bg-gray-100 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-400 text-sm">
+                        <span className="text-gray-600 text-sm font-medium">
                             {visibleDateRange.length > 0 && (
                                 <>
                                     {visibleDateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
@@ -352,10 +351,10 @@ export default function GanttPage() {
                                 </>
                             )}
                         </span>
-                        <span className="text-slate-500 text-xs">
+                        <span className="text-gray-400 text-xs">
                             {dateRange.length > 0 && (
                                 <>
-                                    ทั้งหมด: {dateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                                    Total: {dateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
                                     {" - "}
                                     {dateRange[dateRange.length - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
                                 </>
@@ -365,13 +364,10 @@ export default function GanttPage() {
                     <input
                         type="range"
                         min={0}
-                        max={Math.max(0, dateRange.length - DAYS_TO_SHOW)}
+                        max={Math.max(0, dateRange.length - daysToShow)}
                         value={currentStartIndex}
                         onChange={(e) => setCurrentStartIndex(parseInt(e.target.value))}
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                        style={{
-                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${(currentStartIndex / Math.max(1, dateRange.length - DAYS_TO_SHOW)) * 100}%, #334155 ${(currentStartIndex / Math.max(1, dateRange.length - DAYS_TO_SHOW)) * 100}%, #334155 100%)`
-                        }}
+                        className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
                 </div>
             </div>
@@ -380,12 +376,12 @@ export default function GanttPage() {
             <div ref={chartContainerRef} className="flex-1 flex overflow-hidden">
                 {/* Sidebar - Work Centers (Fixed Header + Scrollable Body synced with chart) */}
                 <div
-                    className="shrink-0 bg-slate-800/80 border-r border-slate-700/50 flex flex-col"
+                    className="shrink-0 bg-white border-r border-gray-200 flex flex-col"
                     style={{ width: SIDEBAR_WIDTH }}
                 >
                     {/* Sidebar Header - Fixed */}
                     <div
-                        className="shrink-0 bg-slate-800 border-b border-slate-700/50 flex items-center justify-center font-semibold text-slate-300"
+                        className="shrink-0 bg-gray-50 border-b border-gray-200 flex items-center justify-center font-semibold text-gray-600 text-sm uppercase tracking-wide"
                         style={{ height: HEADER_HEIGHT }}
                     >
                         Work Centers
@@ -421,13 +417,13 @@ export default function GanttPage() {
                             {ganttData.work_centers.map((wc, index) => (
                                 <div
                                     key={wc.id}
-                                    className={`flex items-center px-4 border-b border-slate-700/30 ${index % 2 === 0 ? "bg-slate-800/50" : "bg-slate-800/30"
+                                    className={`flex items-center px-4 border-b border-gray-100 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
                                         }`}
                                     style={{ height: ROW_HEIGHT }}
                                 >
                                     <div>
-                                        <div className="font-medium text-white text-sm">{wc.code}</div>
-                                        <div className="text-slate-400 text-xs truncate" style={{ maxWidth: SIDEBAR_WIDTH - 32 }}>
+                                        <div className="font-medium text-gray-800 text-sm">{wc.code}</div>
+                                        <div className="text-gray-500 text-xs truncate" style={{ maxWidth: SIDEBAR_WIDTH - 32 }}>
                                             {wc.name}
                                         </div>
                                     </div>
@@ -440,7 +436,7 @@ export default function GanttPage() {
                 {/* Main Chart Area */}
                 <div
                     ref={chartScrollRef}
-                    className="flex-1 overflow-y-auto overflow-x-hidden"
+                    className="flex-1 overflow-y-auto overflow-x-hidden bg-white"
                     onScroll={(e) => {
                         // Prevent infinite loop
                         if (isScrollingSidebar.current) return;
@@ -457,7 +453,7 @@ export default function GanttPage() {
                     <div style={{ minHeight: totalHeight + HEADER_HEIGHT }}>
                         {/* Date Header */}
                         <div
-                            className="sticky top-0 z-10 bg-slate-800/95 backdrop-blur-sm border-b border-slate-700/50 flex"
+                            className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 flex"
                             style={{ height: HEADER_HEIGHT }}
                         >
                             {visibleDateRange.map((date, index) => {
@@ -468,25 +464,25 @@ export default function GanttPage() {
                                 return (
                                     <div
                                         key={index}
-                                        className={`flex-1 flex flex-col items-center justify-center border-r border-slate-700/30 ${isToday
-                                            ? "bg-indigo-600/30"
+                                        className={`flex-1 flex flex-col items-center justify-center border-r border-gray-200 ${isToday
+                                            ? "bg-blue-50"
                                             : isHoliday
-                                                ? "bg-red-900/30"
+                                                ? "bg-red-50"
                                                 : isWeekend
-                                                    ? "bg-slate-700/30"
+                                                    ? "bg-gray-100"
                                                     : ""
                                             }`}
                                     >
-                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-400" : "text-slate-500"}`}>
+                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-500" : "text-gray-500"}`}>
                                             {date.toLocaleDateString("en-US", { weekday: "short" })}
                                         </div>
                                         <div
-                                            className={`text-lg font-bold ${isToday ? "text-indigo-400" : isWeekend || isHoliday ? "text-red-400" : "text-white"
+                                            className={`text-lg font-bold ${isToday ? "text-blue-600" : isWeekend || isHoliday ? "text-red-500" : "text-gray-800"
                                                 }`}
                                         >
                                             {date.getDate()}
                                         </div>
-                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-400" : "text-slate-500"}`}>
+                                        <div className={`text-xs ${isWeekend || isHoliday ? "text-red-500" : "text-gray-500"}`}>
                                             {date.toLocaleDateString("en-US", { month: "short" })}
                                         </div>
                                     </div>
@@ -506,12 +502,12 @@ export default function GanttPage() {
                                     return (
                                         <div
                                             key={index}
-                                            className={`flex-1 h-full border-r border-slate-700/20 ${isToday
-                                                ? "bg-indigo-600/10"
+                                            className={`flex-1 h-full border-r border-gray-100 ${isToday
+                                                ? "bg-blue-50/50"
                                                 : isHoliday
-                                                    ? "bg-red-900/20"
+                                                    ? "bg-red-50/50"
                                                     : isWeekend
-                                                        ? "bg-slate-700/10"
+                                                        ? "bg-gray-50"
                                                         : ""
                                                 }`}
                                             style={{ height: totalHeight }}
@@ -527,7 +523,7 @@ export default function GanttPage() {
                                 return (
                                     <div
                                         key={wc.id}
-                                        className={`relative border-b border-slate-700/20 ${wcIndex % 2 === 0 ? "" : "bg-slate-800/20"
+                                        className={`relative border-b border-gray-100 ${wcIndex % 2 === 0 ? "" : "bg-gray-50/30"
                                             }`}
                                         style={{ height: ROW_HEIGHT }}
                                     >
@@ -546,13 +542,12 @@ export default function GanttPage() {
                                             return (
                                                 <div
                                                     key={task.id}
-                                                    className="absolute top-2 bottom-2 rounded-lg cursor-pointer transform hover:scale-105 hover:z-30 transition-all duration-200 shadow-lg"
+                                                    className="absolute top-2 bottom-2 rounded-md cursor-pointer transform hover:scale-105 hover:z-30 transition-all duration-200 shadow-sm hover:shadow-md"
                                                     style={{
                                                         left,
                                                         width,
                                                         backgroundColor: color.bg,
                                                         borderLeft: `4px solid ${color.border}`,
-                                                        boxShadow: `0 4px 12px ${color.border}40`,
                                                     }}
                                                     onMouseMove={(e) => handleMouseMove(e, task)}
                                                     onMouseLeave={handleMouseLeave}
@@ -563,7 +558,7 @@ export default function GanttPage() {
                                                     >
                                                         <div className="truncate text-xs font-medium">
                                                             <span className="font-bold">{task.po_number}</span>
-                                                            <span className="opacity-75 ml-1">• {task.product_code}</span>
+                                                            <span className="opacity-80 ml-1">• {task.product_code}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -583,53 +578,53 @@ export default function GanttPage() {
                     className="fixed z-50 pointer-events-none"
                     style={{ left: tooltipPos.x, top: tooltipPos.y }}
                 >
-                    <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-600 rounded-xl p-4 shadow-2xl min-w-[280px]">
-                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-700">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xl min-w-[280px]">
+                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
                             <div
                                 className="w-4 h-4 rounded-full"
                                 style={{ backgroundColor: getProductColor(hoveredTask.production_order_id).border }}
                             />
                             <div>
-                                <div className="font-bold text-white">{hoveredTask.po_number}</div>
-                                <div className="text-slate-400 text-sm">{hoveredTask.product_name}</div>
+                                <div className="font-bold text-gray-800">{hoveredTask.po_number}</div>
+                                <div className="text-gray-500 text-sm">{hoveredTask.product_name}</div>
                             </div>
                         </div>
 
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Product:</span>
-                                <span className="text-white font-medium">{hoveredTask.product_code}</span>
+                                <span className="text-gray-500">Product:</span>
+                                <span className="text-gray-800 font-medium">{hoveredTask.product_code}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Operation:</span>
-                                <span className="text-white">{hoveredTask.operation_name}</span>
+                                <span className="text-gray-500">Operation:</span>
+                                <span className="text-gray-800">{hoveredTask.operation_name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Work Center:</span>
-                                <span className="text-white">{hoveredTask.work_center_code}</span>
+                                <span className="text-gray-500">Work Center:</span>
+                                <span className="text-gray-800">{hoveredTask.work_center_code}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Start:</span>
-                                <span className="text-white">{formatDateTime(hoveredTask.scheduled_start)}</span>
+                                <span className="text-gray-500">Start:</span>
+                                <span className="text-gray-800">{formatDateTime(hoveredTask.scheduled_start)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">End:</span>
-                                <span className="text-white">{formatDateTime(hoveredTask.scheduled_end)}</span>
+                                <span className="text-gray-500">End:</span>
+                                <span className="text-gray-800">{formatDateTime(hoveredTask.scheduled_end)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Quantity:</span>
-                                <span className="text-white">{hoveredTask.quantity_planned.toLocaleString()}</span>
+                                <span className="text-gray-500">Quantity:</span>
+                                <span className="text-gray-800">{hoveredTask.quantity_planned.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Status:</span>
+                                <span className="text-gray-500">Status:</span>
                                 <span
                                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${hoveredTask.status === "completed"
-                                        ? "bg-green-500/20 text-green-400"
+                                        ? "bg-green-100 text-green-700"
                                         : hoveredTask.status === "in-progress"
-                                            ? "bg-yellow-500/20 text-yellow-400"
+                                            ? "bg-yellow-100 text-yellow-700"
                                             : hoveredTask.status === "cancelled"
-                                                ? "bg-red-500/20 text-red-400"
-                                                : "bg-blue-500/20 text-blue-400"
+                                                ? "bg-red-100 text-red-700"
+                                                : "bg-blue-100 text-blue-700"
                                         }`}
                                 >
                                     {hoveredTask.status}
