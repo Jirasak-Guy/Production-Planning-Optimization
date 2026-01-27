@@ -168,7 +168,7 @@ export default function Products() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
                           {product.standard_cost !== undefined && product.standard_cost !== null
-                            ? `฿${product.standard_cost.toLocaleString()}`
+                            ? `$${product.standard_cost.toLocaleString()}`
                             : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">

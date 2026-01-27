@@ -557,7 +557,7 @@ export default function OperationDetailPage({
                         {wc.number_of_workers_required}
                       </td>
                       <td className="px-6 py-4 text-center text-sm text-gray-900">
-                        {wc.cost_per_hour != null ? `฿${wc.cost_per_hour.toLocaleString()}` : "-"}
+                        {wc.cost_per_hour != null ? `$${wc.cost_per_hour.toLocaleString()}` : "-"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span
