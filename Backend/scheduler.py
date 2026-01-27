@@ -252,25 +252,43 @@ class ProductionScheduler:
         for i, chunk_proc_time in enumerate(chunk_processing_times):
             chunk_suffix = f"{alt_suffix}_chunk{i}"
             
-            if i == 0:
-                chunk_dur = setup_time + chunk_proc_time
-            else:
-                needs_setup = self.model.new_bool_var(f"needs_setup{chunk_suffix}")
-                chunk_dur_with_setup = setup_time + chunk_proc_time
-                chunk_dur_no_setup = chunk_proc_time
-                chunk_dur_var = self.model.new_int_var(
-                    chunk_dur_no_setup, chunk_dur_with_setup, f"dur{chunk_suffix}"
-                )
-                self.model.add(chunk_dur_var == chunk_dur_with_setup).only_enforce_if(needs_setup)
-                self.model.add(chunk_dur_var == chunk_dur_no_setup).only_enforce_if(needs_setup.Not())
-                chunk_dur = chunk_dur_var
-            
             m_start = self.model.new_int_var(0, horizon, f"m_start{chunk_suffix}")
             m_end = self.model.new_int_var(0, horizon, f"m_end{chunk_suffix}")
             
-            m_interval = self.model.new_optional_interval_var(
-                m_start, chunk_dur, m_end, is_selected, f"opt_interval{chunk_suffix}"
-            )
+            if i == 0:
+                # First chunk: always includes setup time
+                chunk_dur = setup_time + chunk_proc_time
+                m_interval = self.model.new_optional_interval_var(
+                    m_start, chunk_dur, m_end, is_selected, f"opt_interval{chunk_suffix}"
+                )
+            else:
+                # Subsequent chunks: setup if there's a gap, no setup if continuous
+                needs_setup = self.model.new_bool_var(f"needs_setup{chunk_suffix}")
+                
+                chunk_dur_with_setup = setup_time + chunk_proc_time
+                chunk_dur_no_setup = chunk_proc_time
+                
+                chunk_dur_var = self.model.new_int_var(
+                    chunk_dur_no_setup, chunk_dur_with_setup, f"dur{chunk_suffix}"
+                )
+                
+                # Duration depends on whether setup is needed
+                self.model.add(chunk_dur_var == chunk_dur_with_setup).only_enforce_if(needs_setup)
+                self.model.add(chunk_dur_var == chunk_dur_no_setup).only_enforce_if(needs_setup.Not())
+                
+                m_interval = self.model.new_optional_interval_var(
+                    m_start, chunk_dur_var, m_end, is_selected, f"opt_interval{chunk_suffix}"
+                )
+                
+                # Link needs_setup to gap between chunks
+                # gap = current start - previous end
+                gap = self.model.new_int_var(0, horizon, f"gap{chunk_suffix}")
+                self.model.add(gap == m_start - chunk_ends[i-1]).only_enforce_if(is_selected)
+                
+                # If no gap (continuous), no setup needed
+                self.model.add(gap == 0).only_enforce_if(is_selected, needs_setup.Not())
+                # If there's a gap, setup is needed
+                self.model.add(gap > 0).only_enforce_if(is_selected, needs_setup)
             
             chunk_starts.append(m_start)
             chunk_ends.append(m_end)
@@ -278,13 +296,14 @@ class ProductionScheduler:
             self.machine_intervals[wc_id].append(m_interval)
             worker_intervals.append((m_interval, workers_required))
             
+            # Precedence: chunk i must start after chunk i-1 ends
             if i > 0:
                 self.model.add(m_start >= chunk_ends[i-1]).only_enforce_if(is_selected)
         
         self.model.add(master_start == chunk_starts[0]).only_enforce_if(is_selected)
         self.model.add(master_end == chunk_ends[-1]).only_enforce_if(is_selected)
         
-        # Span interval
+        # Span interval for no-interleaving constraint
         span_size = self.model.new_int_var(1, horizon, f"span_size{alt_suffix}")
         self.model.add(span_size == chunk_ends[-1] - chunk_starts[0]).only_enforce_if(is_selected)
         
@@ -541,13 +560,8 @@ def run_scheduling(
     result = scheduler.solve()
     
     # Save to database if requested
-    if save_to_db:
-        # Save schedule results if any
-        if result.schedule_data:
-            records_saved = data.save_schedule_results(result.schedule_data)
-            result.message += f" | Saved {records_saved} records to database"
-        
-        # Always update the schedule_status of the production orders
-        data.update_production_status(production_ids, result.status)
+    if save_to_db and result.schedule_data:
+        records_saved = data.save_schedule_results(result.schedule_data)
+        result.message += f" | Saved {records_saved} records to database"
     
     return result
