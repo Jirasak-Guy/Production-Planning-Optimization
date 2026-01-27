@@ -942,6 +942,28 @@ def delete_production_order(production_order_id: int, session: SessionDep):
     return {"message": "Production order deleted successfully"}
 
 
+@app.post("/production-orders/{production_order_id}/clear-schedule")
+def clear_production_schedule(production_order_id: int, session: SessionDep):
+    db_production_order = session.get(ProductionOrder, production_order_id)
+    if not db_production_order:
+        raise HTTPException(status_code=404, detail="Production order not found")
+    
+    # 1. Delete associated WorkCenterSchedule records
+    schedules = session.exec(
+        select(WorkCenterSchedule).where(WorkCenterSchedule.production_order_id == production_order_id)
+    ).all()
+    count = len(schedules)
+    for schedule in schedules:
+        session.delete(schedule)
+        
+    # 2. Update ProductionOrder schedule_status
+    db_production_order.schedule_status = "Unschedule"
+    session.add(db_production_order)
+    
+    session.commit()
+    return {"message": f"Cleared {count} schedule records and reset status to Unschedule"}
+
+
 # =====================================================
 # WORK CENTER SCHEDULE
 # =====================================================

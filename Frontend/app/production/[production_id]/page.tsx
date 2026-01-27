@@ -19,6 +19,7 @@ import {
   updateProductionOrder,
   deleteProductionOrder,
   scheduleProductionOrder,
+  clearProductionSchedule,
 } from "@/app/lib/data";
 import {
   ArrowLeftIcon,
@@ -223,6 +224,61 @@ export default function ProductionDetailPage({
     }
   };
 
+  const handleClearSchedule = async () => {
+    if (!productionOrder) return;
+    if (!confirm("Are you sure you want to clear the schedule?")) return;
+
+    try {
+      await clearProductionSchedule(productionOrder.id);
+
+      // Reload PO
+      const updatedPO = await fetchProductionOrderById(productionOrder.id);
+      setProductionOrder(updatedPO);
+
+      // Reload Schedule Data
+      const schedulesData = await fetchWorkCenterSchedule();
+      const [workCentersData, operationsData, allProducts, allShifts] = await Promise.all([
+        fetchWorkCenters(),
+        fetchOperations(),
+        fetchProducts(),
+        fetchShifts(),
+      ]);
+      const poSchedules = schedulesData
+        .filter((s) => s.production_order_id === productionOrder.id)
+        .map((s) => ({
+          ...s,
+          workCenter: workCentersData.find((w) => w.id === s.work_center_id),
+          operation: operationsData.find((o) => o.id === s.operation_id),
+          productData: allProducts.find((p) => p.id === s.product_id),
+          shiftData: allShifts.find((sh) => sh.id === s.shift_id),
+        }))
+        .sort(
+          (a, b) =>
+            new Date(a.scheduled_start).getTime() -
+            new Date(b.scheduled_start).getTime()
+        );
+      setSchedules(poSchedules);
+      setOptimizeResult(null);
+
+    } catch (error) {
+      console.error("Failed to clear schedule:", error);
+      alert("Failed to clear schedule");
+    }
+  };
+
+
+
+  const getScheduleStatusColor = (status?: string) => {
+    if (!status) return "bg-gray-100 text-gray-700 border-gray-200";
+    switch (status) {
+      case "Optimizing": return "bg-yellow-100 text-yellow-700 border-yellow-200 animate-pulse";
+      case "OPTIMAL": return "bg-green-100 text-green-700 border-green-200";
+      case "FEASIBLE": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "INFEASIBLE": return "bg-red-100 text-red-700 border-red-200";
+      default: return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       planned: "bg-gray-100 text-gray-700 border-gray-200",
@@ -235,15 +291,7 @@ export default function ProductionDetailPage({
     return colors[status] || "bg-gray-100 text-gray-700 border-gray-200";
   };
 
-  const getScheduleStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      scheduled: "bg-gray-100 text-gray-700",
-      "in-progress": "bg-yellow-100 text-yellow-700",
-      completed: "bg-green-100 text-green-700",
-      cancelled: "bg-red-100 text-red-700",
-    };
-    return colors[status] || "bg-gray-100 text-gray-700";
-  };
+
 
   if (isLoading) {
     return (
@@ -374,6 +422,13 @@ export default function ProductionDetailPage({
                     </button>
                   </div>
                 )}
+
+                {/* Schedule Status Badge */}
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${getScheduleStatusColor(productionOrder.schedule_status)}`}>
+                    {(productionOrder.schedule_status || 'Unschedule').toUpperCase()}
+                  </span>
+                </div>
               </div>
 
               {/* Product Link */}
@@ -392,6 +447,16 @@ export default function ProductionDetailPage({
           </div>
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
+            {/* Clear Schedule Button */}
+            <button
+              onClick={handleClearSchedule}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 shadow-sm hover:text-red-600 hover:border-red-300"
+              title="Clear schedule and reset status"
+            >
+              <XCircleIcon className="w-5 h-5" />
+              <span className="font-medium">Clear Schedule</span>
+            </button>
+
             {/* Optimize Button */}
             <button
               onClick={handleOptimize}
@@ -424,36 +489,6 @@ export default function ProductionDetailPage({
           </div>
         </div>
 
-        {/* Optimize Result Toast */}
-        {optimizeResult && (
-          <div
-            className={`mb-4 p-4 rounded-lg flex items-center justify-between ${optimizeResult.status === "OPTIMAL" || optimizeResult.status === "FEASIBLE"
-              ? "bg-green-50 border border-green-200 text-green-700"
-              : "bg-red-50 border border-red-200 text-red-700"
-              }`}
-          >
-            <div className="flex items-center gap-2">
-              {optimizeResult.status === "OPTIMAL" || optimizeResult.status === "FEASIBLE" ? (
-                <CheckCircleIcon className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircleIcon className="w-5 h-5 text-red-600" />
-              )}
-              <span className="font-medium">
-                {optimizeResult.status === "OPTIMAL"
-                  ? `Schedule optimized successfully! (Status: ${optimizeResult.status})`
-                  : optimizeResult.status === "FEASIBLE"
-                    ? `Feasible schedule found! (Status: ${optimizeResult.status})`
-                    : `Optimization failed: ${optimizeResult.message || "Unknown error"} (Status: ${optimizeResult.status})`}
-              </span>
-            </div>
-            <button
-              onClick={() => setOptimizeResult(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <XCircleIcon className="w-5 h-5" />
-            </button>
-          </div>
-        )}
         {/* Collapse Toggle */}
         <button
           onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
@@ -788,22 +823,7 @@ export default function ProductionDetailPage({
                 )}
               </div>
 
-              {/* Schedule Status */}
-              <div>
-                <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                  <SparklesIcon className="w-4 h-4" />
-                  Schedule Status:
-                </p>
-                <div className="flex items-center gap-2">
-                  <p className={`text-base font-medium px-2 py-0.5 rounded ${productionOrder.schedule_status === 'OPTIMAL' ? 'bg-green-100 text-green-700' :
-                    productionOrder.schedule_status === 'FEASIBLE' ? 'bg-blue-100 text-blue-700' :
-                      productionOrder.schedule_status === 'INFEASIBLE' ? 'bg-red-100 text-red-700' :
-                        'text-gray-900'
-                    }`}>
-                    {productionOrder.schedule_status || "Unschedule"}
-                  </p>
-                </div>
-              </div>
+
             </div>
 
             {/* Notes */}
@@ -850,6 +870,7 @@ export default function ProductionDetailPage({
                 <p className="text-gray-700">{productionOrder.notes || "No notes"}</p>
               )}
             </div>
+
           </>
         )}
       </div>
@@ -972,75 +993,77 @@ export default function ProductionDetailPage({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
-          />
+      {
+        showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+              onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+            />
 
-          {/* Modal */}
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
-              {/* Warning Icon */}
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-              </div>
+            {/* Modal */}
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+                {/* Warning Icon */}
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </div>
 
-              {/* Title */}
-              <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-                Delete Production Order
-              </h3>
+                {/* Title */}
+                <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                  Delete Production Order
+                </h3>
 
-              {/* Message */}
-              <p className="text-gray-600 text-center mb-2">
-                Are you sure you want to delete production order
-              </p>
-              <p className="text-lg font-semibold text-gray-900 text-center mb-4">
-                &quot;{productionOrder.po_number}&quot;?
-              </p>
-
-              {/* Warning Text */}
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
-                <p className="text-sm text-red-700 text-center">
-                  ⚠️ This action cannot be undone. All production order data will be permanently deleted.
+                {/* Message */}
+                <p className="text-gray-600 text-center mb-2">
+                  Are you sure you want to delete production order
                 </p>
-              </div>
+                <p className="text-lg font-semibold text-gray-900 text-center mb-4">
+                  &quot;{productionOrder.po_number}&quot;?
+                </p>
 
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isDeleting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <TrashIcon className="w-4 h-4" />
-                      Delete
-                    </>
-                  )}
-                </button>
+                {/* Warning Text */}
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+                  <p className="text-sm text-red-700 text-center">
+                    ⚠️ This action cannot be undone. All production order data will be permanently deleted.
+                  </p>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <TrashIcon className="w-4 h-4" />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
