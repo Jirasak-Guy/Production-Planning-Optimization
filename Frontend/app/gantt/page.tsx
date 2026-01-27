@@ -63,10 +63,7 @@ function generateDateRange(start: string, end: string): Date[] {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    // Add padding days
-    startDate.setDate(startDate.getDate() - 1);
-    endDate.setDate(endDate.getDate() + 1);
-
+    // No padding - show exact date range from data
     const current = new Date(startDate);
     while (current <= endDate) {
         dates.push(new Date(current));
@@ -393,6 +390,15 @@ export default function GanttPage() {
                             <p className="text-gray-500 text-sm">
                                 {ganttData.schedules.length} tasks across {ganttData.work_centers.length} work centers
                             </p>
+                            <p className="text-gray-500 text-sm">
+                                {dateRange.length > 0 && (
+                                    <>
+                                        Total: {dateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                                        {" - "}
+                                        {dateRange[dateRange.length - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                                    </>
+                                )}
+                            </p>
                         </div>
                     </div>
 
@@ -473,15 +479,6 @@ export default function GanttPage() {
                                     {visibleDateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                                     {" - "}
                                     {visibleDateRange[visibleDateRange.length - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                                </>
-                            )}
-                        </span>
-                        <span className="text-gray-400 text-xs">
-                            {dateRange.length > 0 && (
-                                <>
-                                    Total: {dateRange[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
-                                    {" - "}
-                                    {dateRange[dateRange.length - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
                                 </>
                             )}
                         </span>
