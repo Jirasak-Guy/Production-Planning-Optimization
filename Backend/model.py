@@ -310,7 +310,7 @@ class ProductionOrder(SQLModel, table=True):
     quantity_scrapped: Decimal = Field(default=0, decimal_places=3, max_digits=15, ge=0)
     scheduled_start_date: Optional[date] = None
     scheduled_end_date: Optional[date] = None
-    schedule_status: str = Field(default="Unschedule", max_length=50) # Unschedule, SubOptimal, Optimal, Infeasible
+    schedule_status: str = Field(default="Unschedule", max_length=50)
     status: str = Field(default="planned", max_length=50)  # planned, released, in-progress, completed, cancelled, on-hold
     priority: int = Field(default=5, ge=1, le=10)
     notes: Optional[str] = None

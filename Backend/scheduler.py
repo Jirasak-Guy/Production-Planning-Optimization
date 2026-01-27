@@ -560,8 +560,13 @@ def run_scheduling(
     result = scheduler.solve()
     
     # Save to database if requested
-    if save_to_db and result.schedule_data:
-        records_saved = data.save_schedule_results(result.schedule_data)
-        result.message += f" | Saved {records_saved} records to database"
+    # Save to database if requested
+    if save_to_db:
+        if result.schedule_data:
+            records_saved = data.save_schedule_results(result.schedule_data)
+            result.message += f" | Saved {records_saved} records to database"
+        
+        # Always update the schedule_status of the production orders
+        data.update_production_status(production_ids, result.status)
     
     return result
