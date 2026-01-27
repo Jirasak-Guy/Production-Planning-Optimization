@@ -18,6 +18,15 @@ class ProductionDateInfo:
     release_minutes: int
     due_minutes: int
 
+@dataclass
+class ExistingWorkerUsage:
+    """Worker usage from existing schedule"""
+    start_minutes: int
+    end_minutes: int
+    workers_required: int
+    work_center_id: int
+    production_order_id: int
+
 
 @dataclass
 class WorkCenterInfo:
@@ -70,6 +79,9 @@ class SchedulingDataManager:
         
         # Existing schedule blocks (for no-overlap with other POs)
         self.existing_schedule_blocks: List[ExistingScheduleBlock] = []
+
+        # Existing worker usage (for cumulative constraint)
+        self.existing_worker_usage: List[ExistingWorkerUsage] = []
         
         # Schedule reference
         self.schedule_start_time: Optional[datetime] = None
@@ -155,6 +167,66 @@ class SchedulingDataManager:
                     ))
         
         print(f"Loaded {len(self.existing_schedule_blocks)} existing schedule blocks")
+    
+    def _load_existing_worker_usage(self):
+        """
+        Load worker usage from existing schedules (for cumulative constraint).
+        This includes all scheduled work that uses workers, regardless of work center.
+        """
+        self.existing_worker_usage = []
+        
+        if not self.schedule_start_time:
+            return
+        
+        # Get all production order IDs that are being optimized
+        optimizing_po_ids = set(p.id for p in self.productions)
+        
+        with Session(self.engine) as session:
+            # Get all schedule records that are NOT being re-optimized
+            query = text("""
+                SELECT 
+                    wcs.start_minutes,
+                    wcs.end_minutes,
+                    wcs.work_center_id,
+                    wcs.production_order_id,
+                    wc.number_of_workers_required
+                FROM work_center_schedule wcs
+                JOIN work_center wc ON wcs.work_center_id = wc.id
+                WHERE wcs.production_order_id NOT IN :optimizing_ids
+                ORDER BY wcs.start_minutes
+            """)
+            
+            if optimizing_po_ids:
+                results = session.execute(
+                    query, 
+                    {"optimizing_ids": tuple(optimizing_po_ids)}
+                ).fetchall()
+            else:
+                # If no production orders being optimized, load all
+                query_all = text("""
+                    SELECT 
+                        wcs.start_minutes,
+                        wcs.end_minutes,
+                        wcs.work_center_id,
+                        wcs.production_order_id,
+                        wc.number_of_workers_required
+                    FROM work_center_schedule wcs
+                    JOIN work_center wc ON wcs.work_center_id = wc.id
+                    ORDER BY wcs.start_minutes
+                """)
+                results = session.execute(query_all).fetchall()
+            
+            for row in results:
+                self.existing_worker_usage.append(ExistingWorkerUsage(
+                    start_minutes=row[0],
+                    end_minutes=row[1],
+                    work_center_id=row[2],
+                    production_order_id=row[3],
+                    workers_required=row[4] or 0
+                ))
+        
+        print(f"Loaded {len(self.existing_worker_usage)} existing worker usage records")
+    
     
     def get_existing_blocks_for_work_center(self, wc_id: int) -> List[ExistingScheduleBlock]:
         """Get all existing schedule blocks for a specific work center"""

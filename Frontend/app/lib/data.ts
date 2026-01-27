@@ -643,3 +643,43 @@ export async function scheduleProductionOrder(
 
   return response.json();
 }
+
+// =====================================================
+// SCHEDULER SETTINGS
+// =====================================================
+
+export interface SchedulerSettings {
+  max_workers: number;
+  time_limit_seconds: number;
+  horizon_days: number;
+}
+
+export async function fetchSchedulerSettings(): Promise<SchedulerSettings> {
+  const response = await fetch(`${API_BASE_URL}/scheduler-settings`);
+  if (!response.ok) {
+    // Return defaults if API fails
+    return {
+      max_workers: 600,
+      time_limit_seconds: 60,
+      horizon_days: 365,
+    };
+  }
+  return response.json();
+}
+
+export async function updateSchedulerSettings(
+  settings: Partial<SchedulerSettings>
+): Promise<SchedulerSettings> {
+  const response = await fetch(`${API_BASE_URL}/scheduler-settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to update scheduler settings: ${error}`);
+  }
+
+  return response.json();
+}

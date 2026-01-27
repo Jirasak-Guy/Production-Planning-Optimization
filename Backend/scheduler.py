@@ -440,10 +440,36 @@ class ProductionScheduler:
                         self.model.add(parent_first_task.start >= child_last_task.end)
     
     def _add_worker_constraint(self, all_worker_intervals):
-        if all_worker_intervals:
-            worker_intervals = [item[0] for item in all_worker_intervals]
-            worker_demands = [item[1] for item in all_worker_intervals]
+        """Add cumulative constraint for workers including existing schedule"""
+        if not all_worker_intervals and not self.data.existing_worker_usage:
+            return
+        
+        worker_intervals = [item[0] for item in all_worker_intervals]
+        worker_demands = [item[1] for item in all_worker_intervals]
+        
+        # Add existing worker usage as fixed intervals
+        horizon = max(self.data.get_horizon(p.id) for p in self.data.productions)
+        
+        for idx, usage in enumerate(self.data.existing_worker_usage):
+            if usage.start_minutes < horizon and usage.workers_required > 0:
+                # Create fixed interval for existing worker usage
+                start = self.model.new_constant(usage.start_minutes)
+                duration = self.model.new_constant(usage.end_minutes - usage.start_minutes)
+                end = self.model.new_constant(usage.end_minutes)
+                
+                existing_interval = self.model.new_interval_var(
+                    start, duration, end,
+                    f'ExistingWorker_PO{usage.production_order_id}_{idx}'
+                )
+                
+                worker_intervals.append(existing_interval)
+                worker_demands.append(usage.workers_required)
+        
+        if worker_intervals:
             self.model.add_cumulative(worker_intervals, worker_demands, self.max_workers)
+            print(f"Added worker cumulative constraint: max {self.max_workers} workers")
+            print(f"  - New task intervals: {len(all_worker_intervals)}")
+            print(f"  - Existing schedule intervals: {len(self.data.existing_worker_usage)}")
     
     def _add_objective(self, horizon):
         self.makespan = self.model.new_int_var(0, horizon, 'makespan')
@@ -559,7 +585,6 @@ def run_scheduling(
     # Solve
     result = scheduler.solve()
     
-    # Save to database if requested
     # Save to database if requested
     if save_to_db:
         if result.schedule_data:

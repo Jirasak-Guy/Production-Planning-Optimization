@@ -22,6 +22,7 @@ from model import (
     OperationDependency,
     ProductionOrder,
     WorkCenterSchedule,
+    SchedulerSettings,
 )
 from scheduler import run_scheduling
 
@@ -1041,11 +1042,13 @@ class GanttScheduleItem(BaseModel):
     status: str
     quantity_planned: float
     quantity_completed: float
+    number_of_workers_required: int
 
 class GanttWorkCenter(BaseModel):
     id: int
     code: str
     name: str
+    number_of_workers_required: int
 
 class GanttDateRange(BaseModel):
     start: str
@@ -1126,7 +1129,8 @@ def get_gantt_data(
             actual_end=schedule.actual_end.isoformat() if schedule.actual_end else None,
             status=schedule.status,
             quantity_planned=float(production_order.quantity_planned),
-            quantity_completed=float(production_order.quantity_completed)
+            quantity_completed=float(production_order.quantity_completed),
+            number_of_workers_required=work_center.number_of_workers_required
         ))
     
     # Get unique work centers that have schedules
@@ -1138,7 +1142,8 @@ def get_gantt_data(
             gantt_work_centers.append(GanttWorkCenter(
                 id=wc.id,
                 code=wc.work_center_code,
-                name=wc.work_center_name
+                name=wc.work_center_name,
+                number_of_workers_required=wc.number_of_workers_required
             ))
     
     # Sort work centers by code
@@ -1268,6 +1273,95 @@ def schedule_production(request: ScheduleRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =====================================================
+# SCHEDULER SETTINGS ENDPOINTS
+# =====================================================
+
+class SchedulerSettingsResponse(BaseModel):
+    max_workers: int = 600
+    time_limit_seconds: int = 60
+    horizon_days: int = 365
+
+class SchedulerSettingsUpdate(BaseModel):
+    max_workers: Optional[int] = None
+    time_limit_seconds: Optional[int] = None
+    horizon_days: Optional[int] = None
+
+@app.get("/scheduler-settings", response_model=SchedulerSettingsResponse)
+def get_scheduler_settings(session: SessionDep):
+    """Get all scheduler settings as a single object"""
+    settings = session.exec(select(SchedulerSettings)).all()
+    
+    result = SchedulerSettingsResponse()
+    for setting in settings:
+        if setting.setting_key == "max_workers":
+            result.max_workers = int(setting.setting_value)
+        elif setting.setting_key == "time_limit_seconds":
+            result.time_limit_seconds = int(setting.setting_value)
+        elif setting.setting_key == "horizon_days":
+            result.horizon_days = int(setting.setting_value)
+    
+    return result
+
+@app.put("/scheduler-settings", response_model=SchedulerSettingsResponse)
+def update_scheduler_settings(settings_update: SchedulerSettingsUpdate, session: SessionDep):
+    """Update scheduler settings"""
+    
+    if settings_update.max_workers is not None:
+        setting = session.exec(
+            select(SchedulerSettings).where(SchedulerSettings.setting_key == "max_workers")
+        ).first()
+        if setting:
+            setting.setting_value = str(settings_update.max_workers)
+            session.add(setting)
+        else:
+            new_setting = SchedulerSettings(
+                setting_key="max_workers",
+                setting_value=str(settings_update.max_workers),
+                setting_type="integer",
+                description="Maximum number of workers available in the factory"
+            )
+            session.add(new_setting)
+    
+    if settings_update.time_limit_seconds is not None:
+        setting = session.exec(
+            select(SchedulerSettings).where(SchedulerSettings.setting_key == "time_limit_seconds")
+        ).first()
+        if setting:
+            setting.setting_value = str(settings_update.time_limit_seconds)
+            session.add(setting)
+        else:
+            new_setting = SchedulerSettings(
+                setting_key="time_limit_seconds",
+                setting_value=str(settings_update.time_limit_seconds),
+                setting_type="integer",
+                description="Time limit for the scheduler optimization in seconds"
+            )
+            session.add(new_setting)
+    
+    if settings_update.horizon_days is not None:
+        setting = session.exec(
+            select(SchedulerSettings).where(SchedulerSettings.setting_key == "horizon_days")
+        ).first()
+        if setting:
+            setting.setting_value = str(settings_update.horizon_days)
+            session.add(setting)
+        else:
+            new_setting = SchedulerSettings(
+                setting_key="horizon_days",
+                setting_value=str(settings_update.horizon_days),
+                setting_type="integer",
+                description="Planning horizon in days"
+            )
+            session.add(new_setting)
+    
+    session.commit()
+    
+    # Return updated settings
+    return get_scheduler_settings(session)
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -20,6 +20,7 @@ import {
   deleteProductionOrder,
   scheduleProductionOrder,
   clearProductionSchedule,
+  fetchSchedulerSettings,
 } from "@/app/lib/data";
 import {
   ArrowLeftIcon,
@@ -177,9 +178,13 @@ export default function ProductionDetailPage({
       // Optimistically update status
       setProductionOrder(prev => prev ? ({ ...prev, schedule_status: 'Optimizing' }) : null);
 
+      // Get scheduler settings from API
+      const settings = await fetchSchedulerSettings();
+
       const result = await scheduleProductionOrder([productionOrder.id], {
         saveToDb: true,
-        timeLimitSeconds: 60,
+        timeLimitSeconds: settings.time_limit_seconds,
+        maxWorkers: settings.max_workers,
       });
       setOptimizeResult({
         status: result.status,

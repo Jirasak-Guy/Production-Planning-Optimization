@@ -385,3 +385,19 @@ class WorkCenterSchedule(SQLModel, table=True):
 
 #     # Relationships
 #     production_order: Optional[ProductionOrder] = Relationship(back_populates="production_transactions")
+
+
+# =====================================================
+# SCHEDULER SETTINGS
+# =====================================================
+
+class SchedulerSettings(SQLModel, table=True):
+    __tablename__ = "scheduler_settings"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    setting_key: str = Field(max_length=100, unique=True)
+    setting_value: str = Field(max_length=500)
+    setting_type: str = Field(default="string", max_length=20)  # string, integer, float, boolean
+    description: Optional[str] = None
+    created_at: Optional[datetime] = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.now)

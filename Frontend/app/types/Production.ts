@@ -60,6 +60,7 @@ export interface GanttScheduleItem {
     status: string;
     quantity_planned: number;
     quantity_completed: number;
+    number_of_workers_required: number;
 }
 
 export interface GanttData {
@@ -68,6 +69,7 @@ export interface GanttData {
         id: number;
         code: string;
         name: string;
+        number_of_workers_required: number;
     }[];
     date_range: {
         start: string;
