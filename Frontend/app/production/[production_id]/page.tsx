@@ -972,6 +972,7 @@ export default function ProductionDetailPage({
                           day: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "UTC",
                         })}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
@@ -980,6 +981,7 @@ export default function ProductionDetailPage({
                           day: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "UTC",
                         })}
                       </td>
                     </tr>
