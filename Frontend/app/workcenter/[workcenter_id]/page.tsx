@@ -63,24 +63,24 @@ export default function WorkCenterDetailPage({
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
   const [wcShifts, setWcShifts] = useState<WorkCenterShiftWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // UI States
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // Add Shift Modal
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
   const [newShiftData, setNewShiftData] = useState({ shiftId: "", dayOfWeek: 1 });
   const [isAddingShift, setIsAddingShift] = useState(false);
-  
+
   // Delete Shift
   const [shiftToDelete, setShiftToDelete] = useState<WorkCenterShiftWithDetails | null>(null);
   const [isDeletingShift, setIsDeletingShift] = useState(false);
-  
+
   // Add Exception Modal
   const [showAddExceptionModal, setShowAddExceptionModal] = useState(false);
   const [newExceptionData, setNewExceptionData] = useState({
@@ -90,7 +90,7 @@ export default function WorkCenterDetailPage({
     capacityPercentage: 0,
   });
   const [isAddingException, setIsAddingException] = useState(false);
-  
+
   // Delete Exception
   const [exceptionToDelete, setExceptionToDelete] = useState<WorkCenterCalendarException | null>(null);
   const [isDeletingException, setIsDeletingException] = useState(false);
@@ -374,7 +374,7 @@ export default function WorkCenterDetailPage({
                     </button>
                   </div>
                 )}
-                
+
                 {/* Editable Status */}
                 {editingField === "status" ? (
                   <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export default function WorkCenterDetailPage({
                   </div>
                 )}
               </div>
-              
+
               {/* Editable Name */}
               <div className="flex items-center gap-2">
                 {editingField === "work_center_name" ? (
@@ -469,7 +469,7 @@ export default function WorkCenterDetailPage({
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
@@ -544,7 +544,7 @@ export default function WorkCenterDetailPage({
                 </div>
               )}
             </div>
-            
+
             {/* Workers Required */}
             <div>
               <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
@@ -592,7 +592,7 @@ export default function WorkCenterDetailPage({
                 </div>
               )}
             </div>
-            
+
             {/* Cost per Hour */}
             <div>
               <p className="text-sm text-gray-500 mb-1 flex items-center gap-1">
@@ -732,11 +732,10 @@ export default function WorkCenterDetailPage({
                           return (
                             <div
                               key={wcShift.id}
-                              className={`border rounded p-2 group relative ${
-                                isShiftActive 
-                                  ? 'bg-blue-50 border-blue-200' 
+                              className={`border rounded p-2 group relative ${isShiftActive
+                                  ? 'bg-blue-50 border-blue-200'
                                   : 'bg-red-50 border-red-300'
-                              }`}
+                                }`}
                             >
                               <button
                                 onClick={() => setShiftToDelete(wcShift)}

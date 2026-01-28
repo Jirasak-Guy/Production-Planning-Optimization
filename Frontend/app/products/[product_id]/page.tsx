@@ -41,7 +41,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
   const [isAddBOMModalOpen, setIsAddBOMModalOpen] = useState(false);
   const [bomItemToDelete, setBomItemToDelete] = useState<BOMWithProduct | null>(null);
   const [showDeleteBOMConfirm, setShowDeleteBOMConfirm] = useState(false);
@@ -105,7 +105,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 ...rb,
                 bom: productBom.find((b) => b.id === rb.bom_id),
               }));
-            
+
             return {
               ...r,
               operation: operationsData.find((o) => o.id === r.operation_id),
@@ -177,7 +177,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               ...rb,
               bom: productBom.find((b) => b.id === rb.bom_id),
             }));
-          
+
           return {
             ...r,
             operation: allOperations.find((o) => o.id === r.operation_id),

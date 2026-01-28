@@ -63,7 +63,7 @@ export default function ProductionDetailPage({
   const [isSaving, setIsSaving] = useState(false);
 
   // UI states
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
 
   // Delete states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
