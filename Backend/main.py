@@ -1068,23 +1068,62 @@ def get_gantt_data(
     end_date: Optional[str] = Query(None, description="End date filter (YYYY-MM-DD)")
 ):
     """
-    Get comprehensive Gantt chart data with all related information
+    Get comprehensive Gantt chart data with all related information.
+    Optimized with batch queries to avoid N+1 problem.
     """
     from datetime import datetime, timedelta
     
-    # Get all schedules with related data
+    # ========== BATCH LOAD ALL RELATED DATA FIRST ==========
+    # This eliminates N+1 query problem by loading all data upfront
+    
+    # Load all schedules
     schedules = session.exec(select(WorkCenterSchedule)).all()
     
+    if not schedules:
+        # Return empty data early
+        today = datetime.now().date()
+        return GanttData(
+            schedules=[],
+            work_centers=[],
+            date_range=GanttDateRange(
+                start=today.isoformat(),
+                end=(today + timedelta(days=30)).isoformat()
+            ),
+            holidays=[]
+        )
+    
+    # Load all work centers into a lookup map
+    all_work_centers = session.exec(select(WorkCenter)).all()
+    work_center_map = {wc.id: wc for wc in all_work_centers}
+    
+    # Load all production orders into a lookup map
+    all_production_orders = session.exec(select(ProductionOrder)).all()
+    production_order_map = {po.id: po for po in all_production_orders}
+    
+    # Load all products into a lookup map
+    all_products = session.exec(select(Product)).all()
+    product_map = {p.id: p for p in all_products}
+    
+    # Load all operations into a lookup map
+    all_operations = session.exec(select(Operation)).all()
+    operation_map = {op.id: op for op in all_operations}
+    
+    # Load holidays
+    calendar_entries = session.exec(select(CompanyCalendar).where(CompanyCalendar.is_working_day == False)).all()
+    holidays = [entry.calendar_date.isoformat() for entry in calendar_entries]
+    
+    # ========== PROCESS SCHEDULES WITH O(1) LOOKUPS ==========
     gantt_schedules = []
     min_date = None
     max_date = None
+    used_work_center_ids = set()
     
     for schedule in schedules:
-        # Get related entities
-        work_center = session.get(WorkCenter, schedule.work_center_id)
-        production_order = session.get(ProductionOrder, schedule.production_order_id)
-        product = session.get(Product, schedule.product_id)
-        operation = session.get(Operation, schedule.operation_id)
+        # Use lookup maps instead of individual queries
+        work_center = work_center_map.get(schedule.work_center_id)
+        production_order = production_order_map.get(schedule.production_order_id)
+        product = product_map.get(schedule.product_id)
+        operation = operation_map.get(schedule.operation_id)
         
         if not all([work_center, production_order, product, operation]):
             continue
@@ -1110,6 +1149,9 @@ def get_gantt_data(
         if max_date is None or sched_end > max_date:
             max_date = sched_end
         
+        # Track used work centers
+        used_work_center_ids.add(work_center.id)
+        
         gantt_schedules.append(GanttScheduleItem(
             id=schedule.id,
             work_center_id=work_center.id,
@@ -1133,18 +1175,17 @@ def get_gantt_data(
             number_of_workers_required=work_center.number_of_workers_required
         ))
     
-    # Get unique work centers that have schedules
-    work_center_ids = list(set(s.work_center_id for s in gantt_schedules))
-    gantt_work_centers = []
-    for wc_id in work_center_ids:
-        wc = session.get(WorkCenter, wc_id)
-        if wc:
-            gantt_work_centers.append(GanttWorkCenter(
-                id=wc.id,
-                code=wc.work_center_code,
-                name=wc.work_center_name,
-                number_of_workers_required=wc.number_of_workers_required
-            ))
+    # Build work centers list from already-loaded data (no additional queries)
+    gantt_work_centers = [
+        GanttWorkCenter(
+            id=wc.id,
+            code=wc.work_center_code,
+            name=wc.work_center_name,
+            number_of_workers_required=wc.number_of_workers_required
+        )
+        for wc in all_work_centers
+        if wc.id in used_work_center_ids
+    ]
     
     # Sort work centers by code
     gantt_work_centers.sort(key=lambda x: x.code)
@@ -1161,12 +1202,6 @@ def get_gantt_data(
             start=today.isoformat(),
             end=(today + timedelta(days=30)).isoformat()
         )
-    
-    # Get holidays within the date range
-    holidays = []
-    calendar_entries = session.exec(select(CompanyCalendar).where(CompanyCalendar.is_working_day == False)).all()
-    for entry in calendar_entries:
-        holidays.append(entry.calendar_date.isoformat())
     
     return GanttData(
         schedules=gantt_schedules,
