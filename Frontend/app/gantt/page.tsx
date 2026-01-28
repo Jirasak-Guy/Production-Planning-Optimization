@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { fetchGanttData, fetchShifts, fetchWorkCenterShifts, fetchSchedulerSettings, updateSchedulerSettings, SchedulerSettings } from "@/app/lib/data";
+import { fetchGanttData, fetchShifts, fetchWorkCenterShifts } from "@/app/lib/data";
 import { GanttData, GanttScheduleItem } from "@/app/types/Production";
 import { Shift } from "@/app/types/Shift";
 import { WorkCenterShift } from "@/app/types/WorkCenter";
@@ -167,19 +167,7 @@ export default function GanttPage() {
     const [showDaysDropdown, setShowDaysDropdown] = useState(false);
     const DAYS_OPTIONS = [1, 3, 5, 7, 14, 21, 30];
 
-    // Scheduler Settings
-    const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({
-        max_workers: 600,
-        time_limit_seconds: 60,
-        horizon_days: 365,
-    });
-    const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [editingSettings, setEditingSettings] = useState<SchedulerSettings>({
-        max_workers: 600,
-        time_limit_seconds: 60,
-        horizon_days: 365,
-    });
-    const [isSavingSettings, setIsSavingSettings] = useState(false);
+
 
     useEffect(() => {
         loadData();
@@ -203,11 +191,10 @@ export default function GanttPage() {
     async function loadData() {
         try {
             setLoading(true);
-            const [data, shiftsData, wcShiftsData, settings] = await Promise.all([
+            const [data, shiftsData, wcShiftsData] = await Promise.all([
                 fetchGanttData(),
                 fetchShifts(),
-                fetchWorkCenterShifts(),
-                fetchSchedulerSettings()
+                fetchWorkCenterShifts()
             ]);
             setGanttData(data);
             // Only keep active shifts
@@ -216,9 +203,6 @@ export default function GanttPage() {
             // Only keep active work center shifts
             const activeWcShifts = wcShiftsData.filter(wcs => wcs.is_active);
             setWorkCenterShifts(activeWcShifts);
-            // Set scheduler settings
-            setSchedulerSettings(settings);
-            setEditingSettings(settings);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load data");
         } finally {
@@ -226,19 +210,7 @@ export default function GanttPage() {
         }
     }
 
-    async function saveSchedulerSettings() {
-        try {
-            setIsSavingSettings(true);
-            const updated = await updateSchedulerSettings(editingSettings);
-            setSchedulerSettings(updated);
-            setShowSettingsModal(false);
-        } catch (err) {
-            console.error("Failed to save settings:", err);
-            alert("Failed to save settings");
-        } finally {
-            setIsSavingSettings(false);
-        }
-    }
+
 
     const dateRange = useMemo(() => {
         if (!ganttData?.date_range) return [];
@@ -863,101 +835,7 @@ export default function GanttPage() {
                 </div>
             )}
 
-            {/* Settings Modal */}
-            {showSettingsModal && (
-                <div className="fixed inset-0 flex items-start justify-end z-50 p-4 pointer-events-none">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden pointer-events-auto border border-gray-200 mt-16 mr-2">
-                        {/* Modal Header */}
-                        <div className="bg-purple-500 px-5 py-3">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                                    </svg>
-                                    <h2 className="text-lg font-semibold text-white">Scheduler Settings</h2>
-                                </div>
-                                <button
-                                    onClick={() => setShowSettingsModal(false)}
-                                    className="text-white hover:text-purple-200 transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* Modal Body */}
-                        <div className="p-5 space-y-4">
-                            {/* Max Workers */}
-                            <div>
-                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                                    </svg>
-                                    Max Workers (Factory)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={editingSettings.max_workers}
-                                    onChange={(e) => setEditingSettings({ ...editingSettings, max_workers: parseInt(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 text-gray-900 font-medium border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                    min={1}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Maximum workers available for scheduling</p>
-                            </div>
-
-                            {/* Time Limit */}
-                            <div>
-                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                    </svg>
-                                    Time Limit (Seconds)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={editingSettings.time_limit_seconds}
-                                    onChange={(e) => setEditingSettings({ ...editingSettings, time_limit_seconds: parseInt(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 text-gray-900 font-medium border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                    min={1}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Maximum time for scheduler optimization</p>
-                            </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="bg-gray-50 px-5 py-3 flex justify-end gap-2">
-                            <button
-                                onClick={() => setShowSettingsModal(false)}
-                                className="px-3 py-1.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                                disabled={isSavingSettings}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={saveSchedulerSettings}
-                                disabled={isSavingSettings}
-                                className="px-3 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 flex items-center gap-1.5 text-sm"
-                            >
-                                {isSavingSettings ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                                        Save
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
