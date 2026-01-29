@@ -502,8 +502,14 @@ export default function ShiftDetailPage({ params }: ShiftDetailPageProps) {
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="number"
+                                        min="0"
                                         value={editValue}
                                         onChange={(e) => setEditValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         className="text-lg font-bold text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-24"
                                         autoFocus
                                     />

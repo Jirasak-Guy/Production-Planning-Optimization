@@ -171,6 +171,11 @@ export default function AddProductModal({
                             name="standard_cost"
                             value={formData.standard_cost}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             step="0.01"
                             min="0"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -186,6 +191,11 @@ export default function AddProductModal({
                             name="lead_time_days"
                             value={formData.lead_time_days}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             min="0"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="0"

@@ -655,6 +655,11 @@ export default function ProductionPage() {
                   type="number"
                   value={editingSettings.max_workers}
                   onChange={(e) => setEditingSettings({ ...editingSettings, max_workers: parseInt(e.target.value) || 0 })}
+                  onKeyDown={(e) => {
+                    if (['-', '+', 'e', 'E'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full px-3 py-2 text-gray-900 font-medium border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   min={1}
                 />
@@ -673,6 +678,11 @@ export default function ProductionPage() {
                   type="number"
                   value={editingSettings.time_limit_seconds}
                   onChange={(e) => setEditingSettings({ ...editingSettings, time_limit_seconds: parseInt(e.target.value) || 0 })}
+                  onKeyDown={(e) => {
+                    if (['-', '+', 'e', 'E'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full px-3 py-2 text-gray-900 font-medium border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   min={1}
                 />

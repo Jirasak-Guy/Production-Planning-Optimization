@@ -346,6 +346,11 @@ export default function EditRoutingModal({
                 type="number"
                 value={sequenceNumber}
                 onChange={(e) => setSequenceNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (['-', '+', 'e', 'E'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 min="1"
                 step="1"
@@ -362,6 +367,11 @@ export default function EditRoutingModal({
                 type="number"
                 value={setupTimeMinutes}
                 onChange={(e) => setSetupTimeMinutes(e.target.value)}
+                onKeyDown={(e) => {
+                  if (['-', '+', 'e', 'E'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 placeholder="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 min="0"
@@ -575,6 +585,11 @@ export default function EditRoutingModal({
                               onChange={(e) =>
                                 updateDependency(index, "lagTimeMinutes", e.target.value)
                               }
+                              onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
                               disabled={!dep.isNew}
                               placeholder="0"
                               className={`w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 ${!dep.isNew ? 'bg-gray-100' : ''}`}

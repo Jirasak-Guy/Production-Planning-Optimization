@@ -58,7 +58,7 @@ export default function AddOrderItemModal({
 
         try {
             const quantity = parseInt(formData.quantity);
-            
+
             // Use entered unit_price, or fallback to product's standard_cost
             let unitPrice: number | undefined;
             if (formData.unit_price) {
@@ -66,7 +66,7 @@ export default function AddOrderItemModal({
             } else if (selectedProduct?.standard_cost) {
                 unitPrice = Number(selectedProduct.standard_cost);
             }
-            
+
             const totalPrice = unitPrice ? quantity * unitPrice : undefined;
 
             await createOrderItem({
@@ -156,6 +156,11 @@ export default function AddOrderItemModal({
                             name="quantity"
                             value={formData.quantity}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             required
                             min="1"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -176,6 +181,11 @@ export default function AddOrderItemModal({
                             name="unit_price"
                             value={formData.unit_price}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             step="0.01"
                             min="0"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

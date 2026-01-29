@@ -201,6 +201,11 @@ export default function AddWorkCenterModal({
                             name="capacity_per_hour"
                             value={formData.capacity_per_hour}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             required
                             min="1"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -216,6 +221,11 @@ export default function AddWorkCenterModal({
                             name="number_of_workers_required"
                             value={formData.number_of_workers_required}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             required
                             min="1"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -231,6 +241,11 @@ export default function AddWorkCenterModal({
                             name="cost_per_hour"
                             value={formData.cost_per_hour}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             step="0.01"
                             min="0"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

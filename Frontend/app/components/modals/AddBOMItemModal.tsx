@@ -169,6 +169,11 @@ export default function AddBOMItemModal({
                             name="quantity_required"
                             value={formData.quantity_required}
                             onChange={handleChange}
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             required
                             min="0.001"
                             step="0.001"
@@ -203,6 +208,11 @@ export default function AddBOMItemModal({
                                 name="scrap_percentage"
                                 value={formData.scrap_percentage}
                                 onChange={handleChange}
+                                onKeyDown={(e) => {
+                                    if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 min="0"
                                 max="100"
                                 step="0.1"

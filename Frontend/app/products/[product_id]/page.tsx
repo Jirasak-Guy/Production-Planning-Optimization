@@ -620,9 +620,15 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <>
                     <input
                       type="number"
+                      min="0"
                       step="0.01"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (['-', '+', 'e', 'E'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-32"
                       autoFocus
                     />
@@ -673,8 +679,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <>
                     <input
                       type="number"
+                      min="0"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (['-', '+', 'e', 'E'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-24"
                       autoFocus
                     />
