@@ -455,15 +455,7 @@ export default function ProductionDetailPage({
           </div>
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
-            {/* Clear Schedule Button */}
-            <button
-              onClick={handleClearSchedule}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 shadow-sm hover:text-red-600 hover:border-red-300"
-              title="Clear schedule and reset status"
-            >
-              <XCircleIcon className="w-5 h-5" />
-              <span className="font-medium">Clear Schedule</span>
-            </button>
+
 
             {/* Optimize Button */}
             <button
@@ -886,13 +878,25 @@ export default function ProductionDetailPage({
       {/* Work Center Schedule Section */}
       <div className="flex-1 overflow-auto bg-gray-50 p-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Work Center Schedule
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Operations scheduled for this production order
-            </p>
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Work Center Schedule
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Operations scheduled for this production order
+              </p>
+            </div>
+            {(schedules.length > 0) && (
+              <button
+                onClick={handleClearSchedule}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors border border-red-200 shadow-sm"
+                title="Clear schedule and reset status"
+              >
+                <TrashIcon className="w-4 h-4" />
+                <span className="font-medium text-sm">Clear Schedule</span>
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto">
