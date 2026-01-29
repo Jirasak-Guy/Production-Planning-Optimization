@@ -45,7 +45,7 @@ export default function ShiftsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<ShiftSortKey>("shift_code");
+  const [sortKey, setSortKey] = useState<ShiftSortKey>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const loadShifts = async () => {

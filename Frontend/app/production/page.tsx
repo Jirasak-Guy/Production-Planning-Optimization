@@ -27,7 +27,7 @@ export default function ProductionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<ProductionSortKey>("po_number");
+  const [sortKey, setSortKey] = useState<ProductionSortKey>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedPoIds, setSelectedPoIds] = useState<Set<number>>(new Set());
   const [isOptimizing, setIsOptimizing] = useState(false);

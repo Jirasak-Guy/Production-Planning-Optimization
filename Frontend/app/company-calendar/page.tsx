@@ -35,7 +35,7 @@ export default function CompanyCalendarPage() {
   const [viewMode] = useState<ViewMode>("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<CalendarSortKey>("calendar_date");
+  const [sortKey, setSortKey] = useState<CalendarSortKey>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const loadCalendarData = async () => {

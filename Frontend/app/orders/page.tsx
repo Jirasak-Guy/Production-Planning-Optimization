@@ -24,7 +24,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<OrdersSortKey>("order_number");
+  const [sortKey, setSortKey] = useState<OrdersSortKey>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {

@@ -24,7 +24,7 @@ export default function WorkCenterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode] = useState<ViewMode>("table");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<WorkCenterSortKey>("work_center_code");
+  const [sortKey, setSortKey] = useState<WorkCenterSortKey>("id");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
