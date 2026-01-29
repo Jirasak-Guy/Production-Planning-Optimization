@@ -9,9 +9,10 @@ import {
   fetchOrderItemsByOrderId,
   fetchProducts,
 } from "@/app/lib/data";
-import { ArrowLeftIcon, PlusCircleIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PlusCircleIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { PencilSquareIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import AddOrderItemModal from "@/app/components/modals/AddOrderItemModal";
+import EditOrderItemModal from "@/app/components/modals/EditOrderItemModal";
 import { updateOrder, deleteOrder, deleteOrderItem } from "@/app/lib/data";
 
 interface OrderDetailPageProps {
@@ -40,6 +41,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [showDeleteItemConfirm, setShowDeleteItemConfirm] = useState(false);
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<OrderItemWithProduct | null>(null);
 
   useEffect(() => {
     const loadOrderData = async () => {
@@ -177,6 +180,11 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const handleDeleteItem = (item: OrderItemWithProduct) => {
     setItemToDelete(item);
     setShowDeleteItemConfirm(true);
+  };
+
+  const handleEditItem = (item: OrderItemWithProduct) => {
+    setItemToEdit(item);
+    setIsEditModalOpen(true);
   };
 
   const confirmDeleteItem = async () => {
@@ -749,13 +757,22 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         : "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => handleDeleteItem(item)}
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete item"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit item"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete item"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -776,6 +793,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={reloadOrderItems}
         orderId={parseInt(order_id)}
+      />
+
+      <EditOrderItemModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setItemToEdit(null);
+        }}
+        orderItem={itemToEdit}
+        product={itemToEdit?.product || null}
+        onSuccess={reloadOrderItems}
       />
 
       {/* Delete Confirmation Modal */}
