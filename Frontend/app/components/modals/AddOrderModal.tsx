@@ -38,6 +38,12 @@ export default function AddOrderModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.priority || isNaN(parseInt(formData.priority))) {
+            alert("Priority is required (1-10)");
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -100,19 +106,32 @@ export default function AddOrderModal({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Priority <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <input
+                            type="number"
                             name="priority"
                             value={formData.priority}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (e.target.value === "") {
+                                    setFormData(prev => ({ ...prev, priority: "" }));
+                                    return;
+                                }
+                                if (!isNaN(val) && val >= 1 && val <= 10 && Number.isInteger(Number(e.target.value))) {
+                                    setFormData(prev => ({ ...prev, priority: e.target.value }));
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (['.', 'e', 'E', '-', '+'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
+                            min="1"
+                            max="10"
+                            step="1"
                             required
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="1">1 - Highest</option>
-                            <option value="2">2 - High</option>
-                            <option value="3">3 - Medium</option>
-                            <option value="4">4 - Low</option>
-                            <option value="5">5 - Lowest</option>
-                        </select>
+                            placeholder="1-10"
+                        />
                     </div>
                 </div>
 

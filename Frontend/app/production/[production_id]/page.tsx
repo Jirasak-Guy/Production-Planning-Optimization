@@ -131,7 +131,13 @@ export default function ProductionDetailPage({
       const updateData: Partial<ProductionOrder> = {};
       if (field === "po_number") updateData.po_number = editValue;
       else if (field === "status") updateData.status = editValue;
-      else if (field === "priority") updateData.priority = parseInt(editValue) || 1;
+      else if (field === "priority") {
+        if (!editValue || isNaN(parseInt(editValue))) {
+          alert("Priority is required (1-10)");
+          return;
+        }
+        updateData.priority = parseInt(editValue);
+      }
       else if (field === "quantity_planned") updateData.quantity_planned = parseInt(editValue) || 0;
       else if (field === "quantity_completed") updateData.quantity_completed = parseInt(editValue) || 0;
       else if (field === "quantity_scrapped") updateData.quantity_scrapped = parseInt(editValue) || 0;
@@ -654,10 +660,28 @@ export default function ProductionDetailPage({
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
+                      value={editValue}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        // Allow empty string for clearing
+                        if (e.target.value === "") {
+                          setEditValue("");
+                          return;
+                        }
+                        // Check integer strictly and range 1-10
+                        if (!isNaN(val) && val >= 1 && val <= 10 && Number.isInteger(Number(e.target.value))) {
+                          setEditValue(e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent typing decimal point, 'e', signs, etc.
+                        if (['.', 'e', 'E', '-', '+'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       min="1"
                       max="10"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
+                      step="1"
                       className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-20"
                       autoFocus
                     />

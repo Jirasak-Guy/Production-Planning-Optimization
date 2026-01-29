@@ -132,6 +132,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       } else if (field === "due_date") {
         updateData.due_date = editValue;
       } else if (field === "priority") {
+        if (!editValue || isNaN(parseInt(editValue))) {
+          alert("Priority is required (1-10)");
+          return;
+        }
         updateData.priority = parseInt(editValue);
       } else if (field === "status") {
         updateData.status = editValue;
@@ -526,7 +530,27 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     <input
                       type="number"
                       value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        // Allow empty string for clearing
+                        if (e.target.value === "") {
+                          setEditValue("");
+                          return;
+                        }
+                        // Check integer strictly and range 1-10
+                        if (!isNaN(val) && val >= 1 && val <= 10 && Number.isInteger(Number(e.target.value))) {
+                          setEditValue(e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent typing decimal point, 'e', signs, etc.
+                        if (['.', 'e', 'E', '-', '+'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
+                      min="1"
+                      max="10"
+                      step="1"
                       className="text-base font-medium text-gray-900 border-2 border-blue-500 rounded px-3 py-1.5 w-24 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       autoFocus
                     />
