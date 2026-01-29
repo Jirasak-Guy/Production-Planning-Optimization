@@ -489,10 +489,11 @@ export default function WorkCenterDetailPage({
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
+              title="Delete this work center"
             >
-              <TrashIcon className="w-4 h-4" />
-              Delete
+              <TrashIcon className="w-5 h-5" />
+              <span className="font-medium">Delete</span>
             </button>
           </div>
         </div>
