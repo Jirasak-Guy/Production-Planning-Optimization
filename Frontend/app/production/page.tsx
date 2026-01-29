@@ -6,6 +6,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   ArrowsUpDownIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import ProductionOrderCard from "@/app/components/ProductionOrderCard";
 import ProductionHeader, {
@@ -345,7 +346,7 @@ export default function ProductionPage() {
                       disabled={selectedPoIds.size === 0 || isClearing || isOptimizing}
                       className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isClearing || isOptimizing
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-white border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                        : "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300"
                         }`}
                     >
                       {isClearing ? (
@@ -358,9 +359,7 @@ export default function ProductionPage() {
                         </>
                       ) : (
                         <>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
-                          </svg>
+                          <TrashIcon className="h-4 w-4" />
                           Clear Schedule
                         </>
                       )}
