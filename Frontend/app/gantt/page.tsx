@@ -408,26 +408,26 @@ export default function GanttPage() {
                         {/* Zoom Controls */}
                         <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden ml-2">
                             <button
-                                onClick={handleZoomOut}
-                                disabled={daysToShow >= 30}
+                                onClick={handleZoomIn}
+                                disabled={daysToShow <= 1}
                                 className="p-2 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                title="Zoom Out"
+                                title="Decrease Days"
                             >
                                 <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                                 </svg>
                             </button>
                             <span className="px-2 text-xs font-medium text-slate-600 min-w-[50px] text-center border-x border-slate-200">
                                 {daysToShow}d
                             </span>
                             <button
-                                onClick={handleZoomIn}
-                                disabled={daysToShow <= 1}
+                                onClick={handleZoomOut}
+                                disabled={daysToShow >= 30}
                                 className="p-2 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                title="Zoom In"
+                                title="Increase Days"
                             >
                                 <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                             </button>
                         </div>
