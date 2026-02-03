@@ -1398,6 +1398,90 @@ def update_scheduler_settings(settings_update: SchedulerSettingsUpdate, session:
     return get_scheduler_settings(session)
 
 
+# =====================================================
+# PIVOT TASK API
+# =====================================================
+
+class PivotTaskRequest(BaseModel):
+    """Optional request body for pivot task endpoint"""
+    production_order_id: Optional[int] = Field(default=None, description="Optional: Only update schedules for this production order")
+
+class PivotTaskResponse(BaseModel):
+    message: str
+    pivot_schedule_id: int
+    pivot_time: str
+    updated_completed: int
+    total_updated: int
+
+
+@app.post("/work-center-schedule/pivot/{schedule_id}", response_model=PivotTaskResponse)
+def pivot_task(
+    schedule_id: int, 
+    session: SessionDep,
+    request: Optional[PivotTaskRequest] = None
+):
+    """
+    Set a pivot point based on a problematic task's scheduled start time.
+    
+    This endpoint updates the status of work_center_schedule records:
+    - Tasks that start before pivot_time AND end at or before pivot_time -> status = "completed"
+    - Other tasks remain as "scheduled"
+    
+    The pivot_time is the scheduled_start of the specified schedule_id.
+    
+    Args:
+        schedule_id: The ID of the problematic task. Its scheduled_start becomes the pivot point.
+        request: Optional body to filter updates to a specific production order.
+    
+    Returns:
+        Summary of updated schedules.
+    """
+    # Get the pivot schedule
+    pivot_schedule = session.get(WorkCenterSchedule, schedule_id)
+    if not pivot_schedule:
+        raise HTTPException(status_code=404, detail="Work center schedule not found")
+    
+    pivot_time = pivot_schedule.scheduled_start
+    
+    # Build the base query for schedules to update
+    # Only select tasks that start before pivot AND end at or before pivot
+    if request and request.production_order_id:
+        # Filter by specific production order
+        schedules_query = select(WorkCenterSchedule).where(
+            WorkCenterSchedule.id != schedule_id,
+            WorkCenterSchedule.production_order_id == request.production_order_id,
+            WorkCenterSchedule.scheduled_start < pivot_time,
+            WorkCenterSchedule.scheduled_end <= pivot_time
+        )
+    else:
+        # Update all schedules that meet the criteria
+        schedules_query = select(WorkCenterSchedule).where(
+            WorkCenterSchedule.id != schedule_id,
+            WorkCenterSchedule.scheduled_start < pivot_time,
+            WorkCenterSchedule.scheduled_end <= pivot_time
+        )
+    
+    schedules_to_update = session.exec(schedules_query).all()
+    
+    updated_completed = 0
+    
+    for schedule in schedules_to_update:
+        if schedule.status != "completed":
+            schedule.status = "completed"
+            session.add(schedule)
+            updated_completed += 1
+    
+    session.commit()
+    
+    return PivotTaskResponse(
+        message=f"Successfully updated {updated_completed} schedule(s) to completed based on pivot time",
+        pivot_schedule_id=schedule_id,
+        pivot_time=pivot_time.isoformat(),
+        updated_completed=updated_completed,
+        total_updated=updated_completed
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
