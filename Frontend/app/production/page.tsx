@@ -82,6 +82,14 @@ export default function ProductionPage() {
     }
   };
 
+  // Check if any production orders are currently being optimized (from database status)
+  const hasOptimizingOrders = useMemo(() => {
+    return productionOrders.some((po) => po.schedule_status === "Optimizing");
+  }, [productionOrders]);
+
+  // Combined optimizing state: either local state OR database shows optimizing
+  const isCurrentlyOptimizing = isOptimizing || hasOptimizingOrders;
+
   const filteredOrders = useMemo(() => {
     const filtered = productionOrders.filter(
       (po) =>
@@ -343,8 +351,8 @@ export default function ProductionPage() {
                     {/* Clear Selected Button */}
                     <button
                       onClick={handleClearSelected}
-                      disabled={selectedPoIds.size === 0 || isClearing || isOptimizing}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isClearing || isOptimizing
+                      disabled={selectedPoIds.size === 0 || isClearing || isCurrentlyOptimizing}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isClearing || isCurrentlyOptimizing
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300"
                         }`}
@@ -368,13 +376,13 @@ export default function ProductionPage() {
                     {/* Optimize Selected Button */}
                     <button
                       onClick={handleOptimizeSelected}
-                      disabled={selectedPoIds.size === 0 || isOptimizing || isClearing}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isOptimizing || isClearing
+                      disabled={selectedPoIds.size === 0 || isCurrentlyOptimizing || isClearing}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isCurrentlyOptimizing || isClearing
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-sm hover:shadow-md"
                         }`}
                     >
-                      {isOptimizing ? (
+                      {isCurrentlyOptimizing ? (
                         <>
                           <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
