@@ -121,7 +121,7 @@ function getDayOfWeek(date: Date): number {
     return day === 0 ? 7 : day;
 }
 
-export default function GanttPage() {
+export default function GanttNewPage() {
     const [ganttData, setGanttData] = useState<GanttData | null>(null);
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [workCenterShifts, setWorkCenterShifts] = useState<WorkCenterShift[]>([]);
@@ -242,11 +242,9 @@ export default function GanttPage() {
                 });
             } else {
                 const existing = poMap.get(schedule.production_order_id)!;
-                // Update start_date if this schedule starts earlier
                 if (new Date(schedule.scheduled_start) < new Date(existing.start_date)) {
                     existing.start_date = schedule.scheduled_start;
                 }
-                // Update end_date if this schedule ends later
                 if (new Date(schedule.scheduled_end) > new Date(existing.end_date)) {
                     existing.end_date = schedule.scheduled_end;
                 }
@@ -258,7 +256,7 @@ export default function GanttPage() {
     // Filter schedules based on selected POs
     const filteredSchedules = useMemo(() => {
         if (!ganttData) return [];
-        if (selectedPOs.size === 0) return ganttData.schedules; // Show all if none selected
+        if (selectedPOs.size === 0) return ganttData.schedules;
         return ganttData.schedules.filter((s) => selectedPOs.has(s.production_order_id));
     }, [ganttData, selectedPOs]);
 
@@ -282,11 +280,11 @@ export default function GanttPage() {
     const clearAllPOs = () => {
         setSelectedPOs(new Set());
     };
-    // Interface for Operation Group
-    interface OperationGroup {
-        operation_id: number;
-        operation_code: string;
-        operation_name: string;
+
+    // Interface for PO Group (Group by PO then by Work Center)
+    interface POGroup {
+        production_order_id: number;
+        po_number: string;
         work_centers: {
             id: number;
             code: string;
@@ -295,43 +293,40 @@ export default function GanttPage() {
         }[];
     }
 
-    // Group schedules by Operation first, then by Work Center
-    const operationGroups = useMemo<OperationGroup[]>(() => {
+    // Group schedules by PO first, then by Work Center
+    const poGroups = useMemo<POGroup[]>(() => {
         if (!ganttData) return [];
 
-        const operationMap = new Map<number, {
-            operation_id: number;
-            operation_code: string;
-            operation_name: string;
+        const poMap = new Map<number, {
+            production_order_id: number;
+            po_number: string;
             work_center_ids: Set<number>;
         }>();
 
-        // Group work centers by operation
+        // Group work centers by PO
         filteredSchedules.forEach((schedule) => {
-            if (!operationMap.has(schedule.operation_id)) {
-                operationMap.set(schedule.operation_id, {
-                    operation_id: schedule.operation_id,
-                    operation_code: schedule.operation_code,
-                    operation_name: schedule.operation_name,
+            if (!poMap.has(schedule.production_order_id)) {
+                poMap.set(schedule.production_order_id, {
+                    production_order_id: schedule.production_order_id,
+                    po_number: schedule.po_number,
                     work_center_ids: new Set(),
                 });
             }
-            operationMap.get(schedule.operation_id)!.work_center_ids.add(schedule.work_center_id);
+            poMap.get(schedule.production_order_id)!.work_center_ids.add(schedule.work_center_id);
         });
 
         // Convert to array and add work center details
-        const groups: OperationGroup[] = [];
-        Array.from(operationMap.values())
-            .sort((a, b) => a.operation_id - b.operation_id)
-            .forEach((op) => {
+        const groups: POGroup[] = [];
+        Array.from(poMap.values())
+            .sort((a, b) => a.po_number.localeCompare(b.po_number))
+            .forEach((po) => {
                 const workCenters = ganttData.work_centers
-                    .filter((wc) => op.work_center_ids.has(wc.id))
+                    .filter((wc) => po.work_center_ids.has(wc.id))
                     .sort((a, b) => a.code.localeCompare(b.code));
 
                 groups.push({
-                    operation_id: op.operation_id,
-                    operation_code: op.operation_code,
-                    operation_name: op.operation_name,
+                    production_order_id: po.production_order_id,
+                    po_number: po.po_number,
                     work_centers: workCenters,
                 });
             });
@@ -339,12 +334,11 @@ export default function GanttPage() {
         return groups;
     }, [ganttData, filteredSchedules]);
 
-    // Create a flat list of rows for rendering (operation headers + work centers)
+    // Create a flat list of rows for rendering (PO headers + work centers)
     interface RowItem {
-        type: 'operation' | 'work_center';
-        operation_id: number;
-        operation_code: string;
-        operation_name: string;
+        type: 'po' | 'work_center';
+        production_order_id: number;
+        po_number: string;
         work_center?: {
             id: number;
             code: string;
@@ -355,36 +349,34 @@ export default function GanttPage() {
 
     const flatRows = useMemo<RowItem[]>(() => {
         const rows: RowItem[] = [];
-        operationGroups.forEach((group) => {
-            // Add operation header row
+        poGroups.forEach((group) => {
+            // Add PO header row
             rows.push({
-                type: 'operation',
-                operation_id: group.operation_id,
-                operation_code: group.operation_code,
-                operation_name: group.operation_name,
+                type: 'po',
+                production_order_id: group.production_order_id,
+                po_number: group.po_number,
             });
-            // Add work center rows under this operation
+            // Add work center rows under this PO
             group.work_centers.forEach((wc) => {
                 rows.push({
                     type: 'work_center',
-                    operation_id: group.operation_id,
-                    operation_code: group.operation_code,
-                    operation_name: group.operation_name,
+                    production_order_id: group.production_order_id,
+                    po_number: group.po_number,
                     work_center: wc,
                 });
             });
         });
         return rows;
-    }, [operationGroups]);
+    }, [poGroups]);
 
     const totalHeight = flatRows.length * ROW_HEIGHT;
 
-    const schedulesByOperationAndWorkCenter = useMemo(() => {
+    const schedulesByPOAndWorkCenter = useMemo(() => {
         if (!ganttData) return new Map<string, GanttScheduleItem[]>();
 
         const map = new Map<string, GanttScheduleItem[]>();
         filteredSchedules.forEach((schedule) => {
-            const key = `${schedule.operation_id}_${schedule.work_center_id}`;
+            const key = `${schedule.production_order_id}_${schedule.work_center_id}`;
             const existing = map.get(key) || [];
             existing.push(schedule);
             map.set(key, existing);
@@ -530,7 +522,7 @@ export default function GanttPage() {
                     {/* Left: Title & Info */}
                     <div className="flex items-center gap-4">
                         <div>
-                            <h1 className="text-lg font-bold text-slate-800">Production Schedule</h1>
+                            <h1 className="text-lg font-bold text-slate-800">Production Schedule (by PO)</h1>
                             <p className="text-xs text-slate-500">
                                 {filteredSchedules.length} tasks • {ganttData.work_centers.length} work centers
                             </p>
@@ -748,10 +740,10 @@ export default function GanttPage() {
                         className="shrink-0 bg-slate-50 border-b border-slate-200 flex items-center justify-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
                         style={{ height: HEADER_HEIGHT }}
                     >
-                        Operations / WC
+                        PO / Work Centers
                     </div>
 
-                    {/* Operation & Work Center List */}
+                    {/* PO & Work Center List */}
                     <div className="flex-1 overflow-hidden relative">
                         <div
                             ref={sidebarScrollRef}
@@ -767,22 +759,27 @@ export default function GanttPage() {
                             }}
                         >
                             {flatRows.map((row, index) => {
-                                if (row.type === 'operation') {
-                                    // Operation Header Row
+                                if (row.type === 'po') {
+                                    // PO Header Row
+                                    const color = getProductColor(row.production_order_id);
                                     return (
                                         <div
-                                            key={`op-${row.operation_id}`}
-                                            className="flex items-center px-3 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-violet-50"
-                                            style={{ height: ROW_HEIGHT }}
+                                            key={`po-${row.production_order_id}`}
+                                            className="flex items-center px-3 border-b border-slate-200"
+                                            style={{ height: ROW_HEIGHT, backgroundColor: `${color.bg}20` }}
                                         >
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-indigo-700 text-sm truncate flex items-center gap-1.5">
-                                                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                    </svg>
-                                                    {row.operation_code}
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                                                    style={{ backgroundColor: color.bg }}
+                                                >
+                                                    {row.po_number.slice(-3)}
                                                 </div>
-                                                <div className="text-indigo-500 text-xs truncate pl-5">{row.operation_name}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-slate-800 text-sm truncate">
+                                                        {row.po_number}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -791,7 +788,7 @@ export default function GanttPage() {
                                     const wc = row.work_center!;
                                     return (
                                         <div
-                                            key={`wc-${row.operation_id}-${wc.id}`}
+                                            key={`wc-${row.production_order_id}-${wc.id}`}
                                             className={`flex items-center pl-6 pr-3 border-b border-slate-100 transition-colors hover:bg-indigo-50/50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
                                             style={{ height: ROW_HEIGHT }}
                                         >
@@ -863,13 +860,14 @@ export default function GanttPage() {
                         {/* Task Rows */}
                         <div className="relative">
                             {flatRows.map((row, rowIndex) => {
-                                if (row.type === 'operation') {
-                                    // Operation Header Row - no tasks, just a background
+                                if (row.type === 'po') {
+                                    // PO Header Row - no tasks, just a background
+                                    const color = getProductColor(row.production_order_id);
                                     return (
                                         <div
-                                            key={`op-chart-${row.operation_id}`}
-                                            className="relative border-b border-slate-200 bg-gradient-to-r from-indigo-50/50 to-violet-50/50"
-                                            style={{ height: ROW_HEIGHT }}
+                                            key={`po-chart-${row.production_order_id}`}
+                                            className="relative border-b border-slate-200"
+                                            style={{ height: ROW_HEIGHT, backgroundColor: `${color.bg}10` }}
                                         >
                                             {/* Grid for dates */}
                                             <div className="absolute inset-0 flex pointer-events-none">
@@ -892,11 +890,11 @@ export default function GanttPage() {
                                 } else {
                                     // Work Center Row - show tasks
                                     const wc = row.work_center!;
-                                    const tasks = schedulesByOperationAndWorkCenter.get(`${row.operation_id}_${wc.id}`) || [];
+                                    const tasks = schedulesByPOAndWorkCenter.get(`${row.production_order_id}_${wc.id}`) || [];
 
                                     return (
                                         <div
-                                            key={`wc-chart-${row.operation_id}-${wc.id}`}
+                                            key={`wc-chart-${row.production_order_id}-${wc.id}`}
                                             className={`relative border-b border-slate-100 ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}
                                             style={{ height: ROW_HEIGHT }}
                                         >

@@ -31,12 +31,12 @@ class ProductionScheduler:
         self.machine_span_intervals = None
         
         # Configuration
-        self.max_shift_duration = 120  # minutes
+        self.max_shift_duration = 60  # minutes
         self.max_workers = 600
         self.time_limit_seconds = 60
     
     def configure(self, 
-                  max_shift_duration: int = 120,
+                  max_shift_duration: int = 60,
                   max_workers: int = 600,
                   time_limit_seconds: int = 60):
         """Configure solver parameters"""
