@@ -644,6 +644,33 @@ export async function scheduleProductionOrder(
   return response.json();
 }
 
+export async function scheduleWithRL(
+  productionIds: number[],
+  options?: {
+    maxWorkers?: number;
+    saveToDb?: boolean;
+  }
+): Promise<ScheduleResponse> {
+  const requestBody = {
+    production_ids: productionIds,
+    max_workers: options?.maxWorkers,
+    save_to_db: options?.saveToDb ?? true,
+  };
+
+  const response = await fetch(`${API_BASE_URL}/schedule-rl`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to RL schedule production: ${error}`);
+  }
+
+  return response.json();
+}
+
 // =====================================================
 // SCHEDULER SETTINGS
 // =====================================================

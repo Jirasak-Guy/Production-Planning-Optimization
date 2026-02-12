@@ -33,6 +33,15 @@ export default function ProductionPage() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
+  // Optimize Result Banner
+  const [optimizeResult, setOptimizeResult] = useState<{
+    status: string;
+    message: string | null;
+    makespan: number | null;
+    solve_time: number | null;
+    solver: string;
+  } | null>(null);
+
   // Scheduler Settings
   const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({
     max_workers: 600,
@@ -87,8 +96,8 @@ export default function ProductionPage() {
     return productionOrders.some((po) => po.schedule_status === "Optimizing");
   }, [productionOrders]);
 
-  // Combined optimizing state: either local state OR database shows optimizing
-  const isCurrentlyOptimizing = isOptimizing || hasOptimizingOrders;
+  // Combined optimizing state: only disable during local optimize action
+  const isCurrentlyOptimizing = isOptimizing;
 
   const filteredOrders = useMemo(() => {
     const filtered = productionOrders.filter(
@@ -198,6 +207,7 @@ export default function ProductionPage() {
     if (selectedPoIds.size === 0) return;
 
     setIsOptimizing(true);
+    setOptimizeResult(null);
     const idsToOptimize = Array.from(selectedPoIds);
 
     try {
@@ -218,10 +228,18 @@ export default function ProductionPage() {
       );
 
       // Call the scheduler with all selected production IDs using scheduler settings
-      await scheduleProductionOrder(idsToOptimize, {
+      const result = await scheduleProductionOrder(idsToOptimize, {
         maxWorkers: schedulerSettings.max_workers,
         timeLimitSeconds: schedulerSettings.time_limit_seconds,
         saveToDb: true,
+      });
+
+      setOptimizeResult({
+        status: result.status,
+        message: result.message,
+        makespan: result.makespan,
+        solve_time: result.solve_time_seconds,
+        solver: "CP-SAT",
       });
 
       // Refresh to get updated statuses
@@ -229,6 +247,13 @@ export default function ProductionPage() {
       setSelectedPoIds(new Set()); // Clear selection after optimization
     } catch (error) {
       console.error("Failed to optimize selected POs:", error);
+      setOptimizeResult({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unknown error",
+        makespan: null,
+        solve_time: null,
+        solver: "CP-SAT",
+      });
       // Refresh to get correct statuses after error
       await handleRefresh();
     } finally {
@@ -332,6 +357,47 @@ export default function ProductionPage() {
           </div>
         ) : (
           <>
+            {/* Optimize Result Banner */}
+            {optimizeResult && (
+              <div className={`mb-4 rounded-lg border p-4 ${optimizeResult.status === "OPTIMAL" || optimizeResult.status === "FEASIBLE"
+                ? "bg-green-50 border-green-200"
+                : optimizeResult.status === "error" || optimizeResult.status === "INFEASIBLE"
+                  ? "bg-red-50 border-red-200"
+                  : "bg-blue-50 border-blue-200"
+                }`}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full ${optimizeResult.status === "OPTIMAL" ? "bg-green-100 text-green-800" :
+                        optimizeResult.status === "FEASIBLE" ? "bg-blue-100 text-blue-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                        {optimizeResult.status}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Solver: <strong>{optimizeResult.solver}</strong>
+                      </span>
+                    </div>
+                    {optimizeResult.message && (
+                      <p className="text-sm text-gray-700">{optimizeResult.message}</p>
+                    )}
+                    <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                      {optimizeResult.makespan != null && (
+                        <span>Makespan: <strong>{optimizeResult.makespan} min</strong></span>
+                      )}
+                      {optimizeResult.solve_time != null && (
+                        <span>Solve time: <strong>{optimizeResult.solve_time.toFixed(2)}s</strong></span>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => setOptimizeResult(null)} className="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
             {viewMode === "card" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredOrders.map((po) => (

@@ -25,6 +25,7 @@ from model import (
     SchedulerSettings,
 )
 from scheduler import run_scheduling
+from rl_scheduler import run_rl_scheduling
 
 load_dotenv()
 
@@ -1306,6 +1307,47 @@ def schedule_production(request: ScheduleRequest):
             tasks=tasks
         )
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/schedule-rl", response_model=ScheduleResponse)
+def schedule_production_rl(request: ScheduleRequest):
+    """
+    Run RL-based scheduling optimization for specified production orders.
+    Uses a pre-trained PPO model instead of CP-SAT solver.
+    """
+    if not request.production_ids:
+        raise HTTPException(status_code=400, detail="No production IDs provided")
+
+    # Update status to Optimizing before running
+    if request.save_to_db:
+        with Session(engine) as session:
+            for po_id in request.production_ids:
+                po = session.get(ProductionOrder, po_id)
+                if po:
+                    po.schedule_status = "Optimizing"
+                    session.add(po)
+            session.commit()
+
+    try:
+        result = run_rl_scheduling(
+            engine=engine,
+            production_ids=request.production_ids,
+            model_path="best_model",
+            max_workers=request.max_workers,
+            save_to_db=request.save_to_db
+        )
+
+        return ScheduleResponse(
+            status=result.status,
+            makespan=result.makespan,
+            solve_time_seconds=result.solve_time_seconds,
+            message=result.message,
+            segments=None,
+            tasks=None
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
