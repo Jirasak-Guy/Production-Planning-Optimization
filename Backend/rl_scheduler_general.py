@@ -39,6 +39,7 @@ class InferenceTask:
     routing_id: int
     operation_id: int
     setup_time: int
+    quantity: int  # production quantity for this task
     processing_times: Dict[int, int]  # wc_id -> minutes (setup+proc)
     predecessors: List[int]  # global_idx of predecessor tasks
     bom_parents: List[int]   # global_idx of BOM parent tasks
@@ -164,6 +165,7 @@ class RLSchedulerInference:
                     routing_id=routing.id,
                     operation_id=op_id,
                     setup_time=setup,
+                    quantity=qty,
                     processing_times=proc_times,
                     predecessors=[],
                     bom_parents=[],
@@ -349,13 +351,14 @@ class RLSchedulerInference:
             obs[base] = 1.0
             if self.scheduled[i] is not None:
                 obs[base + 1] = 1.0
-            obs[base + 2] = task.operation_id / 200.0
+            # flexibility: number of alternative machines (matches General notebook)
+            n_alt = len(task.processing_times)
+            obs[base + 2] = min(n_alt / 10.0, 1.0)
             pts = list(task.processing_times.values())
             obs[base + 3] = min((np.mean(pts) if pts else 0) / norm, 1.0)
             obs[base + 4] = task.setup_time / norm
-            # NEW: quantity feature (normalized to max=50)
-            qty = sum(pt for pt in task.processing_times.values()) / max(len(task.processing_times), 1)
-            obs[base + 5] = min(qty / 50.0, 1.0) if task.processing_times else 0.0
+            # quantity (matches General notebook: qty / 50.0)
+            obs[base + 5] = min(task.quantity / 50.0, 1.0)
             n_preds = len(task.predecessors)
             if n_preds > 0:
                 done = sum(1 for p in task.predecessors if self.scheduled[p] is not None)

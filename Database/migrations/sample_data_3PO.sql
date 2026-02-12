@@ -7,21 +7,21 @@
 -- =====================================================
 
 -- Clean up existing sample data (Excluding removed tables)
-TRUNCATE TABLE work_center_schedule CASCADE;
-TRUNCATE TABLE production_orders CASCADE;
-TRUNCATE TABLE operation_dependencies CASCADE;
-TRUNCATE TABLE routing_bom CASCADE;
-TRUNCATE TABLE routing CASCADE;
-TRUNCATE TABLE operations CASCADE;
-TRUNCATE TABLE bom CASCADE;
-TRUNCATE TABLE order_items CASCADE;
-TRUNCATE TABLE orders CASCADE;
-TRUNCATE TABLE work_center_calendar_exceptions CASCADE;
-TRUNCATE TABLE work_center_shifts CASCADE;
-TRUNCATE TABLE work_centers CASCADE;
-TRUNCATE TABLE products CASCADE;
-TRUNCATE TABLE shifts CASCADE;
-TRUNCATE TABLE company_calendar CASCADE;
+TRUNCATE TABLE work_center_schedule RESTART IDENTITY CASCADE;
+TRUNCATE TABLE production_orders RESTART IDENTITY CASCADE;
+TRUNCATE TABLE operation_dependencies RESTART IDENTITY CASCADE;
+TRUNCATE TABLE routing_bom RESTART IDENTITY CASCADE;
+TRUNCATE TABLE routing RESTART IDENTITY CASCADE;
+TRUNCATE TABLE operations RESTART IDENTITY CASCADE;
+TRUNCATE TABLE bom RESTART IDENTITY CASCADE;
+TRUNCATE TABLE order_items RESTART IDENTITY CASCADE;
+TRUNCATE TABLE orders RESTART IDENTITY CASCADE;
+TRUNCATE TABLE work_center_calendar_exceptions RESTART IDENTITY CASCADE;
+TRUNCATE TABLE work_center_shifts RESTART IDENTITY CASCADE;
+TRUNCATE TABLE work_centers RESTART IDENTITY CASCADE;
+TRUNCATE TABLE products RESTART IDENTITY CASCADE;
+TRUNCATE TABLE shifts RESTART IDENTITY CASCADE;
+TRUNCATE TABLE company_calendar RESTART IDENTITY CASCADE;
 
 -- Insert default shifts
 INSERT INTO shifts (shift_code, shift_name, start_time, end_time, break_duration_minutes, effective_working_minutes) VALUES
