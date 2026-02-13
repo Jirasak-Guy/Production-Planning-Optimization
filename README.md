@@ -681,7 +681,7 @@ class ScheduleResult:
 
 ## 📥 Input Format
 
-### API Endpoint: `POST /api/schedule`
+### API Endpoint: `POST /schedule`
 
 #### Request Body
 ```json
@@ -751,6 +751,15 @@ class ScheduleResult:
   "schedule_data": []
 }
 ```
+
+---
+
+## 📝 Notes
+
+- ระบบใช้ CP-SAT Solver ซึ่งเป็น deterministic algorithm ผลลัพธ์จะเหมือนเดิมเมื่อ input เหมือนกัน
+- การเพิ่ม time_limit_seconds จะช่วยให้ได้ solution ที่ดีขึ้น แต่ใช้เวลานานขึ้น
+- ควรตั้งค่า max_workers ให้ตรงกับจำนวนพนักงานจริงในโรงงาน
+- สามารถปรับแต่ง objective function ใน `scheduler.py` ได้ตามต้องการ
 
 ---
 
@@ -898,9 +907,530 @@ Next-React-CSI/
 
 ---
 
-## 📝 Notes
+# API Testing Guide — ขั้นตอนการสร้างข้อมูลทดสอบ
 
-- ระบบใช้ CP-SAT Solver ซึ่งเป็น deterministic algorithm ผลลัพธ์จะเหมือนเดิมเมื่อ input เหมือนกัน
-- การเพิ่ม time_limit_seconds จะช่วยให้ได้ solution ที่ดีขึ้น แต่ใช้เวลานานขึ้น
-- ควรตั้งค่า max_workers ให้ตรงกับจำนวนพนักงานจริงในโรงงาน
-- สามารถปรับแต่ง objective function ใน `scheduler.py` ได้ตามต้องการ
+> **Base URL:** `http://localhost:8000`
+>
+> ใช้ Postman, Thunder Client, หรือ `curl` ในการส่ง request
+> ทุก request ใช้ `Content-Type: application/json`
+
+---
+
+## ลำดับการสร้างข้อมูล (สำคัญ!)
+
+ต้องสร้างตามลำดับนี้ เพราะบาง table มี Foreign Key ที่อ้างอิงไปยัง table อื่น
+
+---
+
+### ขั้นตอนที่ 1 — สร้างข้อมูลพื้นฐาน (ไม่มี FK)
+
+ข้อมูลเหล่านี้ไม่มี dependency สร้างก่อนได้เลย (ลำดับไม่สำคัญ)
+
+#### 1.1 Products
+
+```
+POST /products
+```
+
+**ตัวอย่าง 1 (Finished Product):**
+```json
+{
+    "product_code": "PROD-001",
+    "product_name": "Test Product A",
+    "description": "First test product",
+    "type": "finished-product",
+    "unit": "pcs",
+    "standard_cost": 100.00,
+    "lead_time_days": 5,
+    "is_active": true
+}
+```
+
+**ตัวอย่าง 2 (Semi Product):**
+```json
+{
+    "product_code": "PROD-002",
+    "product_name": "Test Product B",
+    "description": "Second test product",
+    "type": "semi-product",
+    "unit": "pcs",
+    "standard_cost": 50.00,
+    "lead_time_days": 3,
+    "is_active": true
+}
+```
+
+#### 1.2 Orders
+
+```
+POST /orders
+```
+
+```json
+{
+    "id": 1,
+    "order_number": "ORD-001",
+    "order_date": "2026-02-10",
+    "due_date": "2026-03-10",
+    "customer_name": "Customer-Test",
+    "priority": 5,
+    "status": "pending",
+    "notes": "Test Create"
+}
+```
+
+#### 1.3 Shifts (กะการทำงาน)
+
+```
+POST /shifts
+```
+
+```json
+{
+    "shift_code": "SHIFT-A",
+    "shift_name": "Morning Shift",
+    "start_time": "08:00:00",
+    "end_time": "16:00:00",
+    "break_duration_minutes": 60,
+    "effective_working_minutes": 420,
+    "is_active": true,
+    "description": "Standard morning shift"
+}
+```
+
+#### 1.4 Operations (ขั้นตอนการผลิต)
+
+```
+POST /operations
+```
+
+```json
+{
+    "operation_code": "OP-001",
+    "operation_name": "Assembly",
+    "description": "General assembly operation",
+    "operation_type": "manual",
+    "is_active": true
+}
+```
+
+#### 1.5 Company Calendar (ปฏิทินบริษัท)
+
+```
+POST /company-calendar
+```
+
+```json
+{
+    "calendar_date": "2026-02-14",
+    "day_type": "holiday",
+    "description": "Valentine's Day",
+    "is_working_day": false
+}
+```
+
+---
+
+### ขั้นตอนที่ 2 — สร้างข้อมูลที่ขึ้นกับขั้นตอนที่ 1
+
+#### 2.1 Order Items (รายการสินค้าในคำสั่งซื้อ)
+
+```
+POST /order-items
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `order_id` | Orders (ขั้นตอน 1.2) |
+| `product_id` | Products (ขั้นตอน 1.1) |
+
+```json
+{
+    "order_id": 1,
+    "product_id": 1,
+    "quantity": 10.0,
+    "unit_price": 100.00,
+    "total_price": 1000.00,
+    "notes": "Test Order Item"
+}
+```
+
+#### 2.2 BOM (Bill of Materials)
+
+```
+POST /bom
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `parent_product_id` | Products (ขั้นตอน 1.1) |
+| `component_product_id` | Products (ขั้นตอน 1.1) |
+
+```json
+{
+    "parent_product_id": 1,
+    "component_product_id": 2,
+    "quantity_required": 2.0,
+    "unit": "pcs",
+    "scrap_percentage": 0.0,
+    "effective_from": "2026-01-01",
+    "is_active": true,
+    "notes": "Test BOM"
+}
+```
+
+#### 2.3 Work Centers (ศูนย์การทำงาน)
+
+```
+POST /work-centers
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `operation_id` | Operations (ขั้นตอน 1.4) |
+| `default_shift_id` | Shifts (ขั้นตอน 1.3) — *optional* |
+
+```json
+{
+    "work_center_code": "WC-001",
+    "work_center_name": "Assembly Line 1",
+    "description": "Main assembly line",
+    "operation_id": 1,
+    "capacity_per_hour": 100,
+    "number_of_workers_required": 5,
+    "default_shift_id": 1,
+    "cost_per_hour": 500.00,
+    "status": "active",
+    "is_active": true
+}
+```
+
+#### 2.4 Routing (เส้นทางการผลิต)
+
+```
+POST /routing
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `product_id` | Products (ขั้นตอน 1.1) |
+| `operation_id` | Operations (ขั้นตอน 1.4) |
+
+```json
+{
+    "product_id": 1,
+    "operation_id": 1,
+    "sequence_number": 10,
+    "setup_time_minutes": 30,
+    "notes": "First step",
+    "is_active": true
+}
+```
+
+**ตัวอย่าง 2 (Routing Step 2):**
+*ต้องสร้างอันนี้ก่อน ถึงจะสร้าง Operation Dependencies ในขั้นตอน 3.4 ได้*
+```json
+{
+    "product_id": 1,
+    "operation_id": 1,
+    "sequence_number": 20,
+    "setup_time_minutes": 15,
+    "notes": "Second step",
+    "is_active": true
+}
+```
+
+---
+
+### ขั้นตอนที่ 3 — สร้างข้อมูลที่ขึ้นกับขั้นตอนที่ 2
+
+#### 3.1 Work Center Shifts
+
+```
+POST /work-center-shifts
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `work_center_id` | Work Centers (ขั้นตอน 2.3) |
+| `shift_id` | Shifts (ขั้นตอน 1.3) |
+
+```json
+{
+    "work_center_id": 1,
+    "shift_id": 1,
+    "day_of_week": 1,
+    "effective_from": "2026-01-01",
+    "is_active": true
+}
+```
+
+#### 3.2 Work Center Calendar Exceptions
+
+```
+POST /work-center-calendar-exceptions
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `work_center_id` | Work Centers (ขั้นตอน 2.3) |
+
+```json
+{
+    "work_center_id": 1,
+    "exception_date": "2026-03-01",
+    "exception_type": "maintenance",
+    "description": "Scheduled maintenance",
+    "capacity_percentage": 0.0
+}
+```
+
+#### 3.3 Routing BOM (เชื่อม Routing กับ BOM)
+
+```
+POST /routing-bom
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `routing_id` | Routing (ขั้นตอน 2.4) |
+| `bom_id` | BOM (ขั้นตอน 2.2) |
+
+```json
+{
+    "routing_id": 1,
+    "bom_id": 1,
+    "consumption_timing": "at_start",
+    "notes": "Consume at start",
+    "is_active": true
+}
+```
+
+#### 3.4 Operation Dependencies (ลำดับขั้นตอนการผลิต)
+
+```
+POST /operation-dependencies
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `routing_id` | Routing (ขั้นตอน 2.4) |
+| `predecessor_routing_id` | Routing (ขั้นตอน 2.4) |
+
+```json
+{
+    "routing_id": 2,
+    "predecessor_routing_id": 1,
+    "dependency_type": "FS",
+    "lag_time_minutes": 0,
+    "notes": "Wait for OP-001 to finish",
+    "is_active": true
+}
+```
+
+#### 3.5 Production Orders (ใบสั่งผลิต)
+
+```
+POST /production-orders
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `product_id` | Products (ขั้นตอน 1.1) |
+| `order_item_id` | Order Items (ขั้นตอน 2.1) — *optional* |
+
+```json
+{
+    "po_number": "PO-2026-001",
+    "order_item_id": 1,
+    "product_id": 1,
+    "quantity_planned": 10.0,
+    "scheduled_start_date": "2026-02-15",
+    "scheduled_end_date": "2026-03-05",
+    "status": "planned",
+    "priority": 5,
+    "notes": "Initial production run"
+}
+```
+
+---
+
+### ขั้นตอนที่ 4 — สร้าง Schedule
+
+#### 4.1 Work Center Schedule (สร้าง manual)
+
+```
+POST /work-center-schedule
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `work_center_id` | Work Centers (ขั้นตอน 2.3) |
+| `production_order_id` | Production Orders (ขั้นตอน 3.5) |
+| `product_id` | Products (ขั้นตอน 1.1) |
+| `operation_id` | Operations (ขั้นตอน 1.4) |
+| `shift_id` | Shifts (ขั้นตอน 1.3) — *optional* |
+
+```json
+{
+    "work_center_id": 1,
+    "production_order_id": 1,
+    "product_id": 1,
+    "operation_id": 1,
+    "shift_id": 1,
+    "scheduled_start": "2026-02-15T08:00:00",
+    "scheduled_end": "2026-02-15T10:00:00",
+    "status": "scheduled",
+    "notes": "Scheduled manually"
+}
+```
+
+#### 4.2 Schedule — สั่ง Optimize (CP-SAT Solver)
+
+```
+POST /schedule
+```
+
+| Field | ต้องมีก่อน |
+|---|---|
+| `production_ids` | Production Orders (ขั้นตอน 3.5) |
+
+> ระบบจะรัน optimization solver เพื่อจัด schedule ให้อัตโนมัติ
+
+```json
+{
+    "production_ids": [
+        1
+    ],
+    "max_shift_duration": 120,
+    "max_workers": 600,
+    "time_limit_seconds": 60,
+    "save_to_db": true
+}
+```
+
+---
+
+## สรุปลำดับ (Diagram)
+
+```
+ขั้นตอน 1 (ไม่มี dependency)
+├── Products
+├── Orders
+├── Shifts
+├── Operations
+└── Company Calendar
+
+ขั้นตอน 2 (ขึ้นกับขั้นตอน 1)
+├── Order Items        ← Orders + Products
+├── BOM                ← Products
+├── Work Centers       ← Operations + Shifts
+└── Routing            ← Products + Operations
+
+ขั้นตอน 3 (ขึ้นกับขั้นตอน 2)
+├── Work Center Shifts              ← Work Centers + Shifts
+├── Work Center Calendar Exceptions ← Work Centers
+├── Routing BOM                     ← Routing + BOM
+├── Operation Dependencies          ← Routing
+└── Production Orders               ← Products + Order Items
+
+ขั้นตอน 4 (ขึ้นกับขั้นตอน 3)
+├── Work Center Schedule  ← Work Centers + Production Orders + ...
+└── Schedule (Optimize)   ← Production Orders
+```
+
+---
+
+## API อื่นๆ ที่มีให้ใช้
+
+ทุก resource รองรับ CRUD:
+
+| Method | Path | คำอธิบาย |
+|---|---|---|
+| `GET` | `/{resource}` | ดูทั้งหมด |
+| `GET` | `/{resource}/{id}` | ดูรายตัว |
+| `POST` | `/{resource}` | สร้างใหม่ |
+| `PUT` | `/{resource}/{id}` | แก้ไข |
+| `DELETE` | `/{resource}/{id}` | ลบ |
+
+### API พิเศษ
+
+| Method | Path | คำอธิบาย |
+|---|---|---|
+| `GET` | `/orders/{id}/order-items` | ดู order items ของ order นั้น |
+| `GET` | `/operations/{id}/work-centers` | ดู work centers ของ operation นั้น |
+| `GET` | `/routing/{id}/bom-links` | ดู BOM ที่เชื่อมกับ routing step |
+| `POST` | `/production-orders/{id}/clear-schedule` | ล้าง schedule ของ PO |
+| `GET` | `/gantt-data` | ดูข้อมูล Gantt chart |
+| `GET` | `/scheduler-settings` | ดูการตั้งค่า scheduler |
+| `PUT` | `/scheduler-settings` | แก้ไขการตั้งค่า scheduler |
+
+---
+
+## ตัวอย่างการตอบกลับ (Response Examples)
+
+### 1. กรณีสำเร็จ (Success - 200 OK)
+
+เมื่อสร้างข้อมูลสำเร็จ Server จะตอบกลับด้วย JSON ของข้อมูลที่ถูกสร้าง พร้อม `id` ที่ระบบกำหนดให้
+
+**ตัวอย่าง Response (POST /products):**
+```json
+{
+    "id": 1,
+    "product_code": "PROD-001",
+    "product_name": "Test Product A",
+    "description": "First test product",
+    "type": "finished-product",
+    "unit": "pcs",
+    "standard_cost": 100.0,
+    "lead_time_days": 5,
+    "is_active": true,
+    "created_at": "2026-02-13T10:00:00",
+    "updated_at": "2026-02-13T10:00:00"
+}
+```
+
+### 2. กรณีเกิดข้อผิดพลาด (Common Errors)
+
+#### 2.1 ลืมสร้างข้อมูลที่จำเป็นก่อน (Foreign Key Violation)
+**อาการ:** ได้รับ Error `500 Internal Server Error`
+**สาเหตุ:** พยายามสร้างข้อมูลที่ต้องอ้างอิง ID จากตารางอื่น แต่ ID นั้นยังไม่มีอยู่จริง
+> **ตัวอย่าง:** ยิง `POST /order-items` โดยใส่ `order_id: 1` แต่ยังไม่ได้สร้าง Order ที่มี ID 1
+
+#### 2.2 ข้อมูลซ้ำ (Unique Constraint Violation)
+**อาการ:** ได้รับ Error `500 Internal Server Error`
+**สาเหตุ:** พยายามสร้างข้อมูลที่มีค่าห้ามซ้ำ (เช่น `product_code`, `order_number`) ซ้ำกับที่มีอยู่แล้ว
+
+#### 2.3 ข้อมูลผิดรูปแบบ (Validation Error - 422)
+**อาการ:** ได้รับ Error `422 Unprocessable Entity` พร้อมรายละเอียด `msg`
+**สาเหตุ:** ส่งข้อมูลผิดประเภท (เช่น ส่ง string ใส่ช่องตัวเลข) หรือขาด field จำเป็น
+
+**ตัวอย่าง Response:**
+```json
+{
+    "detail": [
+        {
+            "type": "missing",
+            "loc": ["body", "product_code"],
+            "msg": "Field required",
+            "input": {...}
+        }
+    ]
+}
+```
+
+### 3. กรณีสั่ง Schedule แต่ไม่มี Production Order
+
+**อาการ:** สั่ง `POST /schedule` แต่ไม่ใส่ ID หรือใส่ ID ที่ไม่มีอยู่จริง
+
+**Response:**
+```json
+{
+    "status": "NO_DATA",
+    "makespan": null,
+    "solve_time_seconds": 0.0,
+    "message": "No production orders to schedule",
+    "segments": null,
+    "tasks": null
+}
+```
