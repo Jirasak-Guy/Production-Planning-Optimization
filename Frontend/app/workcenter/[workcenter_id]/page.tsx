@@ -163,7 +163,10 @@ export default function WorkCenterDetailPage({
       else if (field === "capacity_per_hour") updateData.capacity_per_hour = parseFloat(editValue) || 0;
       else if (field === "number_of_workers_required") updateData.number_of_workers_required = parseInt(editValue) || 0;
       else if (field === "cost_per_hour") updateData.cost_per_hour = parseFloat(editValue) || 0;
-      else if (field === "status") updateData.status = editValue;
+      else if (field === "status") {
+        updateData.status = editValue;
+        updateData.is_active = editValue === "active";
+      }
 
       const updated = await updateWorkCenter(workCenter.id, updateData);
       setWorkCenter(updated);
