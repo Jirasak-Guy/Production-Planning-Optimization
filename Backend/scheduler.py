@@ -131,7 +131,7 @@ class ProductionScheduler:
                     alt_suffix = f"{suffix}_opt{wc_id}"
                     wc_info = self.data.work_centers.get(wc_id)
                     
-                    if not wc_info:
+                    if not wc_info or not wc_info.is_active:
                         continue
                     
                     capacity_per_hour = wc_info.capacity_per_hour
