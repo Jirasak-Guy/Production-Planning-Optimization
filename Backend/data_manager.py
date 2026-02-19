@@ -36,6 +36,7 @@ class WorkCenterInfo:
     capacity_per_hour: float
     shifts: Dict[int, List[Tuple]]  # day_of_week -> [(start_time, end_time), ...]
     number_of_workers_required: int
+    is_active: bool = True
 
 
 @dataclass
@@ -319,7 +320,7 @@ class SchedulingDataManager:
                     
                     for wc_shift in wc_shifts_by_wc_id.get(wc.id, []):
                         shift = shifts_by_id.get(wc_shift.shift_id)
-                        if shift:
+                        if shift and shift.is_active:
                             shifts_by_day[wc_shift.day_of_week].append(
                                 (shift.start_time, shift.end_time)
                             )
@@ -330,7 +331,8 @@ class SchedulingDataManager:
                         cost_per_hour=int(wc.cost_per_hour),
                         capacity_per_hour=wc.capacity_per_hour,
                         shifts=shifts_by_day,
-                        number_of_workers_required=wc.number_of_workers_required
+                        number_of_workers_required=wc.number_of_workers_required,
+                        is_active=wc.is_active
                     )
     
     def _load_dependencies(self):
