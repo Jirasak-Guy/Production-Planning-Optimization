@@ -6,18 +6,33 @@ import { GanttData, GanttScheduleItem } from "@/app/types/Production";
 import { Shift } from "@/app/types/Shift";
 import { WorkCenterShift } from "@/app/types/WorkCenter";
 
-// Modern color palette - softer, more professional colors
+// Modern color palette - 25 distinct professional colors
 const PRODUCT_COLORS = [
     { bg: "#6366f1", border: "#4f46e5", text: "#ffffff" },   // Indigo
-    { bg: "#8b5cf6", border: "#7c3aed", text: "#ffffff" },   // Violet
-    { bg: "#06b6d4", border: "#0891b2", text: "#ffffff" },   // Cyan
+    { bg: "#ef4444", border: "#dc2626", text: "#ffffff" },   // Red
     { bg: "#10b981", border: "#059669", text: "#ffffff" },   // Emerald
     { bg: "#f59e0b", border: "#d97706", text: "#1f2937" },   // Amber
-    { bg: "#ef4444", border: "#dc2626", text: "#ffffff" },   // Red
+    { bg: "#8b5cf6", border: "#7c3aed", text: "#ffffff" },   // Violet
+    { bg: "#06b6d4", border: "#0891b2", text: "#ffffff" },   // Cyan
     { bg: "#ec4899", border: "#db2777", text: "#ffffff" },   // Pink
-    { bg: "#14b8a6", border: "#0d9488", text: "#ffffff" },   // Teal
     { bg: "#f97316", border: "#ea580c", text: "#ffffff" },   // Orange
+    { bg: "#14b8a6", border: "#0d9488", text: "#ffffff" },   // Teal
     { bg: "#84cc16", border: "#65a30d", text: "#1f2937" },   // Lime
+    { bg: "#e11d48", border: "#be123c", text: "#ffffff" },   // Rose
+    { bg: "#3b82f6", border: "#2563eb", text: "#ffffff" },   // Blue
+    { bg: "#a855f7", border: "#9333ea", text: "#ffffff" },   // Purple
+    { bg: "#22c55e", border: "#16a34a", text: "#ffffff" },   // Green
+    { bg: "#eab308", border: "#ca8a04", text: "#1f2937" },   // Yellow
+    { bg: "#0ea5e9", border: "#0284c7", text: "#ffffff" },   // Sky
+    { bg: "#d946ef", border: "#c026d3", text: "#ffffff" },   // Fuchsia
+    { bg: "#fb923c", border: "#f97316", text: "#1f2937" },   // Light Orange
+    { bg: "#2dd4bf", border: "#14b8a6", text: "#1f2937" },   // Light Teal
+    { bg: "#a3e635", border: "#84cc16", text: "#1f2937" },   // Light Lime
+    { bg: "#818cf8", border: "#6366f1", text: "#ffffff" },   // Light Indigo
+    { bg: "#f472b6", border: "#ec4899", text: "#ffffff" },   // Light Pink
+    { bg: "#38bdf8", border: "#0ea5e9", text: "#ffffff" },   // Light Sky
+    { bg: "#c084fc", border: "#a855f7", text: "#ffffff" },   // Light Purple
+    { bg: "#4ade80", border: "#22c55e", text: "#1f2937" },   // Light Green
 ];
 
 // Shift background colors - very subtle
@@ -140,9 +155,9 @@ export default function GanttPage() {
     const isScrollingSidebar = useRef(false);
     const isScrollingChart = useRef(false);
 
-    const ROW_HEIGHT = 56;
-    const HEADER_HEIGHT = 56;
-    const SIDEBAR_WIDTH = 220;
+    const ROW_HEIGHT = 40;
+    const HEADER_HEIGHT = 60;
+    const SIDEBAR_WIDTH = 240;
 
     useEffect(() => {
         loadData();
@@ -378,6 +393,48 @@ export default function GanttPage() {
     }, [operationGroups]);
 
     const totalHeight = flatRows.length * ROW_HEIGHT;
+
+    // Build a color map for products: each unique product_id gets a unique color index
+    const productColorMap = useMemo(() => {
+        const map = new Map<number, number>();
+        const uniqueProductIds = Array.from(
+            new Set(filteredSchedules.map((s) => s.product_id))
+        );
+        uniqueProductIds.forEach((pid, index) => {
+            map.set(pid, index);
+        });
+        return map;
+    }, [filteredSchedules]);
+
+    function getProductColorByMap(productId: number): typeof PRODUCT_COLORS[0] {
+        const index = productColorMap.get(productId) ?? 0;
+        return PRODUCT_COLORS[index % PRODUCT_COLORS.length];
+    }
+
+    // Conditional color: by PO (default) or by Product (when PO filter active)
+    const isPOFilterActive = selectedPOs.size > 0;
+
+    function getTaskColor(task: GanttScheduleItem): typeof PRODUCT_COLORS[0] {
+        if (isPOFilterActive) {
+            return getProductColorByMap(task.product_id);
+        }
+        return getProductColor(task.production_order_id);
+    }
+
+    // Unique products from filtered schedules for the legend
+    const uniqueProducts = useMemo(() => {
+        const map = new Map<number, { id: number; code: string; name: string }>();
+        filteredSchedules.forEach((s) => {
+            if (!map.has(s.product_id)) {
+                map.set(s.product_id, {
+                    id: s.product_id,
+                    code: s.product_code,
+                    name: s.product_name,
+                });
+            }
+        });
+        return Array.from(map.values());
+    }, [filteredSchedules]);
 
     const schedulesByOperationAndWorkCenter = useMemo(() => {
         if (!ganttData) return new Map<string, GanttScheduleItem[]>();
@@ -687,6 +744,25 @@ export default function GanttPage() {
 
                     {/* Right: Actions & Legend */}
                     <div className="flex items-center gap-3">
+                        {/* Product Color Legend */}
+                        {isPOFilterActive && uniqueProducts.length > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 flex-wrap max-w-[400px]">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Products</span>
+                                {uniqueProducts.map((product) => {
+                                    const color = getProductColorByMap(product.id);
+                                    return (
+                                        <div key={product.id} className="flex items-center gap-1.5" title={product.name}>
+                                            <div
+                                                className="w-3 h-3 rounded"
+                                                style={{ backgroundColor: color.bg }}
+                                            />
+                                            <span className="text-xs text-slate-600 font-medium">{product.code}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {/* Shift Legend */}
                         {uniqueUsedShifts.length > 0 && (
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
@@ -776,13 +852,10 @@ export default function GanttPage() {
                                             style={{ height: ROW_HEIGHT }}
                                         >
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-indigo-700 text-sm truncate flex items-center gap-1.5">
-                                                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                    </svg>
+                                                <div className="font-bold text-indigo-700 text-sm truncate">
                                                     {row.operation_code}
                                                 </div>
-                                                <div className="text-indigo-500 text-xs truncate pl-5">{row.operation_name}</div>
+                                                <div className="text-indigo-500 text-xs truncate">{row.operation_name}</div>
                                             </div>
                                         </div>
                                     );
@@ -796,14 +869,9 @@ export default function GanttPage() {
                                             style={{ height: ROW_HEIGHT }}
                                         >
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-semibold text-slate-800 text-sm truncate flex items-center gap-1.5">
-                                                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    </svg>
+                                                <div className="font-semibold text-slate-800 text-sm truncate">
                                                     {wc.code}
                                                 </div>
-                                                <div className="text-slate-500 text-xs truncate pl-5">{wc.name}</div>
                                             </div>
                                             <div className="flex items-center gap-1 text-slate-400 ml-2">
                                                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -843,18 +911,18 @@ export default function GanttPage() {
                                 return (
                                     <div
                                         key={index}
-                                        className={`flex-1 flex flex-col items-center justify-center border-r border-slate-100 transition-colors
+                                        className={`flex-1 flex flex-col items-center justify-center border-r border-slate-100 transition-colors min-w-0
                                             ${isHoliday ? "bg-red-50" : isToday ? "bg-indigo-50" : isWeekend ? "bg-slate-50" : "bg-white"}`}
                                     >
-                                        <div className={`text-[10px] font-medium uppercase tracking-wide ${isHoliday ? "text-red-400" : isToday ? "text-indigo-500" : "text-slate-400"}`}>
-                                            {date.toLocaleDateString("en-US", { weekday: "short" })}
-                                        </div>
-                                        <div className={`text-xl font-bold ${isHoliday ? "text-red-500" : isToday ? "text-indigo-600" : "text-slate-800"}`}>
+                                        <span className={`text-[10px] font-semibold uppercase tracking-wider ${isHoliday ? "text-red-500" : isToday ? "text-indigo-600" : "text-slate-500"}`}>
+                                            {daysToShow > 14 ? date.toLocaleDateString("en-US", { weekday: "narrow" }) : date.toLocaleDateString("en-US", { weekday: "short" })}
+                                        </span>
+                                        <span className={`text-sm font-bold ${isHoliday ? "text-red-600" : isToday ? "text-indigo-700" : "text-slate-800"}`}>
                                             {date.getDate()}
-                                        </div>
-                                        <div className={`text-[10px] ${isHoliday ? "text-red-400" : "text-slate-400"}`}>
-                                            {date.toLocaleDateString("en-US", { month: "short" })}
-                                        </div>
+                                        </span>
+                                        <span className={`text-[10px] font-medium ${isHoliday ? "text-red-400" : isToday ? "text-indigo-500" : "text-slate-400"}`}>
+                                            {daysToShow > 14 ? date.toLocaleDateString("en-US", { month: "numeric" }) : date.toLocaleDateString("en-US", { month: "short" })}
+                                        </span>
                                     </div>
                                 );
                             })}
@@ -944,7 +1012,7 @@ export default function GanttPage() {
 
                                                 if (!visible) return null;
 
-                                                const color = getProductColor(task.production_order_id);
+                                                const color = getTaskColor(task);
 
                                                 return (
                                                     <div
@@ -982,7 +1050,7 @@ export default function GanttPage() {
                             <div className="flex items-start gap-3 mb-4 pb-3 border-b border-slate-100">
                                 <div
                                     className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md"
-                                    style={{ backgroundColor: getProductColor(hoveredTask.production_order_id).bg }}
+                                    style={{ backgroundColor: getTaskColor(hoveredTask).bg }}
                                 >
                                     {hoveredTask.po_number.slice(-3)}
                                 </div>

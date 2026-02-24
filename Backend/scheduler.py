@@ -207,10 +207,10 @@ class ProductionScheduler:
         for key, tasks in self.product_tasks.items():
             production_id, product_id = key
             
-            if tasks:
-                self.model.add(tasks[0].start >= self.data.production_dates[production_id].release_minutes)
-            
             for task in tasks:
+                # Ensure no task starts before the production order's release date
+                self.model.add(task.start >= self.data.production_dates[production_id].release_minutes)
+                
                 current_routing_id = task.routing_id
                 
                 for (succ_id, pred_id), lag_time in self.data.operation_dependencies.items():
