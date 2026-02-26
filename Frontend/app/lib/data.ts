@@ -710,3 +710,35 @@ export async function updateSchedulerSettings(
 
   return response.json();
 }
+
+// =====================================================
+// PIVOT TASK (Mark tasks as completed)
+// =====================================================
+
+export interface PivotTaskResponse {
+  message: string;
+  pivot_schedule_id: number;
+  pivot_time: string;
+  updated_completed: number;
+  total_updated: number;
+}
+
+export async function pivotTask(
+  scheduleId: number,
+  productionOrderId?: number
+): Promise<PivotTaskResponse> {
+  const body = productionOrderId ? { production_order_id: productionOrderId } : {};
+
+  const response = await fetch(`${API_BASE_URL}/work-center-schedule/pivot/${scheduleId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to pivot task: ${error}`);
+  }
+
+  return response.json();
+}

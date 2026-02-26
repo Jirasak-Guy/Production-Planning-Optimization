@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { fetchGanttData, fetchShifts, fetchWorkCenterShifts } from "@/app/lib/data";
+import { fetchGanttData, fetchShifts, fetchWorkCenterShifts, pivotTask } from "@/app/lib/data";
 import { GanttData, GanttScheduleItem } from "@/app/types/Production";
 import { Shift } from "@/app/types/Shift";
 import { WorkCenterShift } from "@/app/types/WorkCenter";
@@ -148,10 +148,14 @@ export default function GanttPage() {
     const [daysToShow, setDaysToShow] = useState(7);
     const [selectedPOs, setSelectedPOs] = useState<Set<number>>(new Set());
     const [showPOFilter, setShowPOFilter] = useState(false);
+    const [contextMenu, setContextMenu] = useState<{ task: GanttScheduleItem; x: number; y: number } | null>(null);
+    const [pivotLoading, setPivotLoading] = useState(false);
+    const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
     const sidebarScrollRef = useRef<HTMLDivElement>(null);
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartScrollRef = useRef<HTMLDivElement>(null);
+    const contextMenuRef = useRef<HTMLDivElement>(null);
     const isScrollingSidebar = useRef(false);
     const isScrollingChart = useRef(false);
 
@@ -466,6 +470,7 @@ export default function GanttPage() {
                 if (
                     current.product_id === last.product_id &&
                     current.production_order_id === last.production_order_id &&
+                    current.status === last.status &&
                     isConsecutive
                 ) {
                     last.scheduled_end = current.scheduled_end;
@@ -500,6 +505,65 @@ export default function GanttPage() {
     const handleMouseLeave = () => {
         setHoveredTask(null);
     };
+
+    // Right-click context menu for pivot
+    const handleTaskRightClick = (e: React.MouseEvent, task: GanttScheduleItem) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setHoveredTask(null); // Hide tooltip
+
+        const MENU_WIDTH = 320;
+        const MENU_HEIGHT = 200;
+        let x = e.clientX;
+        let y = e.clientY;
+        if (x + MENU_WIDTH > window.innerWidth) x = e.clientX - MENU_WIDTH;
+        if (y + MENU_HEIGHT > window.innerHeight) y = e.clientY - MENU_HEIGHT;
+
+        setContextMenu({ task, x, y });
+    };
+
+    // Close context menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+                setContextMenu(null);
+            }
+        };
+        if (contextMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [contextMenu]);
+
+    // Execute pivot
+    const handlePivot = async (task: GanttScheduleItem) => {
+        setPivotLoading(true);
+        try {
+            const result = await pivotTask(task.id);
+            setContextMenu(null);
+            setToastMessage({
+                text: `✅ อัปเดต ${result.updated_completed} งานเป็น Completed สำเร็จ`,
+                type: 'success'
+            });
+            // Reload data
+            await loadData();
+        } catch (err) {
+            setToastMessage({
+                text: `❌ เกิดข้อผิดพลาด: ${err instanceof Error ? err.message : 'Unknown error'}`,
+                type: 'error'
+            });
+        } finally {
+            setPivotLoading(false);
+        }
+    };
+
+    // Auto-hide toast
+    useEffect(() => {
+        if (toastMessage) {
+            const timer = setTimeout(() => setToastMessage(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMessage]);
 
     const handleZoomIn = () => {
         setDaysToShow(prev => Math.max(1, prev - 1));
@@ -589,7 +653,7 @@ export default function GanttPage() {
                         <div>
                             <h1 className="text-lg font-bold text-slate-800">Production Schedule</h1>
                             <p className="text-xs text-slate-500">
-                                {filteredSchedules.length} tasks • {ganttData.work_centers.length} work centers
+                                {filteredSchedules.length} tasks • {filteredSchedules.filter(s => s.status === "completed").length} completed • {ganttData.work_centers.length} work centers
                             </p>
                         </div>
 
@@ -1013,20 +1077,39 @@ export default function GanttPage() {
                                                 if (!visible) return null;
 
                                                 const color = getTaskColor(task);
+                                                const isCompleted = task.status === "completed";
 
                                                 return (
                                                     <div
                                                         key={task.id}
-                                                        className="absolute top-1 bottom-1 cursor-pointer"
+                                                        className="absolute top-1 bottom-1 cursor-pointer overflow-hidden"
                                                         style={{
                                                             left,
                                                             width,
-                                                            backgroundColor: color.bg,
-                                                            border: '1px solid #000',
+                                                            backgroundColor: isCompleted ? `${color.bg}99` : color.bg,
+                                                            border: isCompleted ? `1px solid ${color.border}88` : '1px solid #000',
+                                                            opacity: isCompleted ? 0.65 : 1,
                                                         }}
                                                         onMouseMove={(e) => handleMouseMove(e, task)}
                                                         onMouseLeave={handleMouseLeave}
-                                                    />
+                                                        onContextMenu={(e) => handleTaskRightClick(e, task)}
+                                                    >
+                                                        {/* Completed stripe overlay */}
+                                                        {isCompleted && (
+                                                            <div
+                                                                className="absolute inset-0"
+                                                                style={{
+                                                                    backgroundImage: `repeating-linear-gradient(
+                                                                        -45deg,
+                                                                        transparent,
+                                                                        transparent 3px,
+                                                                        rgba(255,255,255,0.35) 3px,
+                                                                        rgba(255,255,255,0.35) 6px
+                                                                    )`,
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
                                                 );
                                             })}
                                         </div>
@@ -1037,6 +1120,96 @@ export default function GanttPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Context Menu (Right-click) */}
+            {contextMenu && (
+                <div
+                    ref={contextMenuRef}
+                    className="fixed z-[60] animate-in fade-in zoom-in-95 duration-150"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-2xl min-w-[300px] overflow-hidden">
+                        {/* Menu Header */}
+                        <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="font-bold text-slate-800 text-sm">Marking Completed</span>
+                            </div>
+                        </div>
+
+                        {/* Task Info */}
+                        <div className="px-4 py-3 space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-400">Task</span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                    {contextMenu.task.po_number} • {contextMenu.task.operation_name}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-400">Work Center</span>
+                                <span className="text-xs text-slate-700">{contextMenu.task.work_center_code}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-400">Pivot Time</span>
+                                <span className="text-xs font-medium text-amber-700">{formatDateTime(contextMenu.task.scheduled_start)}</span>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="px-4 py-3 border-t border-slate-100 flex gap-2">
+                            <button
+                                onClick={() => handlePivot(contextMenu.task)}
+                                disabled={pivotLoading}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white text-sm font-medium rounded-lg transition-all shadow-sm"
+                            >
+                                {pivotLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Marking...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Mark Completed
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setContextMenu(null)}
+                                className="px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 text-sm font-medium rounded-lg transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div className={`fixed bottom-6 right-6 z-[70] animate-in slide-in-from-bottom-4 fade-in duration-300 max-w-sm`}>
+                    <div className={`px-4 py-3 rounded-xl shadow-lg border ${toastMessage.type === 'success'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-red-50 border-red-200 text-red-800'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{toastMessage.text}</span>
+                            <button
+                                onClick={() => setToastMessage(null)}
+                                className="ml-auto text-current opacity-50 hover:opacity-100"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Tooltip */}
             {

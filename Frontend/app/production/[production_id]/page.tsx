@@ -285,6 +285,8 @@ export default function ProductionDetailPage({
   const getScheduleStatusColor = (status?: string) => {
     if (!status) return "bg-gray-100 text-gray-700 border-gray-200";
     switch (status) {
+      case "completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "scheduled": return "bg-indigo-100 text-indigo-700 border-indigo-200";
       case "Optimizing": return "bg-yellow-100 text-yellow-700 border-yellow-200 animate-pulse";
       case "OPTIMAL": return "bg-green-100 text-green-700 border-green-200";
       case "FEASIBLE": return "bg-blue-100 text-blue-700 border-blue-200";
