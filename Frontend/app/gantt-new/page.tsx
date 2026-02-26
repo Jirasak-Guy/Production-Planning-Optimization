@@ -326,7 +326,7 @@ export default function GanttNewPage() {
             .forEach((po) => {
                 const workCenters = ganttData.work_centers
                     .filter((wc) => po.work_center_ids.has(wc.id))
-                    .sort((a, b) => a.code.localeCompare(b.code));
+                    .sort((a, b) => a.id - b.id);
 
                 groups.push({
                     production_order_id: po.production_order_id,
@@ -476,10 +476,6 @@ export default function GanttNewPage() {
         try {
             const result = await pivotTask(task.id);
             setContextMenu(null);
-            setToastMessage({
-                text: `✅ อัปเดต ${result.updated_completed} งานเป็น Completed สำเร็จ`,
-                type: 'success'
-            });
             await loadData();
         } catch (err) {
             setToastMessage({

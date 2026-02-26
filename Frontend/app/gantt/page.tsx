@@ -541,10 +541,6 @@ export default function GanttPage() {
         try {
             const result = await pivotTask(task.id);
             setContextMenu(null);
-            setToastMessage({
-                text: `✅ อัปเดต ${result.updated_completed} งานเป็น Completed สำเร็จ`,
-                type: 'success'
-            });
             // Reload data
             await loadData();
         } catch (err) {
