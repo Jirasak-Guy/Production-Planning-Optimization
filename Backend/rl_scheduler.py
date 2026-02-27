@@ -68,7 +68,7 @@ class RLSchedulerInference:
     TASK_FEAT = 7          # จำนวน feature ต่อ task
     MACHINE_FEAT = 4       # จำนวน feature ต่อ machine
 
-    def __init__(self, data: SchedulingDataManager, max_workers: int = 600, max_shift_duration: int = 120):
+    def __init__(self, data: SchedulingDataManager, max_workers: int = 600, max_shift_duration: int = 60):
         self.data = data
         self.max_workers = max_workers
         self.max_shift_duration = max_shift_duration
@@ -215,13 +215,19 @@ class RLSchedulerInference:
 
         return sorted_routings
 
-    def build_tasks_for_po(self, po_id: int):
+    def build_tasks_for_po(self, po_id: int, skip_operation_ids: set = None, min_release_time: int = 0):
         """สร้างรายการ task สำหรับ PO เดียว
         ล้าง task เก่าทิ้งและสร้างใหม่จากข้อมูลจริง
         เรียง routing ตาม dependency (topological sort)
-        ถ้าเวลาผลิตเกิน max_shift_duration จะแบ่งเป็นหลาย chunk (เหมือน CP-SAT)"""
+        ถ้าเวลาผลิตเกิน max_shift_duration จะแบ่งเป็นหลาย chunk (เหมือน CP-SAT)
+        
+        Args:
+            skip_operation_ids: set of operation IDs to skip (e.g. completed operations)
+            min_release_time: minimum release time in minutes (e.g. latest completed task end)"""
         dm = self.data
         self.tasks = []
+        if skip_operation_ids is None:
+            skip_operation_ids = set()
 
         # แม็ป (job_key, routing_id) -> global_idx ของ chunk สุดท้าย
         task_key_to_idx: Dict[Tuple, int] = {}
@@ -236,6 +242,12 @@ class RLSchedulerInference:
 
             for r_idx, routing in enumerate(sorted_routing):
                 op_id = routing.operation_id
+                
+                # ข้าม operation ที่ completed แล้ว
+                if op_id in skip_operation_ids:
+                    print(f"  [RL] ข้าม operation {op_id} (completed) สำหรับ PO {po_id}")
+                    continue
+                
                 setup = routing.setup_time_minutes
                 qty = job.quantity
 
@@ -266,17 +278,19 @@ class RLSchedulerInference:
                     # แบ่งงานเป็นหลาย chunk (เหมือน CP-SAT _build_split_task)
                     num_chunks = (max_pt + self.max_shift_duration - 1) // self.max_shift_duration
                     prev_chunk_idx = None
+                    # ติดตาม remaining ต่อ WC สำหรับ front-loaded chunking (เหมือน CP-SAT)
+                    remaining_per_wc = dict(raw_pts)
 
                     for chunk_i in range(num_chunks):
                         chunk_g_idx = len(self.tasks)
 
                         # คำนวณเวลาผลิตของแต่ละ chunk สำหรับแต่ละ WC
+                        # ใช้ front-loaded: เติมเต็ม max_shift_duration จากหน้า → chunk สุดท้ายเหลือเศษ
+                        # (เหมือน CP-SAT _build_split_task)
                         chunk_proc_times: Dict[int, int] = {}
-                        for wc_id, raw_pt in raw_pts.items():
-                            # แบ่งเวลาเท่าๆ กันทุก chunk
-                            base_chunk = raw_pt // num_chunks
-                            remainder = raw_pt % num_chunks
-                            chunk_pt = base_chunk + (1 if chunk_i < remainder else 0)
+                        for wc_id in raw_pts:
+                            chunk_pt = min(remaining_per_wc[wc_id], self.max_shift_duration)
+                            remaining_per_wc[wc_id] -= chunk_pt
 
                             if chunk_i == 0:
                                 # chunk แรกรวมเวลา setup
@@ -302,8 +316,10 @@ class RLSchedulerInference:
                             due_date=0,
                         )
                         if po_id in dm.production_dates:
-                            chunk_task.release_time = dm.production_dates[po_id].release_minutes
+                            chunk_task.release_time = max(dm.production_dates[po_id].release_minutes, min_release_time)
                             chunk_task.due_date = dm.production_dates[po_id].due_minutes
+                        elif min_release_time > 0:
+                            chunk_task.release_time = min_release_time
 
                         self.tasks.append(chunk_task)
                         prev_chunk_idx = chunk_g_idx
@@ -329,8 +345,10 @@ class RLSchedulerInference:
                         due_date=0,
                     )
                     if po_id in dm.production_dates:
-                        task.release_time = dm.production_dates[po_id].release_minutes
+                        task.release_time = max(dm.production_dates[po_id].release_minutes, min_release_time)
                         task.due_date = dm.production_dates[po_id].due_minutes
+                    elif min_release_time > 0:
+                        task.release_time = min_release_time
                     task_key_to_idx[(key, routing.id)] = g_idx
                     self.tasks.append(task)
 
@@ -385,6 +403,10 @@ class RLSchedulerInference:
         self.n_scheduled = 0
         self.current_makespan = 0
         self._cached_valid_actions = None
+        # ติดตาม WC ที่ถูกจองโดย job: wc_id -> set of job_keys ที่มี task อยู่บน WC นี้
+        self._wc_active_jobs: Dict[int, Set[Tuple]] = defaultdict(set)
+        # เวลาเริ่มต้นขั้นต่ำต่อ WC (ป้องกันการแทรกงานในช่องว่างระหว่าง existing blocks)
+        self._min_start_per_wc: Dict[int, int] = {m: 0 for m in self.machines}
 
         # 1) โหลด block จาก DB (PO อื่นที่ไม่ได้อยู่ใน batch นี้)
         for block in self.data.existing_schedule_blocks:
@@ -396,6 +418,11 @@ class RLSchedulerInference:
                     self.machine_available[block.work_center_id],
                     block.end_minutes
                 )
+                # บังคับให้งานใหม่เริ่มหลังจาก existing block (ไม่แทรก)
+                self._min_start_per_wc[block.work_center_id] = max(
+                    self._min_start_per_wc[block.work_center_id],
+                    block.end_minutes
+                )
 
         # 2) เพิ่ม block จาก PO ที่จัดตารางแล้วใน batch เดียวกัน
         if extra_blocks:
@@ -405,15 +432,43 @@ class RLSchedulerInference:
                     self.machine_available[wc_id] = max(
                         self.machine_available[wc_id], e
                     )
+                    # บังคับให้งานใหม่เริ่มหลังจาก extra block (ไม่แทรก)
+                    self._min_start_per_wc[wc_id] = max(
+                        self._min_start_per_wc[wc_id], e
+                    )
 
         # เรียง timeline ทีเดียว (ไม่ต้อง sort ทุกครั้งที่เพิ่ม)
         for wc_id in self.machine_timeline:
             self.machine_timeline[wc_id].sort()
 
+    def _compute_reserved_wcs(self) -> Dict[int, Tuple]:
+        """คำนวณ WC ที่ถูกจอง: WC ถูกจองโดย job_key ถ้า
+        1) job มี task ที่จัดแล้วบน WC นี้
+        2) job ยังมี task ที่ยังไม่จัดที่ใช้ WC นี้ได้
+        → ห้าม job อื่นใช้ WC นี้จนกว่า job นี้จะเสร็จ (ป้องกัน interleaving)"""
+        reserved: Dict[int, Tuple] = {}  # wc_id -> job_key ที่จอง
+
+        # หา job ที่มี task จัดแล้วบนแต่ละ WC
+        for wc_id, job_keys in self._wc_active_jobs.items():
+            for jk in job_keys:
+                # เช็คว่า job นี้ยังมี task ที่ยังไม่จัดที่ใช้ WC นี้ได้หรือไม่
+                has_pending = any(
+                    t.job_key == jk
+                    and self.scheduled[t.global_idx] is None
+                    and wc_id in t.processing_times
+                    for t in self.tasks
+                )
+                if has_pending:
+                    reserved[wc_id] = jk
+        return reserved
+
     def get_valid_actions(self) -> List[Tuple[int, int]]:
         """หา action ที่ทำได้: task ที่ยังไม่ได้จัดและ predecessor/BOM ทำเสร็จแล้ว
         ถ้าเป็น chunk ที่ 2+ ของ routing เดียวกัน จะบังคับให้ใช้ WC เดียวกับ chunk แรก
-        (เหมือน CP-SAT ที่ทุก chunk ใช้ is_selected ร่วมกัน)"""
+        (เหมือน CP-SAT ที่ทุก chunk ใช้ is_selected ร่วมกัน)
+        ห้ามใช้ WC ที่ job อื่นยังทำไม่เสร็จ (ป้องกัน interleaving)"""
+        reserved = self._compute_reserved_wcs()
+
         valid = []
         for task in self.tasks:
             if self.scheduled[task.global_idx] is not None:
@@ -440,6 +495,43 @@ class RLSchedulerInference:
                     forced_wc = self.scheduled[pred_idx].machine_id
                     break
 
+            if forced_wc is not None and forced_wc in task.processing_times:
+                valid.append((task.global_idx, forced_wc))
+            else:
+                for wc_id in task.processing_times:
+                    # ห้ามใช้ WC ที่ job อื่นจองอยู่
+                    if wc_id in reserved and reserved[wc_id] != task.job_key:
+                        continue
+                    valid.append((task.global_idx, wc_id))
+
+        # Fallback: ถ้าไม่มี valid actions เลย (deadlock จาก reservation)
+        # → ยกเลิก reservation แล้วหาใหม่
+        if not valid:
+            valid = self._get_valid_actions_no_reservation()
+        return valid
+
+    def _get_valid_actions_no_reservation(self) -> List[Tuple[int, int]]:
+        """Fallback: หา valid actions โดยไม่สนใจ reservation (กัน deadlock)"""
+        valid = []
+        for task in self.tasks:
+            if self.scheduled[task.global_idx] is not None:
+                continue
+            preds_done = all(
+                self.scheduled[p] is not None for p, _lag in task.predecessors
+            )
+            bom_done = all(
+                self.scheduled[p] is not None for p in task.bom_parents
+            )
+            if not preds_done or not bom_done:
+                continue
+            forced_wc = None
+            for pred_idx, _lag in task.predecessors:
+                pred_task = self.tasks[pred_idx]
+                if (pred_task.routing_id == task.routing_id
+                        and pred_task.job_key == task.job_key
+                        and self.scheduled[pred_idx] is not None):
+                    forced_wc = self.scheduled[pred_idx].machine_id
+                    break
             if forced_wc is not None and forced_wc in task.processing_times:
                 valid.append((task.global_idx, forced_wc))
             else:
@@ -497,6 +589,59 @@ class RLSchedulerInference:
             t = day_base + 1440  # ข้ามไปวันถัดไป
         return max_t
 
+    def _has_contiguous_shift_capacity(self, wc_id: int, start: int, duration: int) -> bool:
+        """ตรวจว่ามีเวลากะต่อเนื่อง (ไม่มีช่องว่างระหว่างกะ) เพียงพอสำหรับ duration หรือไม่
+        กะที่ต่อเนื่อง = กะถัดไปเริ่มทันทีที่กะปัจจุบันจบ (ไม่มี gap)
+        ถ้าเวลาเหลือไม่พอและกะไม่ติดกัน → คืน False (ให้ข้ามไปกะถัดไป)
+        เลียนแบบพฤติกรรม OR-Tools ที่ใช้ break intervals กั้นช่วงนอกกะ"""
+        remaining = duration
+        t = start
+        max_t = start + duration * 10  # safety limit
+
+        while remaining > 0 and t < max_t:
+            day_base = (t // 1440) * 1440
+            day_idx = day_base // 1440
+
+            if day_idx in self.holidays:
+                return False  # วันหยุดตัดความต่อเนื่อง
+
+            time_in_day = t % 1440
+            shifts = self._get_shifts_for(wc_id, t)
+
+            # หากะที่ t อยู่
+            in_shift = False
+            for sw in shifts:
+                if sw.start_min <= time_in_day < sw.end_min:
+                    available = (day_base + sw.end_min) - t
+                    if remaining <= available:
+                        return True  # เวลาพอในกะนี้
+                    remaining -= available
+                    t = day_base + sw.end_min
+                    in_shift = True
+                    break
+
+            if not in_shift:
+                return False  # ไม่อยู่ในกะ = ไม่ต่อเนื่อง
+
+            # ตรวจว่ากะถัดไปเริ่มต่อเนื่องจากจุดนี้หรือไม่
+            next_time_in_day = t % 1440
+            if next_time_in_day == 0:
+                # ข้ามวัน (กะจบที่ 24:00) → ตรวจวันถัดไปที่ loop ถัดไป
+                continue
+
+            # ตรวจว่ามีกะในวันเดียวกันที่เริ่มตรงจุดนี้
+            next_shift_starts = False
+            for sw in self._get_shifts_for(wc_id, t):
+                if sw.start_min == next_time_in_day:
+                    next_shift_starts = True
+                    break
+                if sw.start_min > next_time_in_day:
+                    break
+            if not next_shift_starts:
+                return False  # มีช่องว่างระหว่างกะ → ไม่ต่อเนื่อง
+
+        return remaining <= 0
+
     def _compute_actual_end(self, wc_id: int, start: int, duration: int) -> int:
         """คำนวณนาทีสิ้นสุดจริงบนปฏิทิน โดยนับเฉพาะเวลาในกะทำงาน
         เช่น งาน 120 นาที เริ่มใกล้หมดกะ → หยุดข้ามคืน → ทำต่อกะหน้า"""
@@ -534,9 +679,13 @@ class RLSchedulerInference:
 
     def find_feasible_slot(self, wc_id: int, earliest: int, duration: int) -> int:
         """หานาทีเริ่มต้นเร็วสุดที่ว่างบน WC นี้
-        ต้องอยู่ในกะ + ไม่ซ้อนกับงานที่มีอยู่แล้ว
-        ใช้ binary search + เช็คซ้อนทับแบบถูก→แพง"""
-        t = earliest
+        ต้องอยู่ในกะ + ไม่ซ้อนกับงานที่มีอยู่แล้ว + มีเวลากะต่อเนื่องเพียงพอ
+        ถ้าเวลาเหลือในกะไม่พอและกะถัดไปไม่ติดกัน → ข้ามไปกะถัดไป (เหมือน OR-Tools)
+        ใช้ binary search + เช็คซ้อนทับแบบถูก→แพง
+        บังคับเริ่มหลัง existing blocks (ไม่แทรกงานในช่องว่าง)"""
+        # บังคับให้เริ่มหลังจาก existing blocks บน WC นี้ (ป้องกันการแทรก)
+        min_start = self._min_start_per_wc.get(wc_id, 0)
+        t = max(earliest, min_start)
         max_t = self.horizon_minutes
         timeline = self.machine_timeline.get(wc_id, [])
         max_iterations = len(timeline) * 4 + 500
@@ -549,6 +698,16 @@ class RLSchedulerInference:
                 continue
             if not self._is_in_shift(wc_id, t):
                 t = self._next_shift_start(wc_id, t)
+                continue
+
+            # ตรวจว่ามีเวลากะต่อเนื่อง (ไม่มีช่องว่าง) เพียงพอสำหรับ duration หรือไม่
+            # ถ้าเวลาเหลือไม่พอและกะไม่ติดกัน → ข้ามไปกะถัดไป (เหมือน OR-Tools break intervals)
+            if not self._has_contiguous_shift_capacity(wc_id, t, duration):
+                shift_end = self._get_shift_end_at(wc_id, t)
+                if shift_end > t:
+                    t = self._next_shift_start(wc_id, shift_end)
+                else:
+                    t = self._next_shift_start(wc_id, t + 1)
                 continue
 
             # binary search: หา block แรกที่ end > t
@@ -633,7 +792,16 @@ class RLSchedulerInference:
                             duration += setup
                     break
 
-        start = self.get_earliest_start(task_idx, wc_id)
+        # หา slot ที่พอสำหรับ duration จริง (ซึ่งอาจรวม setup เพิ่มจาก gap แล้ว)
+        earliest = 0
+        for p, lag in task.predecessors:
+            if self.scheduled[p] is not None:
+                earliest = max(earliest, self.scheduled[p].end + lag)
+        for p in task.bom_parents:
+            if self.scheduled[p] is not None:
+                earliest = max(earliest, self.scheduled[p].end)
+        earliest = max(earliest, task.release_time)
+        start = self.find_feasible_slot(wc_id, earliest, duration)
         end = self._compute_actual_end(wc_id, start, duration)
 
         self.scheduled[task_idx] = ScheduledResult(
@@ -649,6 +817,9 @@ class RLSchedulerInference:
         work_segments = self._split_into_shift_segments(wc_id, start, end)
         for seg_start, seg_end in work_segments:
             bisect.insort(self.machine_timeline[wc_id], (seg_start, seg_end))
+
+        # อัปเดต WC reservation: จำว่า job นี้มี task บน WC นี้
+        self._wc_active_jobs[wc_id].add(task.job_key)
 
         # เก็บไว้สำหรับคำนวณ observation (ไม่ได้ใช้ใน get_earliest_start)
         self.machine_available[wc_id] = max(self.machine_available.get(wc_id, 0), end)
@@ -732,22 +903,18 @@ class RLSchedulerInference:
         if len(candidates) == 1:
             return candidates[0]
 
-        # ประมาณแบบเร็ว: machine_available + duration (ไม่ต้องคำนวณกะทุกตัว)
+        # เลือก machine ที่ทำให้ makespan รวมเพิ่มน้อยสุด (Projected Makespan)
         best = None
-        best_est = float('inf')
+        best_makespan = float('inf')
         for (t_idx, m_id) in candidates:
             task = self.tasks[t_idx]
             duration = task.processing_times.get(m_id, 60)
-            earliest = self.machine_available.get(m_id, 0)
-            for p, _lag in task.predecessors:
-                if self.scheduled[p] is not None:
-                    earliest = max(earliest, self.scheduled[p].end)
-            for p in task.bom_parents:
-                if self.scheduled[p] is not None:
-                    earliest = max(earliest, self.scheduled[p].end)
-            est_end = earliest + duration
-            if est_end < best_est:
-                best_est = est_end
+            start = self.get_earliest_start(t_idx, m_id)
+            end = self._compute_actual_end(m_id, start, duration)
+            projected_makespan = max(end, self.current_makespan)
+
+            if projected_makespan < best_makespan:
+                best_makespan = projected_makespan
                 best = (t_idx, m_id)
         return best or valid_actions[0]
 
@@ -759,6 +926,10 @@ class RLSchedulerInference:
         schedule_data = []
         for result in self.scheduled:
             if result is None:
+                continue
+            # ข้าม chunk ที่ duration = 0 (เกิดจาก WC ที่ processing time น้อยกว่า max_shift_duration
+            # แต่ถูกแบ่ง chunk ตาม WC อื่นที่ต้องการหลาย chunk)
+            if result.start >= result.end:
                 continue
             task = self.tasks[result.global_idx]
             op_id = self.data.get_operation_id_from_routing(task.routing_id)
@@ -816,8 +987,8 @@ class RLSchedulerInference:
             if seg_end > t:
                 segments.append((t, seg_end))
             t = seg_end
-        if not segments:
-            segments.append((start, end))  # fallback
+        if not segments and start < end:
+            segments.append((start, end))  # fallback เฉพาะกรณีที่มี duration จริง
         return segments
 
     def _find_shift_id_for_segment(self, wc_id: int, minute: int) -> Optional[int]:
@@ -847,7 +1018,7 @@ def run_rl_scheduling(
     engine,
     production_ids: List[int],
     model_path: str = "rl_jssp_scheduler",
-    max_shift_duration: int = 120,
+    max_shift_duration: int = 60,
     max_workers: int = 600,
     save_to_db: bool = True,
 ) -> ScheduleResult:
@@ -898,8 +1069,18 @@ def run_rl_scheduling(
         po_name = data.po_names.get(po_id, f"PO-{po_id}")
         print(f"\n  [RL] === จัดตาราง PO: {po_name} (id={po_id}, priority={po.priority}) ===")
 
-        # สร้าง task สำหรับ PO นี้
-        scheduler.build_tasks_for_po(po_id)
+        # ดึง operation ที่ completed แล้ว + เวลาจบล่าสุดของงาน completed
+        completed_ops, completed_end_minutes = data.get_completed_operation_ids(po_id)
+        if completed_ops:
+            print(f"  [RL] ข้าม {len(completed_ops)} operations ที่ completed แล้ว: {completed_ops}")
+            print(f"  [RL] งาน completed จบเวลา: {completed_end_minutes} นาที → งานใหม่จะเริ่มหลังจากนี้")
+
+        # สร้าง task สำหรับ PO นี้ (ข้าม operations ที่ completed, เริ่มหลังงาน completed)
+        scheduler.build_tasks_for_po(
+            po_id, 
+            skip_operation_ids=completed_ops,
+            min_release_time=completed_end_minutes
+        )
 
         if not scheduler.tasks:
             print(f"  [RL] ไม่มี task สำหรับ PO {po_name} ข้าม")
@@ -938,12 +1119,20 @@ def run_rl_scheduling(
         po_schedule_data = scheduler.to_schedule_data()
         all_schedule_data.extend(po_schedule_data)
 
-        # เพิ่ม block ของ PO นี้เข้า accumulated_blocks สำหรับ PO ถัดไป
+        # เพิ่ม span block ของแต่ละ WC ที่ PO นี้ใช้ (min_start → max_end)
+        # ป้องกัน PO ถัดไปจากการแทรกงานในช่วง span ของ PO นี้
+        # (เหมือน CP-SAT span_interval + no_overlap constraint)
+        wc_spans: Dict[int, Tuple[int, int]] = {}
         for result in scheduler.scheduled:
             if result is not None:
-                accumulated_blocks.append(
-                    (result.machine_id, result.start, result.end)
-                )
+                wc_id = result.machine_id
+                if wc_id not in wc_spans:
+                    wc_spans[wc_id] = (result.start, result.end)
+                else:
+                    s, e = wc_spans[wc_id]
+                    wc_spans[wc_id] = (min(s, result.start), max(e, result.end))
+        for wc_id, (s, e) in wc_spans.items():
+            accumulated_blocks.append((wc_id, s, e))
 
     solve_time = time_module.time() - start_time
 

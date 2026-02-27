@@ -12,7 +12,6 @@ import { ProductionOrder } from "@/app/types/Production";
 import {
     fetchProductionOrders,
     scheduleWithRL,
-    scheduleProductionOrder,
     updateProductionOrder,
     fetchSchedulerSettings,
     clearProductionSchedule,
@@ -29,7 +28,6 @@ type SortKey =
     | "status"
     | "schedule_status";
 type SortDir = "asc" | "desc";
-type SolverType = "rl" | "cpsat";
 
 export default function ReschedulePage() {
     const router = useRouter();
@@ -41,7 +39,6 @@ export default function ReschedulePage() {
     const [selectedPoIds, setSelectedPoIds] = useState<Set<number>>(new Set());
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
-    const [solver, setSolver] = useState<SolverType>("rl");
     const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({
         max_workers: 600,
         time_limit_seconds: 60,
@@ -153,27 +150,17 @@ export default function ReschedulePage() {
                 prev.map((po) => (selectedPoIds.has(po.id) ? { ...po, schedule_status: "Optimizing" } : po))
             );
 
-            let result: ScheduleResponse;
-
-            if (solver === "rl") {
-                result = await scheduleWithRL(ids, {
-                    maxWorkers: schedulerSettings.max_workers,
-                    saveToDb: true,
-                });
-            } else {
-                result = await scheduleProductionOrder(ids, {
-                    maxWorkers: schedulerSettings.max_workers,
-                    timeLimitSeconds: schedulerSettings.time_limit_seconds,
-                    saveToDb: true,
-                });
-            }
+            const result: ScheduleResponse = await scheduleWithRL(ids, {
+                maxWorkers: schedulerSettings.max_workers,
+                saveToDb: true,
+            });
 
             setLastResult({
                 status: result.status,
                 message: result.message,
                 makespan: result.makespan,
                 solve_time: result.solve_time_seconds,
-                solver: solver === "rl" ? "RL (PPO)" : "CP-SAT",
+                solver: "RL (PPO)",
             });
 
             await loadData();
@@ -185,7 +172,7 @@ export default function ReschedulePage() {
                 message: error instanceof Error ? error.message : "Unknown error",
                 makespan: null,
                 solve_time: null,
-                solver: solver === "rl" ? "RL (PPO)" : "CP-SAT",
+                solver: "RL (PPO)",
             });
             await loadData();
         } finally {
@@ -297,7 +284,7 @@ export default function ReschedulePage() {
                         <div>
                             <h1 className="text-xl font-bold text-gray-900">Reschedule</h1>
                             <p className="text-sm text-gray-500">
-                                Reschedule production orders using RL or CP-SAT solver
+                                Reschedule production orders using RL model (completed tasks are preserved)
                             </p>
                         </div>
                     </div>
@@ -336,17 +323,17 @@ export default function ReschedulePage() {
                         {/* Result Banner */}
                         {lastResult && (
                             <div className={`mb-4 rounded-lg border p-4 ${lastResult.status === "OPTIMAL" || lastResult.status === "FEASIBLE"
-                                    ? "bg-green-50 border-green-200"
-                                    : lastResult.status === "error" || lastResult.status === "INFEASIBLE"
-                                        ? "bg-red-50 border-red-200"
-                                        : "bg-blue-50 border-blue-200"
+                                ? "bg-green-50 border-green-200"
+                                : lastResult.status === "error" || lastResult.status === "INFEASIBLE"
+                                    ? "bg-red-50 border-red-200"
+                                    : "bg-blue-50 border-blue-200"
                                 }`}>
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className={`inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full ${lastResult.status === "OPTIMAL" ? "bg-green-100 text-green-800" :
-                                                    lastResult.status === "FEASIBLE" ? "bg-blue-100 text-blue-800" :
-                                                        "bg-red-100 text-red-800"
+                                                lastResult.status === "FEASIBLE" ? "bg-blue-100 text-blue-800" :
+                                                    "bg-red-100 text-red-800"
                                                 }`}>
                                                 {lastResult.status}
                                             </span>
@@ -385,27 +372,6 @@ export default function ReschedulePage() {
                                             : "Select POs to reschedule"}
                                     </span>
 
-                                    {/* Solver Toggle */}
-                                    <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden text-sm">
-                                        <button
-                                            onClick={() => setSolver("rl")}
-                                            className={`px-3 py-1.5 font-medium transition-colors ${solver === "rl"
-                                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
-                                                    : "text-gray-600 hover:bg-gray-50"
-                                                }`}
-                                        >
-                                            🤖 RL Model
-                                        </button>
-                                        <button
-                                            onClick={() => setSolver("cpsat")}
-                                            className={`px-3 py-1.5 font-medium transition-colors ${solver === "cpsat"
-                                                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
-                                                    : "text-gray-600 hover:bg-gray-50"
-                                                }`}
-                                        >
-                                            ⚡ CP-SAT
-                                        </button>
-                                    </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
@@ -414,8 +380,8 @@ export default function ReschedulePage() {
                                         onClick={handleClearSelected}
                                         disabled={selectedPoIds.size === 0 || isClearing || isCurrentlyOptimizing}
                                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isClearing || isCurrentlyOptimizing
-                                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                : "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100"
+                                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            : "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100"
                                             }`}
                                     >
                                         {isClearing ? (
@@ -439,10 +405,8 @@ export default function ReschedulePage() {
                                         onClick={handleReschedule}
                                         disabled={selectedPoIds.size === 0 || isCurrentlyOptimizing || isClearing}
                                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedPoIds.size === 0 || isCurrentlyOptimizing || isClearing
-                                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                : solver === "rl"
-                                                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-sm hover:shadow-md"
-                                                    : "bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 shadow-sm hover:shadow-md"
+                                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-sm hover:shadow-md"
                                             }`}
                                     >
                                         {isCurrentlyOptimizing ? (
@@ -458,7 +422,7 @@ export default function ReschedulePage() {
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
-                                                Reschedule {solver === "rl" ? "(RL)" : "(CP-SAT)"}
+                                                Reschedule (RL)
                                             </>
                                         )}
                                     </button>

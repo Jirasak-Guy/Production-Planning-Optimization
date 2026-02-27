@@ -551,7 +551,7 @@ class ProductionScheduler:
 def run_scheduling(
     engine,
     production_ids: List[int],
-    max_shift_duration: int = 120,
+    max_shift_duration: int = 60,
     max_workers: int = 600,
     time_limit_seconds: int = 60,
     save_to_db: bool = True

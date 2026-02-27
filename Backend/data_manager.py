@@ -146,11 +146,11 @@ class SchedulingDataManager:
         self.existing_schedule_blocks = []
         
         with Session(self.engine) as session:
-            # Get all scheduled (not completed/cancelled) records except the ones we're optimizing
+            # Get all scheduled/completed/in-progress records except the ones we're optimizing
             existing = session.exec(
                 select(WorkCenterSchedule).where(
                     WorkCenterSchedule.production_order_id.notin_(exclude_po_ids),
-                    WorkCenterSchedule.status.in_(["scheduled", "in-progress"])
+                    WorkCenterSchedule.status.in_(["scheduled", "in-progress", "completed"])
                 )
             ).all()
             
@@ -486,3 +486,33 @@ class SchedulingDataManager:
                     po.schedule_status = status
                     session.add(po)
             session.commit()
+
+    def get_completed_operation_ids(self, po_id: int) -> tuple:
+        """Get operation_ids that have completed schedule records for a specific PO,
+        and the latest end time among them.
+        
+        Returns:
+            (completed_ops: set of operation_ids, latest_end_minutes: int)
+        """
+        completed_ops = set()
+        latest_end = None
+        with Session(self.engine) as session:
+            records = session.exec(
+                select(WorkCenterSchedule).where(
+                    WorkCenterSchedule.production_order_id == po_id,
+                    WorkCenterSchedule.status == "completed"
+                )
+            ).all()
+            for record in records:
+                if record.operation_id:
+                    completed_ops.add(record.operation_id)
+                if record.scheduled_end:
+                    if latest_end is None or record.scheduled_end > latest_end:
+                        latest_end = record.scheduled_end
+        
+        # Convert latest_end to minutes offset from schedule_start_time
+        latest_end_minutes = 0
+        if latest_end and self.schedule_start_time:
+            latest_end_minutes = self._get_minutes_from_start(latest_end)
+        
+        return completed_ops, latest_end_minutes
