@@ -1012,7 +1012,6 @@ export default function GanttNewPage() {
                                                             left,
                                                             width,
                                                             backgroundColor: isCompleted ? `${color.bg}99` : color.bg,
-                                                            border: isCompleted ? `1px solid ${color.border}88` : '1px solid #000',
                                                             opacity: isCompleted ? 0.65 : 1,
                                                         }}
                                                         onMouseMove={(e) => handleMouseMove(e, task)}

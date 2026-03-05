@@ -423,6 +423,7 @@ class SchedulingDataManager:
                 - shift_id: Optional[int]
                 - notes: Optional[str]
             clear_existing: If True, delete existing scheduled records for these production orders
+                           (completed records are always preserved)
             
         Returns:
             Number of records saved
@@ -435,7 +436,8 @@ class SchedulingDataManager:
                 # Get unique production order IDs from schedule_data
                 po_ids = set(item['production_order_id'] for item in schedule_data)
                 
-                # Delete existing scheduled records for these production orders
+                # Delete existing SCHEDULED records (not completed ones)
+                # This allows partially completed ops to be rescheduled to different WC
                 existing_records = session.exec(
                     select(WorkCenterSchedule).where(
                         WorkCenterSchedule.production_order_id.in_(po_ids),
@@ -488,31 +490,78 @@ class SchedulingDataManager:
             session.commit()
 
     def get_completed_operation_ids(self, po_id: int) -> tuple:
-        """Get operation_ids that have completed schedule records for a specific PO,
-        and the latest end time among them.
+        """Get operation_ids that are FULLY completed for a specific PO,
+        partially completed operations with their remaining times, completed blocks, and the latest end time.
+        
+        An operation is:
+        - FULLY completed: has completed records AND no scheduled records
+        - PARTIALLY completed: has both completed AND scheduled records
+          → Returns remaining_minutes so scheduler can reschedule to different WC
         
         Returns:
-            (completed_ops: set of operation_ids, latest_end_minutes: int)
+            (fully_completed_ops: set, 
+             partial_ops_remaining: dict {op_id: remaining_minutes},
+             completed_blocks: list of (wc_id, start_min, end_min),
+             latest_end_minutes: int)
         """
-        completed_ops = set()
+        ops_with_completed = set()  # Operations that have at least one completed record
+        ops_with_scheduled = set()  # Operations that still have scheduled records
         latest_end = None
+        
+        # Track completed and scheduled minutes per operation
+        op_completed_minutes: Dict[int, int] = {}  # op_id -> total completed minutes
+        op_scheduled_minutes: Dict[int, int] = {}  # op_id -> total scheduled minutes
+        
+        # Track completed blocks to prevent overlapping
+        completed_blocks: List[Tuple[int, int, int]] = []
+        
         with Session(self.engine) as session:
-            records = session.exec(
+            # Get all records for this PO
+            all_records = session.exec(
                 select(WorkCenterSchedule).where(
-                    WorkCenterSchedule.production_order_id == po_id,
-                    WorkCenterSchedule.status == "completed"
+                    WorkCenterSchedule.production_order_id == po_id
                 )
             ).all()
-            for record in records:
-                if record.operation_id:
-                    completed_ops.add(record.operation_id)
-                if record.scheduled_end:
-                    if latest_end is None or record.scheduled_end > latest_end:
-                        latest_end = record.scheduled_end
+            
+            for record in all_records:
+                if not record.operation_id:
+                    continue
+                
+                # Calculate duration
+                start_min = self._get_minutes_from_start(record.scheduled_start)
+                end_min = self._get_minutes_from_start(record.scheduled_end)
+                duration = max(0, end_min - start_min)
+                    
+                if record.status == "completed":
+                    ops_with_completed.add(record.operation_id)
+                    op_completed_minutes[record.operation_id] = \
+                        op_completed_minutes.get(record.operation_id, 0) + duration
+                    if record.scheduled_end:
+                        if latest_end is None or record.scheduled_end > latest_end:
+                            latest_end = record.scheduled_end
+                    # Add to completed blocks to prevent scheduler from overlapping
+                    if start_min >= 0 and end_min > start_min:
+                        completed_blocks.append((record.work_center_id, start_min, end_min))
+                elif record.status == "scheduled":
+                    ops_with_scheduled.add(record.operation_id)
+                    op_scheduled_minutes[record.operation_id] = \
+                        op_scheduled_minutes.get(record.operation_id, 0) + duration
+        
+        # Fully completed: has completed records AND no scheduled records
+        fully_completed_ops = ops_with_completed - ops_with_scheduled
+        
+        # Partially completed: has BOTH completed AND scheduled records
+        # Calculate remaining minutes for each (can be rescheduled to different WC)
+        partially_completed_ops = ops_with_completed & ops_with_scheduled
+        partial_ops_remaining: Dict[int, int] = {}
+        for op_id in partially_completed_ops:
+            remaining = op_scheduled_minutes.get(op_id, 0)
+            if remaining > 0:
+                partial_ops_remaining[op_id] = remaining
         
         # Convert latest_end to minutes offset from schedule_start_time
         latest_end_minutes = 0
         if latest_end and self.schedule_start_time:
             latest_end_minutes = self._get_minutes_from_start(latest_end)
         
-        return completed_ops, latest_end_minutes
+        return fully_completed_ops, partial_ops_remaining, completed_blocks, latest_end_minutes

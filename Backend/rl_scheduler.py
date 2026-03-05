@@ -215,19 +215,25 @@ class RLSchedulerInference:
 
         return sorted_routings
 
-    def build_tasks_for_po(self, po_id: int, skip_operation_ids: set = None, min_release_time: int = 0):
+    def build_tasks_for_po(self, po_id: int, skip_operation_ids: set = None, 
+                           min_release_time: int = 0,
+                           partial_ops_remaining: Dict[int, int] = None):
         """สร้างรายการ task สำหรับ PO เดียว
         ล้าง task เก่าทิ้งและสร้างใหม่จากข้อมูลจริง
         เรียง routing ตาม dependency (topological sort)
         ถ้าเวลาผลิตเกิน max_shift_duration จะแบ่งเป็นหลาย chunk (เหมือน CP-SAT)
         
         Args:
-            skip_operation_ids: set of operation IDs to skip (e.g. completed operations)
-            min_release_time: minimum release time in minutes (e.g. latest completed task end)"""
+            skip_operation_ids: set of operation IDs to skip (e.g. fully completed operations)
+            min_release_time: minimum release time in minutes (e.g. latest completed task end)
+            partial_ops_remaining: dict {op_id: remaining_minutes} for partially completed ops
+                                   These will be scheduled with remaining time only (can use different WC)"""
         dm = self.data
         self.tasks = []
         if skip_operation_ids is None:
             skip_operation_ids = set()
+        if partial_ops_remaining is None:
+            partial_ops_remaining = {}
 
         # แม็ป (job_key, routing_id) -> global_idx ของ chunk สุดท้าย
         task_key_to_idx: Dict[Tuple, int] = {}
@@ -243,13 +249,17 @@ class RLSchedulerInference:
             for r_idx, routing in enumerate(sorted_routing):
                 op_id = routing.operation_id
                 
-                # ข้าม operation ที่ completed แล้ว
+                # ข้าม operation ที่ fully completed แล้ว
                 if op_id in skip_operation_ids:
-                    print(f"  [RL] ข้าม operation {op_id} (completed) สำหรับ PO {po_id}")
+                    print(f"  [RL] ข้าม operation {op_id} (fully completed) สำหรับ PO {po_id}")
                     continue
                 
                 setup = routing.setup_time_minutes
                 qty = job.quantity
+                
+                # เช็คว่าเป็น partially completed operation หรือไม่
+                is_partial = op_id in partial_ops_remaining
+                remaining_minutes = partial_ops_remaining.get(op_id, 0) if is_partial else 0
 
                 # คำนวณเวลาผลิตล้วนแต่ละ WC (ไม่รวม setup)
                 raw_pts: Dict[int, int] = {}
@@ -257,11 +267,23 @@ class RLSchedulerInference:
                     if wc_id not in self.valid_wc_ids:
                         continue
                     wc = dm.work_centers.get(wc_id)
-                    if wc and wc.capacity_per_hour > 0:
-                        pt = int(qty * (60 / wc.capacity_per_hour))
+                    
+                    if is_partial:
+                        # ใช้ remaining time สำหรับ partially completed ops
+                        # ไม่รวม setup เพราะน่าจะ setup ไปแล้ว
+                        pt = remaining_minutes
                     else:
-                        pt = qty
+                        # คำนวณปกติจาก quantity
+                        if wc and wc.capacity_per_hour > 0:
+                            pt = int(qty * (60 / wc.capacity_per_hour))
+                        else:
+                            pt = qty
                     raw_pts[wc_id] = pt
+                
+                if is_partial:
+                    # ไม่รวม setup time สำหรับ partial ops (ทำไปแล้ว)
+                    setup = 0
+                    print(f"  [RL] operation {op_id} partially completed, remaining: {remaining_minutes} นาที (reschedule ได้)")
 
                 if not raw_pts:
                     print(f"  [RL] เตือน: ไม่มี WC ที่ใช้ได้สำหรับ task "
@@ -759,40 +781,12 @@ class RLSchedulerInference:
 
     def schedule_task(self, task_idx: int, wc_id: int):
         """จัด task ลงบน WC: หาเวลาเริ่มต้น, คำนวณเวลาสิ้นสุด, แบ่ง chunk ลง timeline
-        ถ้าเป็น chunk ที่ 2+ และมี gap จาก chunk ก่อนหน้า จะเพิ่ม setup time (เหมือน CP-SAT)"""
+        คิด setup time เมื่อมี gap ระหว่าง chunk แบบ iterative convergence
+        (เหมือน CP-SAT needs_setup biconditional: gap > 0 ↔ needs_setup = True)"""
         task = self.tasks[task_idx]
-        duration = task.processing_times.get(wc_id, 60)
+        base_duration = task.processing_times.get(wc_id, 60)
 
-        # ตรวจว่าเป็น chunk ที่ 2+ หรือไม่ (predecessor เป็น chunk ก่อนหน้าของ routing เดียวกัน)
-        # ถ้ามี gap ระหว่าง chunk → ต้อง setup ใหม่ (เหมือน CP-SAT needs_setup logic)
-        if task.setup_time == 0 and task.predecessors:
-            for pred_idx, _lag in task.predecessors:
-                pred_task = self.tasks[pred_idx]
-                pred_result = self.scheduled[pred_idx]
-                # เช็คว่าเป็น chunk ของ routing เดียวกัน
-                if (pred_task.routing_id == task.routing_id
-                        and pred_task.job_key == task.job_key
-                        and pred_result is not None):
-                    # ดูว่า chunk ก่อนหน้าจบบน WC เดียวกันหรือไม่
-                    if pred_result.machine_id == wc_id:
-                        pred_end = pred_result.end
-                        earliest_start = self.get_earliest_start(task_idx, wc_id)
-                        gap = earliest_start - pred_end
-                        if gap > 0:
-                            # มี gap → ต้อง setup ใหม่ เพิ่ม setup time เข้า duration
-                            setup = self.tasks[pred_idx].setup_time
-                            if setup == 0:
-                                # หา setup จาก chunk แรกของ routing
-                                for t in self.tasks:
-                                    if (t.routing_id == task.routing_id
-                                            and t.job_key == task.job_key
-                                            and t.setup_time > 0):
-                                        setup = t.setup_time
-                                        break
-                            duration += setup
-                    break
-
-        # หา slot ที่พอสำหรับ duration จริง (ซึ่งอาจรวม setup เพิ่มจาก gap แล้ว)
+        # 1) คำนวณเวลาเริ่มต้นเร็วสุดจาก predecessors, BOM, release time
         earliest = 0
         for p, lag in task.predecessors:
             if self.scheduled[p] is not None:
@@ -801,7 +795,50 @@ class RLSchedulerInference:
             if self.scheduled[p] is not None:
                 earliest = max(earliest, self.scheduled[p].end)
         earliest = max(earliest, task.release_time)
-        start = self.find_feasible_slot(wc_id, earliest, duration)
+
+        # 2) ตรวจว่าเป็น chunk ที่ 2+ ของ routing เดียวกัน บน WC เดียวกัน
+        #    หา pred_chunk_end และ routing_setup_time เตรียมไว้
+        pred_chunk_end = None
+        routing_setup_time = 0
+        if task.setup_time == 0 and task.predecessors:
+            for pred_idx, _lag in task.predecessors:
+                pred_task = self.tasks[pred_idx]
+                pred_result = self.scheduled[pred_idx]
+                if (pred_task.routing_id == task.routing_id
+                        and pred_task.job_key == task.job_key
+                        and pred_result is not None
+                        and pred_result.machine_id == wc_id):
+                    pred_chunk_end = pred_result.end
+                    # หา setup time จาก chunk แรกของ routing นี้
+                    routing_setup_time = pred_task.setup_time
+                    if routing_setup_time == 0:
+                        for t in self.tasks:
+                            if (t.routing_id == task.routing_id
+                                    and t.job_key == task.job_key
+                                    and t.setup_time > 0):
+                                routing_setup_time = t.setup_time
+                                break
+                    break
+
+        # 3) คำนวณ duration + หา slot แบบ iterative convergence
+        #    เหมือน OR-Tools biconditional: gap > 0 ↔ needs_setup = True
+        #    วน loop: หา slot → เช็ค gap → ปรับ duration → หาใหม่ → จนกว่า duration หยุดเปลี่ยน
+        #    ปกติ converge ใน 1-2 รอบ (เพิ่ม setup ทำ duration ยาวขึ้น → slot อาจขยับ → gap อาจเปลี่ยน)
+        if pred_chunk_end is not None and routing_setup_time > 0:
+            duration = base_duration  # เริ่มไม่ใส่ setup
+            for _ in range(3):  # ปกติ converge ใน 2 รอบ, 3 เผื่อ safety
+                start = self.find_feasible_slot(wc_id, earliest, duration)
+                gap = start - pred_chunk_end
+                new_duration = (base_duration + routing_setup_time) if gap > 0 else base_duration
+                if new_duration == duration:
+                    break  # converge แล้ว — duration ไม่เปลี่ยน
+                duration = new_duration
+            # หา slot สุดท้ายด้วย duration ที่ converge แล้ว
+            start = self.find_feasible_slot(wc_id, earliest, duration)
+        else:
+            duration = base_duration
+            start = self.find_feasible_slot(wc_id, earliest, duration)
+
         end = self._compute_actual_end(wc_id, start, duration)
 
         self.scheduled[task_idx] = ScheduledResult(
@@ -1069,17 +1106,28 @@ def run_rl_scheduling(
         po_name = data.po_names.get(po_id, f"PO-{po_id}")
         print(f"\n  [RL] === จัดตาราง PO: {po_name} (id={po_id}, priority={po.priority}) ===")
 
-        # ดึง operation ที่ completed แล้ว + เวลาจบล่าสุดของงาน completed
-        completed_ops, completed_end_minutes = data.get_completed_operation_ids(po_id)
-        if completed_ops:
-            print(f"  [RL] ข้าม {len(completed_ops)} operations ที่ completed แล้ว: {completed_ops}")
+        # ดึง operation ที่ completed แล้ว + partially completed (พร้อม remaining time) + completed blocks + เวลาจบล่าสุด
+        fully_completed_ops, partial_ops_remaining, completed_blocks, completed_end_minutes = data.get_completed_operation_ids(po_id)
+        
+        if fully_completed_ops:
+            print(f"  [RL] ข้าม {len(fully_completed_ops)} operations ที่ completed ทั้งหมด: {fully_completed_ops}")
+        if partial_ops_remaining:
+            print(f"  [RL] {len(partial_ops_remaining)} operations ที่ completed บางส่วน (reschedule งานที่เหลือได้):")
+            for op_id, remaining in partial_ops_remaining.items():
+                print(f"       - operation {op_id}: เหลือ {remaining} นาที")
+        if completed_blocks:
+            print(f"  [RL] โหลด {len(completed_blocks)} completed blocks (ป้องกันทับซ้อน)")
+        if completed_end_minutes > 0:
             print(f"  [RL] งาน completed จบเวลา: {completed_end_minutes} นาที → งานใหม่จะเริ่มหลังจากนี้")
 
-        # สร้าง task สำหรับ PO นี้ (ข้าม operations ที่ completed, เริ่มหลังงาน completed)
+        # สร้าง task สำหรับ PO นี้:
+        # - skip operations ที่ fully completed
+        # - สร้าง tasks ด้วย remaining time สำหรับ partially completed (เลือก WC ใหม่ได้)
         scheduler.build_tasks_for_po(
             po_id, 
-            skip_operation_ids=completed_ops,
-            min_release_time=completed_end_minutes
+            skip_operation_ids=fully_completed_ops,
+            min_release_time=completed_end_minutes,
+            partial_ops_remaining=partial_ops_remaining
         )
 
         if not scheduler.tasks:
@@ -1088,8 +1136,11 @@ def run_rl_scheduling(
 
         total_tasks += len(scheduler.tasks)
 
-        # รีเซ็ตพร้อม block จาก DB + block สะสมจาก PO ก่อนหน้า
-        scheduler.reset_for_po(extra_blocks=accumulated_blocks)
+        # รวม blocks: accumulated + completed blocks จาก PO นี้
+        all_blocks = accumulated_blocks + completed_blocks
+
+        # รีเซ็ตพร้อม block จาก DB + block สะสมจาก PO ก่อนหน้า + completed blocks
+        scheduler.reset_for_po(extra_blocks=all_blocks)
 
         # รัน RL inference
         obs = scheduler.get_obs()

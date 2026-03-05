@@ -101,6 +101,7 @@ class ProductionScheduler:
         self.product_tasks = collections.defaultdict(list)
         self.machine_intervals = collections.defaultdict(list)
         self.machine_span_intervals = collections.defaultdict(list)
+        self.all_needs_setup_vars = []
         
         horizon = max(self.data.get_horizon(p.id) for p in self.data.productions)
         all_worker_intervals = []
@@ -289,6 +290,9 @@ class ProductionScheduler:
                 self.model.add(gap == 0).only_enforce_if(is_selected, needs_setup.Not())
                 # If there's a gap, setup is needed
                 self.model.add(gap > 0).only_enforce_if(is_selected, needs_setup)
+                
+                # Collect for penalty in objective (avoid unnecessary gaps)
+                self.all_needs_setup_vars.append(needs_setup)
             
             chunk_starts.append(m_start)
             chunk_ends.append(m_end)
@@ -481,7 +485,15 @@ class ProductionScheduler:
         
         if all_end_times:
             self.model.add_max_equality(self.makespan, all_end_times)
-            self.model.minimize(self.makespan)
+            
+            # Penalize unnecessary setup times to prevent tiny gaps between chunks
+            # makespan * 100 ensures makespan is the dominant objective
+            # sum(needs_setup) is a tiebreaker to avoid unnecessary gaps
+            if self.all_needs_setup_vars:
+                setup_penalty = sum(self.all_needs_setup_vars)
+                self.model.minimize(self.makespan * 100 + setup_penalty)
+            else:
+                self.model.minimize(self.makespan)
     
     def _get_selected_chunks(self, task):
         """Get the selected machine's chunk start/end times"""

@@ -1217,7 +1217,7 @@ def get_gantt_data(
 
 class ScheduleRequest(BaseModel):
     production_ids: List[int] = Field(..., description="List of production order IDs to schedule")
-    max_shift_duration: int = Field(default=120, description="Max duration per chunk (minutes)")
+    max_shift_duration: int = Field(default=60, description="Max duration per chunk (minutes)")
     max_workers: int = Field(default=600, description="Max workers available")
     time_limit_seconds: int = Field(default=60, description="Solver time limit")
     save_to_db: bool = Field(default=True, description="Save results to database")
