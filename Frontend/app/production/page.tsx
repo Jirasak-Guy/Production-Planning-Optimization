@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useSessionState } from "@/app/hooks/useSessionState";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownIcon,
@@ -34,13 +35,13 @@ export default function ProductionPage() {
   const [isClearing, setIsClearing] = useState(false);
 
   // Optimize Result Banner
-  const [optimizeResult, setOptimizeResult] = useState<{
+  const [optimizeResult, setOptimizeResult] = useSessionState<{
     status: string;
     message: string | null;
     makespan: number | null;
     solve_time: number | null;
     solver: string;
-  } | null>(null);
+  } | null>("production_optimize_result", null);
 
   // Scheduler Settings
   const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({

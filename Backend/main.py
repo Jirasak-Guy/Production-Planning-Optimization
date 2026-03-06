@@ -1339,6 +1339,17 @@ def schedule_production_rl(request: ScheduleRequest):
             save_to_db=request.save_to_db
         )
 
+        # If the result is not a success, revert schedule_status so POs don't stay stuck at "Optimizing"
+        if result.status in ("MODEL_NOT_FOUND", "NO_DATA", "INFEASIBLE", "PARTIAL"):
+            if request.save_to_db:
+                with Session(engine) as session:
+                    for po_id in request.production_ids:
+                        po = session.get(ProductionOrder, po_id)
+                        if po and po.schedule_status == "Optimizing":
+                            po.schedule_status = "scheduled"
+                            session.add(po)
+                    session.commit()
+
         return ScheduleResponse(
             status=result.status,
             makespan=result.makespan,
@@ -1349,6 +1360,15 @@ def schedule_production_rl(request: ScheduleRequest):
         )
 
     except Exception as e:
+        # Revert schedule_status on exception too
+        if request.save_to_db:
+            with Session(engine) as session:
+                for po_id in request.production_ids:
+                    po = session.get(ProductionOrder, po_id)
+                    if po and po.schedule_status == "Optimizing":
+                        po.schedule_status = "scheduled"
+                        session.add(po)
+                session.commit()
         raise HTTPException(status_code=500, detail=str(e))
 
 

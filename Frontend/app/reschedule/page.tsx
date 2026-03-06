@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSessionState } from "@/app/hooks/useSessionState";
 import { useRouter } from "next/navigation";
 import {
     ArrowDownIcon,
@@ -46,13 +47,13 @@ export default function ReschedulePage() {
     });
 
     // Result panel
-    const [lastResult, setLastResult] = useState<{
+    const [lastResult, setLastResult] = useSessionState<{
         status: string;
         message: string | null;
         makespan: number | null;
         solve_time: number | null;
         solver: string;
-    } | null>(null);
+    } | null>("reschedule_last_result", null);
 
     useEffect(() => {
         loadData();
@@ -163,8 +164,14 @@ export default function ReschedulePage() {
                 solver: "RL (PPO)",
             });
 
+            // Reload data — backend already reverts status for non-success results
             await loadData();
-            setSelectedPoIds(new Set());
+
+            // Only clear selection on success
+            const successStatuses = ["FEASIBLE", "OPTIMAL"];
+            if (successStatuses.includes(result.status)) {
+                setSelectedPoIds(new Set());
+            }
         } catch (error) {
             console.error("Reschedule failed:", error);
             setLastResult({
@@ -174,6 +181,10 @@ export default function ReschedulePage() {
                 solve_time: null,
                 solver: "RL (PPO)",
             });
+            // Revert schedule_status back to "scheduled" so POs don't stay stuck at "Optimizing"
+            await Promise.all(
+                ids.map((id) => updateProductionOrder(id, { schedule_status: "scheduled" }))
+            ).catch((revertErr) => console.error("Failed to revert status:", revertErr));
             await loadData();
         } finally {
             setIsOptimizing(false);
@@ -324,7 +335,7 @@ export default function ReschedulePage() {
                         {lastResult && (
                             <div className={`mb-4 rounded-lg border p-4 ${lastResult.status === "OPTIMAL" || lastResult.status === "FEASIBLE"
                                 ? "bg-green-50 border-green-200"
-                                : lastResult.status === "error" || lastResult.status === "INFEASIBLE"
+                                : lastResult.status === "error" || lastResult.status === "INFEASIBLE" || lastResult.status === "MODEL_NOT_FOUND" || lastResult.status === "NO_DATA"
                                     ? "bg-red-50 border-red-200"
                                     : "bg-blue-50 border-blue-200"
                                 }`}>
