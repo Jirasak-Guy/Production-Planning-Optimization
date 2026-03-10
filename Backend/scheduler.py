@@ -34,7 +34,7 @@ class ProductionScheduler:
         self.max_shift_duration = 60  # minutes
         self.max_workers = 600
         self.time_limit_seconds = 60
-        self.gap_penalty_weight = 10
+        self.gap_penalty_weight = 1000
     
     def configure(self, 
                   max_shift_duration: int = 60,
@@ -484,16 +484,23 @@ class ProductionScheduler:
         self.makespan = self.model.new_int_var(0, horizon, 'makespan')
         
         all_end_times = []
+        all_start_times = []
         for key, tasks in self.product_tasks.items():
-            if tasks:
-                all_end_times.append(tasks[-1].end)
+            for task in tasks:
+                all_start_times.append(task.start)
+                all_end_times.append(task.end)
         
         if all_end_times:
             self.model.add_max_equality(self.makespan, all_end_times)
             
-            # Keep makespan as dominant objective while penalizing idle gaps between chunks.
-            objective = self.makespan * 100
+            # Makespan as dominant objective (highest weight)
+            objective = self.makespan * 1000
 
+            # Push ALL tasks to start as early as possible (left-packing effect)
+            # This eliminates gaps between different tasks on the same machine
+            objective += sum(all_start_times)
+
+            # Penalize gaps between chunks of the same split task
             if self.all_gap_vars:
                 objective += sum(self.all_gap_vars) * self.gap_penalty_weight
 
