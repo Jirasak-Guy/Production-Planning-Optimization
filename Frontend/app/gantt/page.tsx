@@ -806,20 +806,42 @@ export default function GanttPage() {
                     <div className="flex items-center gap-3">
                         {/* Product Color Legend */}
                         {isPOFilterActive && uniqueProducts.length > 0 && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 flex-wrap max-w-[400px]">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Products</span>
-                                {uniqueProducts.map((product) => {
-                                    const color = getProductColorByMap(product.id);
-                                    return (
-                                        <div key={product.id} className="flex items-center gap-1.5" title={product.name}>
-                                            <div
-                                                className="w-3 h-3 rounded"
-                                                style={{ backgroundColor: color.bg }}
-                                            />
-                                            <span className="text-xs text-slate-600 font-medium">{product.code}</span>
-                                        </div>
-                                    );
-                                })}
+                            <div className="relative group/product-legend">
+                                {/* Base view (Collapsed) */}
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden cursor-default max-w-[150px] sm:max-w-[200px]">
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">Products</span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <div
+                                            className="w-3 h-3 rounded shrink-0"
+                                            style={{ backgroundColor: getProductColorByMap(uniqueProducts[0].id).bg }}
+                                        />
+                                        <span className="text-xs text-slate-600 font-medium truncate max-w-[50px]">
+                                            {uniqueProducts[0].code}
+                                        </span>
+                                    </div>
+                                    {uniqueProducts.length > 1 && (
+                                        <span className="text-[10px] text-slate-500 font-medium shrink-0">
+                                            +{uniqueProducts.length - 1}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Expanded view on hover */}
+                                <div className="absolute top-0 right-0 z-50 flex flex-wrap items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-xl max-w-[400px] min-w-[200px] opacity-0 invisible group-hover/product-legend:opacity-100 group-hover/product-legend:visible transition-all duration-200 origin-top-right">
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Products</span>
+                                    {uniqueProducts.map((product) => {
+                                        const color = getProductColorByMap(product.id);
+                                        return (
+                                            <div key={product.id} className="flex items-center gap-1.5 shrink-0" title={product.name}>
+                                                <div
+                                                    className="w-3 h-3 rounded"
+                                                    style={{ backgroundColor: color.bg }}
+                                                />
+                                                <span className="text-xs text-slate-600 font-medium">{product.code}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
 
