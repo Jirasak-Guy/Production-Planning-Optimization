@@ -34,15 +34,18 @@ class ProductionScheduler:
         self.max_shift_duration = 60  # minutes
         self.max_workers = 600
         self.time_limit_seconds = 60
+        self.gap_penalty_weight = 10
     
     def configure(self, 
                   max_shift_duration: int = 60,
                   max_workers: int = 600,
-                  time_limit_seconds: int = 60):
+                  time_limit_seconds: int = 60,
+                  gap_penalty_weight: int = 10):
         """Configure solver parameters"""
         self.max_shift_duration = max_shift_duration
         self.max_workers = max_workers
         self.time_limit_seconds = time_limit_seconds
+        self.gap_penalty_weight = gap_penalty_weight
         return self
     
     def solve(self) -> ScheduleResult:
@@ -102,6 +105,7 @@ class ProductionScheduler:
         self.machine_intervals = collections.defaultdict(list)
         self.machine_span_intervals = collections.defaultdict(list)
         self.all_needs_setup_vars = []
+        self.all_gap_vars = []
         
         horizon = max(self.data.get_horizon(p.id) for p in self.data.productions)
         all_worker_intervals = []
@@ -293,6 +297,7 @@ class ProductionScheduler:
                 
                 # Collect for penalty in objective (avoid unnecessary gaps)
                 self.all_needs_setup_vars.append(needs_setup)
+                self.all_gap_vars.append(gap)
             
             chunk_starts.append(m_start)
             chunk_ends.append(m_end)
@@ -486,14 +491,16 @@ class ProductionScheduler:
         if all_end_times:
             self.model.add_max_equality(self.makespan, all_end_times)
             
-            # Penalize unnecessary setup times to prevent tiny gaps between chunks
-            # makespan * 100 ensures makespan is the dominant objective
-            # sum(needs_setup) is a tiebreaker to avoid unnecessary gaps
+            # Keep makespan as dominant objective while penalizing idle gaps between chunks.
+            objective = self.makespan * 100
+
+            if self.all_gap_vars:
+                objective += sum(self.all_gap_vars) * self.gap_penalty_weight
+
             if self.all_needs_setup_vars:
-                setup_penalty = sum(self.all_needs_setup_vars)
-                self.model.minimize(self.makespan * 100 + setup_penalty)
-            else:
-                self.model.minimize(self.makespan)
+                objective += sum(self.all_needs_setup_vars)
+
+            self.model.minimize(objective)
     
     def _get_selected_chunks(self, task):
         """Get the selected machine's chunk start/end times"""
@@ -566,6 +573,7 @@ def run_scheduling(
     max_shift_duration: int = 60,
     max_workers: int = 600,
     time_limit_seconds: int = 60,
+    gap_penalty_weight: int = 10,
     save_to_db: bool = True
 ) -> ScheduleResult:
     """
@@ -577,6 +585,7 @@ def run_scheduling(
         max_shift_duration: Maximum duration per shift chunk (minutes)
         max_workers: Maximum number of workers available
         time_limit_seconds: Solver time limit
+        gap_penalty_weight: Weight for penalizing idle gaps between split chunks
         save_to_db: Whether to save results to database
     
     Returns:
@@ -591,7 +600,8 @@ def run_scheduling(
     scheduler.configure(
         max_shift_duration=max_shift_duration,
         max_workers=max_workers,
-        time_limit_seconds=time_limit_seconds
+        time_limit_seconds=time_limit_seconds,
+        gap_penalty_weight=gap_penalty_weight
     )
     
     # Solve
