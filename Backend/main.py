@@ -1334,7 +1334,7 @@ def schedule_production_rl(request: ScheduleRequest):
         result = run_rl_scheduling(
             engine=engine,
             production_ids=request.production_ids,
-            model_path="best_model",
+            model_path=r"C:\Users\Jirasak\Documents\GitHub\Next-React-CSI\Backend\models\ppo_jss_final.zip",
             max_workers=request.max_workers,
             save_to_db=request.save_to_db
         )

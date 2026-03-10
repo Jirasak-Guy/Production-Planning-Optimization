@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional, Any
 
 from data_manager import SchedulingDataManager
+import math
 
 
 @dataclass
@@ -140,7 +141,7 @@ class ProductionScheduler:
                     setup_time = operation.setup_time_minutes
                     
                     if capacity_per_hour > 0:
-                        processing_time = int(qty * (60 / capacity_per_hour))
+                        processing_time =  math.ceil(qty * (60 / capacity_per_hour))
                     else:
                         processing_time = qty
                     
