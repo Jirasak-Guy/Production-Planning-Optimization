@@ -1473,6 +1473,7 @@ class PivotTaskResponse(BaseModel):
     pivot_schedule_id: int
     pivot_time: str
     updated_completed: int
+    split_count: int = 0
     total_updated: int
 
 
@@ -1487,16 +1488,12 @@ def pivot_task(
     
     This endpoint updates the status of work_center_schedule records:
     - Tasks that start before pivot_time AND end at or before pivot_time -> status = "completed"
+    - Tasks that straddle pivot_time (start before, end after) -> split into two:
+      * completed part (original_start -> pivot_time)
+      * scheduled part (pivot_time -> original_end)
     - Other tasks remain as "scheduled"
     
     The pivot_time is the scheduled_start of the specified schedule_id.
-    
-    Args:
-        schedule_id: The ID of the problematic task. Its scheduled_start becomes the pivot point.
-        request: Optional body to filter updates to a specific production order.
-    
-    Returns:
-        Summary of updated schedules.
     """
     # Get the pivot schedule
     pivot_schedule = session.get(WorkCenterSchedule, schedule_id)
@@ -1505,42 +1502,67 @@ def pivot_task(
     
     pivot_time = pivot_schedule.scheduled_start
     
-    # Build the base query for schedules to update
-    # Only select tasks that start before pivot AND end at or before pivot
+    prod_filter = []
     if request and request.production_order_id:
-        # Filter by specific production order
-        schedules_query = select(WorkCenterSchedule).where(
-            WorkCenterSchedule.id != schedule_id,
-            WorkCenterSchedule.production_order_id == request.production_order_id,
-            WorkCenterSchedule.scheduled_start < pivot_time,
-            WorkCenterSchedule.scheduled_end <= pivot_time
-        )
-    else:
-        # Update all schedules that meet the criteria
-        schedules_query = select(WorkCenterSchedule).where(
-            WorkCenterSchedule.id != schedule_id,
-            WorkCenterSchedule.scheduled_start < pivot_time,
-            WorkCenterSchedule.scheduled_end <= pivot_time
-        )
+        prod_filter = [WorkCenterSchedule.production_order_id == request.production_order_id]
     
-    schedules_to_update = session.exec(schedules_query).all()
+    # 1) Tasks fully before pivot -> mark completed
+    fully_before_query = select(WorkCenterSchedule).where(
+        WorkCenterSchedule.id != schedule_id,
+        WorkCenterSchedule.scheduled_start < pivot_time,
+        WorkCenterSchedule.scheduled_end <= pivot_time,
+        *prod_filter
+    )
     
     updated_completed = 0
-    
-    for schedule in schedules_to_update:
+    for schedule in session.exec(fully_before_query).all():
         if schedule.status != "completed":
             schedule.status = "completed"
             session.add(schedule)
             updated_completed += 1
     
+    # 2) Tasks straddling pivot (start before, end after) -> split
+    straddling_query = select(WorkCenterSchedule).where(
+        WorkCenterSchedule.id != schedule_id,
+        WorkCenterSchedule.scheduled_start < pivot_time,
+        WorkCenterSchedule.scheduled_end > pivot_time,
+        *prod_filter
+    )
+    
+    split_count = 0
+    for schedule in session.exec(straddling_query).all():
+        original_end = schedule.scheduled_end
+        
+        # Update existing record to be the completed portion
+        schedule.scheduled_end = pivot_time
+        schedule.status = "completed"
+        session.add(schedule)
+        
+        # Create new record for the remaining portion
+        remaining = WorkCenterSchedule(
+            work_center_id=schedule.work_center_id,
+            production_order_id=schedule.production_order_id,
+            product_id=schedule.product_id,
+            operation_id=schedule.operation_id,
+            shift_id=schedule.shift_id,
+            scheduled_start=pivot_time,
+            scheduled_end=original_end,
+            status="scheduled",
+            notes=schedule.notes,
+        )
+        session.add(remaining)
+        split_count += 1
+        updated_completed += 1
+    
     session.commit()
     
     return PivotTaskResponse(
-        message=f"Successfully updated {updated_completed} schedule(s) to completed based on pivot time",
+        message=f"Updated {updated_completed} schedule(s) to completed, split {split_count} straddling task(s)",
         pivot_schedule_id=schedule_id,
         pivot_time=pivot_time.isoformat(),
         updated_completed=updated_completed,
-        total_updated=updated_completed
+        split_count=split_count,
+        total_updated=updated_completed + split_count
     )
 
 

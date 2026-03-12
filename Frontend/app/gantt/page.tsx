@@ -148,6 +148,7 @@ export default function GanttPage() {
     const [daysToShow, setDaysToShow] = useState(7);
     const [selectedPOs, setSelectedPOs] = useState<Set<number>>(new Set());
     const [showPOFilter, setShowPOFilter] = useState(false);
+    const [colorMode, setColorMode] = useState<'po' | 'product'>('po');
     const [contextMenu, setContextMenu] = useState<{ task: GanttScheduleItem; x: number; y: number } | null>(null);
     const [pivotLoading, setPivotLoading] = useState(false);
     const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -415,14 +416,28 @@ export default function GanttPage() {
         return PRODUCT_COLORS[index % PRODUCT_COLORS.length];
     }
 
-    // Conditional color: by PO (default) or by Product (when PO filter active)
-    const isPOFilterActive = selectedPOs.size > 0;
+    // Build a color map for POs: each unique production_order_id gets a unique color index
+    const poColorMap = useMemo(() => {
+        const map = new Map<number, number>();
+        const uniquePOIds = Array.from(
+            new Set(filteredSchedules.map((s) => s.production_order_id))
+        );
+        uniquePOIds.forEach((poId, index) => {
+            map.set(poId, index);
+        });
+        return map;
+    }, [filteredSchedules]);
+
+    function getPOColorByMap(poId: number): typeof PRODUCT_COLORS[0] {
+        const index = poColorMap.get(poId) ?? 0;
+        return PRODUCT_COLORS[index % PRODUCT_COLORS.length];
+    }
 
     function getTaskColor(task: GanttScheduleItem): typeof PRODUCT_COLORS[0] {
-        if (isPOFilterActive) {
+        if (colorMode === 'product') {
             return getProductColorByMap(task.product_id);
         }
-        return getProductColor(task.production_order_id);
+        return getPOColorByMap(task.production_order_id);
     }
 
     // Unique products from filtered schedules for the legend
@@ -804,12 +819,34 @@ export default function GanttPage() {
 
                     {/* Right: Actions & Legend */}
                     <div className="flex items-center gap-3">
-                        {/* Product Color Legend */}
-                        {isPOFilterActive && uniqueProducts.length > 0 && (
+                        {/* Color Mode Toggle */}
+                        <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden">
+                            <button
+                                onClick={() => setColorMode('po')}
+                                className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                                    colorMode === 'po'
+                                        ? 'bg-indigo-500 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                PO
+                            </button>
+                            <button
+                                onClick={() => setColorMode('product')}
+                                className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                                    colorMode === 'product'
+                                        ? 'bg-indigo-500 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                Product
+                            </button>
+                        </div>
+
+                        {/* Color Legend */}
+                        {colorMode === 'product' && uniqueProducts.length > 0 && (
                             <div className="relative group/product-legend">
-                                {/* Base view (Collapsed) */}
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden cursor-default max-w-[150px] sm:max-w-[200px]">
-                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">Products</span>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <div
                                             className="w-3 h-3 rounded shrink-0"
@@ -825,8 +862,6 @@ export default function GanttPage() {
                                         </span>
                                     )}
                                 </div>
-
-                                {/* Expanded view on hover */}
                                 <div className="absolute top-0 right-0 z-50 flex flex-wrap items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-xl max-w-[400px] min-w-[200px] opacity-0 invisible group-hover/product-legend:opacity-100 group-hover/product-legend:visible transition-all duration-200 origin-top-right">
                                     <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Products</span>
                                     {uniqueProducts.map((product) => {
@@ -838,6 +873,41 @@ export default function GanttPage() {
                                                     style={{ backgroundColor: color.bg }}
                                                 />
                                                 <span className="text-xs text-slate-600 font-medium">{product.code}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        {colorMode === 'po' && uniquePOs.length > 0 && (
+                            <div className="relative group/po-legend">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden cursor-default max-w-[150px] sm:max-w-[200px]">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <div
+                                            className="w-3 h-3 rounded shrink-0"
+                                            style={{ backgroundColor: getPOColorByMap(uniquePOs[0].id).bg }}
+                                        />
+                                        <span className="text-xs text-slate-600 font-medium truncate max-w-[50px]">
+                                            {uniquePOs[0].po_number}
+                                        </span>
+                                    </div>
+                                    {uniquePOs.length > 1 && (
+                                        <span className="text-[10px] text-slate-500 font-medium shrink-0">
+                                            +{uniquePOs.length - 1}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="absolute top-0 right-0 z-50 flex flex-wrap items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-xl max-w-[400px] min-w-[200px] opacity-0 invisible group-hover/po-legend:opacity-100 group-hover/po-legend:visible transition-all duration-200 origin-top-right">
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1 shrink-0">POs</span>
+                                    {uniquePOs.map((po) => {
+                                        const color = getPOColorByMap(po.id);
+                                        return (
+                                            <div key={po.id} className="flex items-center gap-1.5 shrink-0" title={po.po_number}>
+                                                <div
+                                                    className="w-3 h-3 rounded"
+                                                    style={{ backgroundColor: color.bg }}
+                                                />
+                                                <span className="text-xs text-slate-600 font-medium">{po.po_number}</span>
                                             </div>
                                         );
                                     })}
