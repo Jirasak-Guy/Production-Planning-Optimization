@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jobshop_gym"
+version = "0.0.1"
+description = "Custom Job Shop Scheduling Environment for Gymnasium"
+dependencies = [
+    "gymnasium",
+    "numpy",
+    "stable-baselines3",
+    "sb3-contrib",
+    "shimmy"
+]

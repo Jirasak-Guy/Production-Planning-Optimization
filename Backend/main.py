@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from typing import Annotated,List, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -1519,20 +1520,79 @@ def pivot_task(
         raise HTTPException(status_code=404, detail="Work center schedule not found")
     
     pivot_time = pivot_schedule.scheduled_start
-    
-    prod_filter = []
-    if request and request.production_order_id:
-        prod_filter = [WorkCenterSchedule.production_order_id == request.production_order_id]
+
+    # Safety scope: never update all POs by default.
+    # If not explicitly provided, lock scope to the pivot schedule's PO.
+    scoped_production_order_id = pivot_schedule.production_order_id
+    if request and request.production_order_id is not None:
+        if int(request.production_order_id) != int(pivot_schedule.production_order_id):
+            raise HTTPException(
+                status_code=400,
+                detail="production_order_id must match the selected schedule's production_order_id",
+            )
+        scoped_production_order_id = int(request.production_order_id)
+
+    prod_filter = [WorkCenterSchedule.production_order_id == scoped_production_order_id]
+
+    # Include all records that belong to the same merged Gantt chunk as clicked task.
+    # Keep this in sync with frontend merge tolerance (<= 90 seconds).
+    merge_gap_tolerance = timedelta(seconds=90)
+    chunk_candidates = session.exec(
+        select(WorkCenterSchedule)
+        .where(
+            WorkCenterSchedule.production_order_id == scoped_production_order_id,
+            WorkCenterSchedule.work_center_id == pivot_schedule.work_center_id,
+            WorkCenterSchedule.operation_id == pivot_schedule.operation_id,
+            WorkCenterSchedule.product_id == pivot_schedule.product_id,
+            WorkCenterSchedule.status.in_(["scheduled", "in-progress"]),
+        )
+        .order_by(WorkCenterSchedule.scheduled_start, WorkCenterSchedule.id)
+    ).all()
+
+    clicked_chunk_ids = set()
+    pivot_idx = next((i for i, s in enumerate(chunk_candidates) if s.id == schedule_id), -1)
+    if pivot_idx != -1:
+        left = pivot_idx
+        while left > 0:
+            gap = chunk_candidates[left].scheduled_start - chunk_candidates[left - 1].scheduled_end
+            if gap <= merge_gap_tolerance:
+                left -= 1
+            else:
+                break
+
+        right = pivot_idx
+        while right < len(chunk_candidates) - 1:
+            gap = chunk_candidates[right + 1].scheduled_start - chunk_candidates[right].scheduled_end
+            if gap <= merge_gap_tolerance:
+                right += 1
+            else:
+                break
+
+        for i in range(left, right + 1):
+            clicked_chunk_ids.add(int(chunk_candidates[i].id))
     
     # 1) Tasks fully before pivot -> mark completed
     fully_before_query = select(WorkCenterSchedule).where(
-        WorkCenterSchedule.id != schedule_id,
+        WorkCenterSchedule.id.notin_(list(clicked_chunk_ids)),
         WorkCenterSchedule.scheduled_start < pivot_time,
         WorkCenterSchedule.scheduled_end <= pivot_time,
+        WorkCenterSchedule.status.in_(["scheduled", "in-progress"]),
         *prod_filter
     )
     
     updated_completed = 0
+
+    # Mark all schedules that are part of the clicked merged chunk.
+    for schedule in chunk_candidates:
+        if int(schedule.id) not in clicked_chunk_ids:
+            continue
+        if schedule.status in {"scheduled", "in-progress"}:
+            schedule.status = "completed"
+            if schedule.actual_end is None:
+                schedule.actual_end = schedule.scheduled_end
+            session.add(schedule)
+            updated_completed += 1
+
     for schedule in session.exec(fully_before_query).all():
         if schedule.status != "completed":
             schedule.status = "completed"
@@ -1541,9 +1601,10 @@ def pivot_task(
     
     # 2) Tasks straddling pivot (start before, end after) -> split
     straddling_query = select(WorkCenterSchedule).where(
-        WorkCenterSchedule.id != schedule_id,
+        WorkCenterSchedule.id.notin_(list(clicked_chunk_ids)),
         WorkCenterSchedule.scheduled_start < pivot_time,
         WorkCenterSchedule.scheduled_end > pivot_time,
+        WorkCenterSchedule.status.in_(["scheduled", "in-progress"]),
         *prod_filter
     )
     
@@ -1554,6 +1615,7 @@ def pivot_task(
         # Update existing record to be the completed portion
         schedule.scheduled_end = pivot_time
         schedule.status = "completed"
+        schedule.actual_end = pivot_time
         session.add(schedule)
         
         # Create new record for the remaining portion
@@ -1565,6 +1627,8 @@ def pivot_task(
             shift_id=schedule.shift_id,
             scheduled_start=pivot_time,
             scheduled_end=original_end,
+            actual_start=None,
+            actual_end=None,
             status="scheduled",
             notes=schedule.notes,
         )
