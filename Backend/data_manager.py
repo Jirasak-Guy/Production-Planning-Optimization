@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 from datetime import datetime, timedelta, time
 import collections
 import psycopg2
@@ -87,6 +87,8 @@ class SchedulingDataManager:
         self.production_dates: Dict[int, ProductionDateInfo] = {}  # production_id -> dates
         self.holidays: List[Tuple[int, int]] = []  # [(start_minute, duration), ...]
         self.work_center_exceptions: Dict[int, List[WorkCenterExceptionBlock]] = {}
+        self.completed_operation_keys_by_po: Dict[int, Set[Tuple[int, int]]] = {}
+        self.latest_completed_end_by_po: Dict[int, int] = {}
         
         # Existing schedule blocks (for no-overlap with other POs)
         self.existing_schedule_blocks: List[ExistingScheduleBlock] = []
@@ -107,6 +109,7 @@ class SchedulingDataManager:
         """
         self._load_name_mappings()
         self._load_productions(production_ids)
+        self._load_completed_operation_state()
         self._load_jobs()
         self._load_work_centers()
         self._load_dependencies()
@@ -148,6 +151,60 @@ class SchedulingDataManager:
                     release_minutes=self._get_minutes_from_start(p.scheduled_start_date),
                     due_minutes=self._get_minutes_from_start(p.scheduled_end_date)
                 )
+
+    def _load_completed_operation_state(self):
+        """Load completed-operation keys and latest completed end per optimized PO."""
+        self.completed_operation_keys_by_po = {}
+        self.latest_completed_end_by_po = {}
+
+        if not self.productions:
+            return
+
+        po_ids = [p.id for p in self.productions if p.id is not None]
+        if not po_ids:
+            return
+
+        completed_keys: Dict[int, Set[Tuple[int, int]]] = collections.defaultdict(set)
+        scheduled_keys: Dict[int, Set[Tuple[int, int]]] = collections.defaultdict(set)
+
+        with Session(self.engine) as session:
+            records = session.exec(
+                select(WorkCenterSchedule).where(
+                    WorkCenterSchedule.production_order_id.in_(po_ids)
+                )
+            ).all()
+
+        for record in records:
+            if record.product_id is None or record.operation_id is None:
+                continue
+
+            po_id = int(record.production_order_id)
+            op_key = (int(record.product_id), int(record.operation_id))
+            status = (record.status or "").strip().lower()
+
+            if status == "completed":
+                completed_keys[po_id].add(op_key)
+                if record.scheduled_end:
+                    end_min = self._get_minutes_from_start(record.scheduled_end)
+                    latest = self.latest_completed_end_by_po.get(po_id)
+                    if latest is None or end_min > latest:
+                        self.latest_completed_end_by_po[po_id] = end_min
+            elif status in {"scheduled", "in-progress"}:
+                scheduled_keys[po_id].add(op_key)
+
+        for po_id, keys in completed_keys.items():
+            self.completed_operation_keys_by_po[po_id] = keys - scheduled_keys.get(po_id, set())
+
+        # Prevent re-scheduling tasks before the latest completed timeline of that PO.
+        for po in self.productions:
+            latest_end = self.latest_completed_end_by_po.get(po.id)
+            if latest_end is None:
+                continue
+            if po.id in self.production_dates:
+                self.production_dates[po.id].release_minutes = max(
+                    self.production_dates[po.id].release_minutes,
+                    latest_end,
+                )
     
     def _load_existing_schedules(self, exclude_po_ids: List[int]):
         """
@@ -157,11 +214,18 @@ class SchedulingDataManager:
         self.existing_schedule_blocks = []
         
         with Session(self.engine) as session:
-            # Get all scheduled/completed/in-progress records except the ones we're optimizing
+            # Block all other POs plus completed records of currently optimized POs.
             existing = session.exec(
                 select(WorkCenterSchedule).where(
-                    WorkCenterSchedule.production_order_id.notin_(exclude_po_ids),
-                    WorkCenterSchedule.status.in_(["scheduled", "in-progress", "completed"])
+                    (
+                        WorkCenterSchedule.production_order_id.notin_(exclude_po_ids)
+                        & WorkCenterSchedule.status.in_(["scheduled", "in-progress", "completed"])
+                    )
+                    |
+                    (
+                        WorkCenterSchedule.production_order_id.in_(exclude_po_ids)
+                        & (WorkCenterSchedule.status == "completed")
+                    )
                 )
             ).all()
             
@@ -280,7 +344,11 @@ class SchedulingDataManager:
             return
         
         # Get from pre-loaded maps (no query!)
-        routing = routing_by_product.get(product_id, [])
+        completed_op_keys = self.completed_operation_keys_by_po.get(production_id, set())
+        routing = [
+            r for r in routing_by_product.get(product_id, [])
+            if (product_id, r.operation_id) not in completed_op_keys
+        ]
         bom_list = bom_by_parent.get(product_id, [])
         
         self.jobs[key] = JobData(

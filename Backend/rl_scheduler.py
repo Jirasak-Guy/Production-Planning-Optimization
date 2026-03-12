@@ -173,6 +173,19 @@ def run_rl_scheduling(
     if not data.productions:
         return ScheduleResult(status="NO_DATA", message="No production orders to schedule")
 
+    remaining_ops = sum(len(job.routing) for job in data.jobs.values())
+    if remaining_ops == 0:
+        result = ScheduleResult(
+            status="FEASIBLE",
+            makespan=0,
+            schedule_data=[],
+            solve_time_seconds=0.0,
+            message="No remaining tasks to schedule (all marked completed)",
+        )
+        if save_to_db:
+            data.update_production_status(production_ids, result.status)
+        return result
+
     resolved_model_path = _resolve_model_path(model_path)
     if resolved_model_path is None:
         return ScheduleResult(
