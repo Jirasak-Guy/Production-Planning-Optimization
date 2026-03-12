@@ -1050,6 +1050,7 @@ class GanttWorkCenter(BaseModel):
     code: str
     name: str
     number_of_workers_required: int
+    is_active: bool
 
 class GanttDateRange(BaseModel):
     start: str
@@ -1060,6 +1061,7 @@ class GanttData(BaseModel):
     work_centers: list[GanttWorkCenter]
     date_range: GanttDateRange
     holidays: list[str]
+    work_center_exceptions: dict[int, list[dict]]
 
 
 @app.get("/gantt-data", response_model=GanttData)
@@ -1090,7 +1092,8 @@ def get_gantt_data(
                 start=today.isoformat(),
                 end=(today + timedelta(days=30)).isoformat()
             ),
-            holidays=[]
+            holidays=[],
+            work_center_exceptions={}
         )
     
     # Load all work centers into a lookup map
@@ -1112,6 +1115,19 @@ def get_gantt_data(
     # Load holidays
     calendar_entries = session.exec(select(CompanyCalendar).where(CompanyCalendar.is_working_day == False)).all()
     holidays = [entry.calendar_date.isoformat() for entry in calendar_entries]
+    
+    # Load work center calendar exceptions
+    all_wc_exceptions = session.exec(select(WorkCenterCalendarException)).all()
+    wc_exceptions_map: dict[int, list[dict]] = {}
+    for exc in all_wc_exceptions:
+        wc_id = exc.work_center_id
+        if wc_id not in wc_exceptions_map:
+            wc_exceptions_map[wc_id] = []
+        wc_exceptions_map[wc_id].append({
+            "date": exc.exception_date.isoformat(),
+            "type": exc.exception_type,
+            "description": exc.description or ""
+        })
     
     # ========== PROCESS SCHEDULES WITH O(1) LOOKUPS ==========
     gantt_schedules = []
@@ -1182,7 +1198,8 @@ def get_gantt_data(
             id=wc.id,
             code=wc.work_center_code,
             name=wc.work_center_name,
-            number_of_workers_required=wc.number_of_workers_required
+            number_of_workers_required=wc.number_of_workers_required,
+            is_active=wc.is_active
         )
         for wc in all_work_centers
         if wc.id in used_work_center_ids
@@ -1208,7 +1225,8 @@ def get_gantt_data(
         schedules=gantt_schedules,
         work_centers=gantt_work_centers,
         date_range=date_range,
-        holidays=holidays
+        holidays=holidays,
+        work_center_exceptions=wc_exceptions_map
     )
 
 # =====================================================
