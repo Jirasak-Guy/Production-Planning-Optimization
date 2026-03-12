@@ -1183,10 +1183,10 @@ def get_gantt_data(
             operation_id=operation.id,
             operation_code=operation.operation_code,
             operation_name=operation.operation_name,
-            scheduled_start=schedule.scheduled_start.isoformat(),
-            scheduled_end=schedule.scheduled_end.isoformat(),
-            actual_start=schedule.actual_start.isoformat() if schedule.actual_start else None,
-            actual_end=schedule.actual_end.isoformat() if schedule.actual_end else None,
+            scheduled_start=schedule.scheduled_start.replace(tzinfo=None).isoformat(),
+            scheduled_end=schedule.scheduled_end.replace(tzinfo=None).isoformat(),
+            actual_start=schedule.actual_start.replace(tzinfo=None).isoformat() if schedule.actual_start else None,
+            actual_end=schedule.actual_end.replace(tzinfo=None).isoformat() if schedule.actual_end else None,
             status=schedule.status,
             quantity_planned=float(production_order.quantity_planned),
             quantity_completed=float(production_order.quantity_completed),
@@ -1641,7 +1641,7 @@ def pivot_task(
     return PivotTaskResponse(
         message=f"Updated {updated_completed} schedule(s) to completed, split {split_count} straddling task(s)",
         pivot_schedule_id=schedule_id,
-        pivot_time=pivot_time.isoformat(),
+        pivot_time=pivot_time.replace(tzinfo=None).isoformat() if hasattr(pivot_time, 'tzinfo') else pivot_time.isoformat(),
         updated_completed=updated_completed,
         split_count=split_count,
         total_updated=updated_completed + split_count

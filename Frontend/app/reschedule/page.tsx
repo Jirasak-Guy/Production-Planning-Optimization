@@ -48,8 +48,12 @@ interface TaskIssue {
 
 const OVERDUE_GRACE_MS = 60 * 1000; // minute-level precision
 
+function parseAsLocalTime(dateTimeStr: string): Date {
+  return new Date(dateTimeStr.replace(/([+-]\d{2}:\d{2}|Z)$/, ""));
+}
+
 function isOverdueByCurrentTime(endDateTime: string, nowDate: Date): boolean {
-  const end = new Date(endDateTime);
+  const end = parseAsLocalTime(endDateTime);
   if (Number.isNaN(end.getTime())) {
     return false;
   }
@@ -93,6 +97,7 @@ export default function ReschedulePage() {
     },
   );
   const [issuesByPo, setIssuesByPo] = useState<Record<number, TaskIssue[]>>({});
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Result panel
   const [lastResult, setLastResult] = useSessionState<{
@@ -144,6 +149,11 @@ export default function ReschedulePage() {
       const nextIssuesByPo: Record<number, TaskIssue[]> = {};
       const now = new Date();
 
+      // Track seen issues to avoid duplicates from merged segments
+      const seenOverdue = new Set<string>();
+      const seenInactive = new Set<string>();
+      const seenCalendar = new Set<string>();
+
       for (const schedule of schedulesData) {
         const poId = schedule.production_order_id;
         const poNumber = poNumberById.get(poId) || `PO ${poId}`;
@@ -152,11 +162,17 @@ export default function ReschedulePage() {
         }
 
         const status = (schedule.status || "").toLowerCase();
-        const scheduleEnd = new Date(schedule.scheduled_end);
+        const scheduleEnd = parseAsLocalTime(schedule.scheduled_end);
+
+        // Deduplicate by PO + work center
+        const poWcKey = `${poId}|${schedule.work_center_id}`;
+
         if (
           status !== "completed" &&
-          isOverdueByCurrentTime(schedule.scheduled_end, now)
+          isOverdueByCurrentTime(schedule.scheduled_end, now) &&
+          !seenOverdue.has(poWcKey)
         ) {
+          seenOverdue.add(poWcKey);
           nextIssuesByPo[poId].push({
             scheduleId: schedule.id,
             poId,
@@ -169,8 +185,10 @@ export default function ReschedulePage() {
 
         if (
           status !== "completed" &&
-          inactiveWcIds.has(schedule.work_center_id)
+          inactiveWcIds.has(schedule.work_center_id) &&
+          !seenInactive.has(poWcKey)
         ) {
+          seenInactive.add(poWcKey);
           nextIssuesByPo[poId].push({
             scheduleId: schedule.id,
             poId,
@@ -182,13 +200,16 @@ export default function ReschedulePage() {
         }
 
         if (status !== "completed") {
-          const start = new Date(schedule.scheduled_start);
+          const start = parseAsLocalTime(schedule.scheduled_start);
           const dateKeys = getDateKeysInRange(start, scheduleEnd);
           for (const dateKey of dateKeys) {
             const exceptionType = exceptionByWcDate.get(
               `${schedule.work_center_id}|${dateKey}`,
             );
             if (!exceptionType) continue;
+            const calKey = `${poWcKey}|${dateKey}`;
+            if (seenCalendar.has(calKey)) break;
+            seenCalendar.add(calKey);
             nextIssuesByPo[poId].push({
               scheduleId: schedule.id,
               poId,
@@ -323,16 +344,15 @@ export default function ReschedulePage() {
     if (selectedPoIds.size === 0) return;
 
     if (selectedIssueSummary.total > 0) {
-      const proceed = window.confirm(
-        `พบ ${selectedIssueSummary.total} ปัญหาใน PO ที่เลือก\n` +
-          `- Overdue & not complete: ${selectedIssueSummary.overdue}\n` +
-          `- Inactive machine: ${selectedIssueSummary.inactive}\n` +
-          `- Calendar exception: ${selectedIssueSummary.calendar}\n\n` +
-          "ต้องการ Re Schedule ต่อหรือไม่?",
-      );
-      if (!proceed) return;
+      setShowConfirmModal(true);
+      return;
     }
 
+    await executeReschedule();
+  };
+
+  const executeReschedule = async () => {
+    setShowConfirmModal(false);
     setIsOptimizing(true);
     setLastResult(null);
     const ids = Array.from(selectedPoIds);
@@ -744,28 +764,13 @@ export default function ReschedulePage() {
 
             {/* Issue Banner for selected POs */}
             {selectedPoIds.size > 0 && selectedIssueSummary.total > 0 && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">
-                      Found {selectedIssueSummary.total} issue(s) in selected
-                      POs before re-schedule
-                    </p>
-                    <p className="mt-1 text-xs text-amber-800">
-                      Overdue incomplete: {selectedIssueSummary.overdue} |
-                      Inactive machine: {selectedIssueSummary.inactive} |
-                      Calendar exception: {selectedIssueSummary.calendar}
-                    </p>
-                    <ul className="mt-2 space-y-1 text-xs text-amber-900">
-                      {selectedIssueSummary.details.map((issue, idx) => (
-                        <li key={`${issue.scheduleId}-${idx}`}>
-                          {issue.poNumber} | Task #{issue.scheduleId} | WC{" "}
-                          {issue.workCenterId}: {issue.detail}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-900">
+                  ⚠ Found {selectedIssueSummary.total} issue(s) in selected POs
+                  {selectedIssueSummary.overdue > 0 && ` — Overdue: ${selectedIssueSummary.overdue}`}
+                  {selectedIssueSummary.inactive > 0 && ` — Inactive machine: ${selectedIssueSummary.inactive}`}
+                  {selectedIssueSummary.calendar > 0 && ` — Calendar exception: ${selectedIssueSummary.calendar}`}
+                </p>
               </div>
             )}
 
@@ -1027,6 +1032,91 @@ export default function ReschedulePage() {
           </>
         )}
       </div>
+
+      {/* Confirm Reschedule Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowConfirmModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 fade-in duration-200">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Issues Detected</h3>
+                  <p className="text-sm text-gray-500">{selectedIssueSummary.total} issue(s) found in selected POs</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Issue Details */}
+            <div className="px-6 pb-4 space-y-2">
+              {selectedIssueSummary.overdue > 0 && (
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 border border-red-100">
+                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">Overdue & not complete</p>
+                  </div>
+                  <span className="text-sm font-bold text-red-700">{selectedIssueSummary.overdue}</span>
+                </div>
+              )}
+              {selectedIssueSummary.inactive > 0 && (
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-50 border border-orange-100">
+                  <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-orange-800">Inactive machine</p>
+                  </div>
+                  <span className="text-sm font-bold text-orange-700">{selectedIssueSummary.inactive}</span>
+                </div>
+              )}
+              {selectedIssueSummary.calendar > 0 && (
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800">Calendar exception</p>
+                  </div>
+                  <span className="text-sm font-bold text-yellow-700">{selectedIssueSummary.calendar}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeReschedule}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 shadow-sm transition-all"
+              >
+                Reschedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

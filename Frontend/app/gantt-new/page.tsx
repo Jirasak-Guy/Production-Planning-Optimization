@@ -44,14 +44,15 @@ function formatDateTime(dateStr: string): string {
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
-        timeZone: "UTC",
     });
 }
 
 function generateDateRange(start: string, end: string): Date[] {
     const dates: Date[] = [];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const [sy, sm, sd] = start.split("-").map(Number);
+    const [ey, em, ed] = end.split("-").map(Number);
+    const startDate = new Date(sy, sm - 1, sd);
+    const endDate = new Date(ey, em - 1, ed);
     const current = new Date(startDate);
     while (current <= endDate) {
         dates.push(new Date(current));

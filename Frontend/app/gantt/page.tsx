@@ -76,8 +76,11 @@ function toLocalDateKey(date: Date): string {
 
 function generateDateRange(start: string, end: string): Date[] {
   const dates: Date[] = [];
-  const startDate = new Date(start);
-  const endDate = new Date(end);
+  // Parse date-only strings as local midnight (new Date("YYYY-MM-DD") is UTC)
+  const [sy, sm, sd] = start.split("-").map(Number);
+  const [ey, em, ed] = end.split("-").map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate = new Date(ey, em - 1, ed);
   const current = new Date(startDate);
   while (current <= endDate) {
     dates.push(new Date(current));
@@ -447,14 +450,7 @@ export default function GanttPage() {
   const flatRows = useMemo<RowItem[]>(() => {
     const rows: RowItem[] = [];
     operationGroups.forEach((group) => {
-      // Add operation header row
-      rows.push({
-        type: "operation",
-        operation_id: group.operation_id,
-        operation_code: group.operation_code,
-        operation_name: group.operation_name,
-      });
-      // Add work center rows under this operation
+      // Add work center rows only (no operation headers)
       group.work_centers.forEach((wc) => {
         rows.push({
           type: "work_center",
@@ -1313,31 +1309,11 @@ export default function GanttPage() {
               }}
             >
               {flatRows.map((row, index) => {
-                if (row.type === "operation") {
-                  // Operation Header Row
-                  return (
-                    <div
-                      key={`op-${row.operation_id}`}
-                      className="flex items-center px-3 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-violet-50"
-                      style={{ height: ROW_HEIGHT }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-indigo-700 text-sm truncate">
-                          {row.operation_code}
-                        </div>
-                        <div className="text-indigo-500 text-xs truncate">
-                          {row.operation_name}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                } else {
-                  // Work Center Row (indented)
                   const wc = row.work_center!;
                   return (
                     <div
                       key={`wc-${row.operation_id}-${wc.id}`}
-                      className={`flex items-center pl-6 pr-3 border-b border-slate-100 transition-colors hover:bg-indigo-50/50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
+                      className={`flex items-center px-3 border-b border-slate-100 transition-colors hover:bg-indigo-50/50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
                       style={{ height: ROW_HEIGHT }}
                     >
                       <div className="flex-1 min-w-0">
@@ -1380,7 +1356,6 @@ export default function GanttPage() {
                       </div>
                     </div>
                   );
-                }
               })}
             </div>
           </div>
@@ -1464,38 +1439,6 @@ export default function GanttPage() {
               )}
 
               {flatRows.map((row, rowIndex) => {
-                if (row.type === "operation") {
-                  // Operation Header Row - no tasks, just a background
-                  return (
-                    <div
-                      key={`op-chart-${row.operation_id}`}
-                      className="relative border-b border-slate-200 bg-gradient-to-r from-indigo-50/50 to-violet-50/50"
-                      style={{ height: ROW_HEIGHT }}
-                    >
-                      {/* Grid for dates */}
-                      <div className="absolute inset-0 flex pointer-events-none">
-                        {visibleDateRange.map((date, dateIndex) => {
-                          const isToday =
-                            date.toDateString() === new Date().toDateString();
-                          const isWeekend =
-                            date.getDay() === 0 || date.getDay() === 6;
-                          const isHoliday = ganttData.holidays.includes(
-                            toLocalDateKey(date),
-                          );
-
-                          return (
-                            <div
-                              key={dateIndex}
-                              className={`flex-1 h-full border-r border-slate-100 relative
-                                                                ${isHoliday ? "bg-red-100/40" : isToday ? "bg-indigo-50/30" : isWeekend ? "bg-slate-100/30" : ""}`}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                } else {
-                  // Work Center Row - show tasks
                   const wc = row.work_center!;
                   const tasks =
                     schedulesByOperationAndWorkCenter.get(
@@ -1609,7 +1552,7 @@ export default function GanttPage() {
                       </div>
 
                       {/* Task Bars */}
-                      {tasks.map((task) => {
+                        {tasks.map((task) => {
                         const { left, width, visible } = calculateTaskPosition(
                           task.scheduled_start,
                           task.scheduled_end,
@@ -1758,7 +1701,6 @@ export default function GanttPage() {
                       })}
                     </div>
                   );
-                }
               })}
             </div>
           </div>

@@ -247,7 +247,6 @@ def run_rl_scheduling(
     if save_to_db:
         if schedule_data:
             saved = data.save_schedule_results(schedule_data)
-            result.message += f" | Saved {saved} records to database"
         data.update_production_status(production_ids, result.status)
 
     return result
