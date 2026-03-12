@@ -370,6 +370,15 @@ class ProductionScheduler:
                 holiday_dates.add(holiday_date.date())
             else:
                 holiday_dates.add(holiday_date)
+
+        exception_dates_by_wc = collections.defaultdict(set)
+        for wc_id, blocks in self.data.work_center_exceptions.items():
+            for block in blocks:
+                exception_dt = self.data.schedule_start_time + timedelta(minutes=block.start_minutes)
+                if isinstance(exception_dt, datetime):
+                    exception_dates_by_wc[wc_id].add(exception_dt.date())
+                else:
+                    exception_dates_by_wc[wc_id].add(exception_dt)
         
         end_dt = current_dt + timedelta(minutes=horizon)
         
@@ -381,6 +390,10 @@ class ProductionScheduler:
             day_of_week = current_dt.isoweekday()
             
             for wc_id, wc_info in self.data.work_centers.items():
+                if current_dt.date() in exception_dates_by_wc.get(wc_id, set()):
+                    self._create_break(wc_id, current_dt, 0, 1440, horizon)
+                    continue
+
                 todays_shifts = wc_info.shifts.get(day_of_week, [])
                 todays_shifts = sorted(todays_shifts, key=lambda x: x[0])
                 

@@ -190,9 +190,8 @@ class WorkCenterCalendarException(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     work_center_id: int = Field(foreign_key="work_centers.id")
     exception_date: date
-    exception_type: str = Field(max_length=50)  # closed, maintenance, reduced-capacity, special-shift
+    exception_type: str = Field(max_length=50)  # closed, maintenance
     description: Optional[str] = Field(default=None, max_length=200)
-    capacity_percentage: Decimal = Field(default=0, decimal_places=2, max_digits=5, ge=0, le=100)
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = Field(default_factory=datetime.now)
 

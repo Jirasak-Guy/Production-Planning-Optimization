@@ -57,6 +57,15 @@ class ExistingScheduleBlock:
     production_order_id: int  # For reference
 
 
+@dataclass
+class WorkCenterExceptionBlock:
+    """Represents a full-day work-center closure from calendar exceptions."""
+    work_center_id: int
+    start_minutes: int
+    end_minutes: int
+    exception_type: str
+
+
 class SchedulingDataManager:
     """รวมข้อมูลทั้งหมดที่ใช้ใน scheduling ไว้ในที่เดียว"""
     
@@ -77,6 +86,7 @@ class SchedulingDataManager:
         self.operation_dependencies: Dict[Tuple[int, int], int] = {}  # (routing_id, predecessor_id) -> lag_time
         self.production_dates: Dict[int, ProductionDateInfo] = {}  # production_id -> dates
         self.holidays: List[Tuple[int, int]] = []  # [(start_minute, duration), ...]
+        self.work_center_exceptions: Dict[int, List[WorkCenterExceptionBlock]] = {}
         
         # Existing schedule blocks (for no-overlap with other POs)
         self.existing_schedule_blocks: List[ExistingScheduleBlock] = []
@@ -101,6 +111,7 @@ class SchedulingDataManager:
         self._load_work_centers()
         self._load_dependencies()
         self._load_holidays()
+        self._load_work_center_exceptions()
         
         # Load existing schedules for work centers (excluding the POs we're optimizing)
         if production_ids:
@@ -233,6 +244,10 @@ class SchedulingDataManager:
         """Get all existing schedule blocks for a specific work center"""
         return [b for b in self.existing_schedule_blocks if b.work_center_id == wc_id]
 
+    def get_work_center_exception_blocks(self, wc_id: int) -> List[WorkCenterExceptionBlock]:
+        """Get all full-day calendar exception blocks for a specific work center."""
+        return self.work_center_exceptions.get(wc_id, [])
+
     def _load_jobs(self):
         """โหลด jobs แบบ recursive ผ่าน BOM - Optimized with bulk loading"""
         # Bulk load all routing and BOM once
@@ -348,6 +363,33 @@ class SchedulingDataManager:
                 minute = self._get_minutes_from_start(day.calendar_date)
                 if minute >= 0:
                     self.holidays.append((minute, 1440))
+
+    def _load_work_center_exceptions(self):
+        self.work_center_exceptions = {}
+
+        with Session(self.engine) as session:
+            exceptions = session.exec(select(WorkCenterCalendarException)).all()
+
+        for exception in exceptions:
+            exception_type = (exception.exception_type or "").strip().lower()
+            if exception_type not in {"closed", "maintenance"}:
+                continue
+
+            minute = self._get_minutes_from_start(exception.exception_date)
+            if minute < 0:
+                continue
+
+            self.work_center_exceptions.setdefault(exception.work_center_id, []).append(
+                WorkCenterExceptionBlock(
+                    work_center_id=exception.work_center_id,
+                    start_minutes=minute,
+                    end_minutes=minute + 1440,
+                    exception_type=exception_type,
+                )
+            )
+
+        for wc_id, blocks in self.work_center_exceptions.items():
+            blocks.sort(key=lambda block: (block.start_minutes, block.end_minutes))
     
     def _get_minutes_from_start(self, target_date) -> int:
         """Convert target_date to minutes from schedule_start_time.
