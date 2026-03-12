@@ -326,31 +326,16 @@ export default function ReschedulePage() {
     [productionOrders],
   );
 
-  const selectedIssueSummary = useMemo(() => {
-    const selectedIds = Array.from(selectedPoIds);
-    let overdue = 0;
-    let inactive = 0;
-    let calendar = 0;
-    const details: TaskIssue[] = [];
-
-    for (const id of selectedIds) {
-      const list = issuesByPo[id] || [];
-      for (const issue of list) {
-        if (issue.issueType === "overdue_incomplete") overdue += 1;
-        else if (issue.issueType === "inactive_machine") inactive += 1;
-        else if (issue.issueType === "calendar_exception") calendar += 1;
-        if (details.length < 8) details.push(issue);
+  const posWithIssues = useMemo(() => {
+    const result: string[] = [];
+    for (const id of Array.from(selectedPoIds)) {
+      if ((issuesByPo[id]?.length || 0) > 0) {
+        const po = productionOrders.find((p) => p.id === id);
+        if (po) result.push(po.po_number);
       }
     }
-
-    return {
-      overdue,
-      inactive,
-      calendar,
-      total: overdue + inactive + calendar,
-      details,
-    };
-  }, [selectedPoIds, issuesByPo]);
+    return result;
+  }, [selectedPoIds, issuesByPo, productionOrders]);
 
   const isCurrentlyOptimizing = isOptimizing || hasOptimizingOrders;
 
@@ -383,13 +368,7 @@ export default function ReschedulePage() {
 
   const handleReschedule = async () => {
     if (selectedPoIds.size === 0) return;
-
-    if (selectedIssueSummary.total > 0) {
-      setShowConfirmModal(true);
-      return;
-    }
-
-    await executeReschedule();
+    setShowConfirmModal(true);
   };
 
   const executeReschedule = async () => {
@@ -804,13 +783,10 @@ export default function ReschedulePage() {
             )}
 
             {/* Issue Banner for selected POs */}
-            {selectedPoIds.size > 0 && selectedIssueSummary.total > 0 && (
+            {selectedPoIds.size > 0 && posWithIssues.length > 0 && (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-semibold text-amber-900">
-                  ⚠ Found {selectedIssueSummary.total} issue(s) in selected POs
-                  {selectedIssueSummary.overdue > 0 && ` — Overdue: ${selectedIssueSummary.overdue}`}
-                  {selectedIssueSummary.inactive > 0 && ` — Inactive machine: ${selectedIssueSummary.inactive}`}
-                  {selectedIssueSummary.calendar > 0 && ` — Calendar exception: ${selectedIssueSummary.calendar}`}
+                  ⚠ Warnings found in: {posWithIssues.join(", ")}
                 </p>
               </div>
             )}
@@ -1032,10 +1008,12 @@ export default function ReschedulePage() {
                           {getScheduleIcon(po.schedule_status)}
                           {(issuesByPo[po.id]?.length || 0) > 0 && (
                             <span
-                              className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
-                              title={`${issuesByPo[po.id]?.length || 0} issue(s) found in schedule`}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600"
+                              title="Schedule warning detected"
                             >
-                              {issuesByPo[po.id]?.length || 0}
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
                             </span>
                           )}
                         </div>
@@ -1085,59 +1063,61 @@ export default function ReschedulePage() {
             {/* Header */}
             <div className="px-6 pt-6 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Issues Detected</h3>
-                  <p className="text-sm text-gray-500">{selectedIssueSummary.total} issue(s) found in selected POs</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Confirm Reschedule</h3>
+                  <p className="text-sm text-gray-500">The following POs will be rescheduled ({selectedPoIds.size} items)</p>
                 </div>
               </div>
             </div>
 
-            {/* Issue Details */}
-            <div className="px-6 pb-4 space-y-2">
-              {selectedIssueSummary.overdue > 0 && (
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 border border-red-100">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">Overdue & not complete</p>
-                  </div>
-                  <span className="text-sm font-bold text-red-700">{selectedIssueSummary.overdue}</span>
-                </div>
-              )}
-              {selectedIssueSummary.inactive > 0 && (
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-50 border border-orange-100">
-                  <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-orange-800">Inactive machine</p>
-                  </div>
-                  <span className="text-sm font-bold text-orange-700">{selectedIssueSummary.inactive}</span>
-                </div>
-              )}
-              {selectedIssueSummary.calendar > 0 && (
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-yellow-50 border border-yellow-100">
-                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-yellow-800">Calendar exception</p>
-                  </div>
-                  <span className="text-sm font-bold text-yellow-700">{selectedIssueSummary.calendar}</span>
-                </div>
-              )}
+            {/* PO List */}
+            <div className="px-6 pb-4 max-h-64 overflow-y-auto space-y-1.5">
+              {productionOrders
+                .filter((po) => selectedPoIds.has(po.id))
+                .map((po) => {
+                  const hasIssue = (issuesByPo[po.id]?.length || 0) > 0;
+                  return (
+                    <div
+                      key={po.id}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                        hasIssue
+                          ? "bg-amber-50 border border-amber-100"
+                          : "bg-gray-50 border border-gray-100"
+                      }`}
+                    >
+                      <span
+                        className={`text-sm font-medium ${
+                          hasIssue ? "text-amber-800" : "text-gray-800"
+                        }`}
+                      >
+                        {po.po_number}
+                      </span>
+                      {hasIssue && (
+                        <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                          Warning
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
 
             {/* Actions */}
