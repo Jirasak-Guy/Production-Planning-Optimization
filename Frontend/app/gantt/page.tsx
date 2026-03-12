@@ -1642,14 +1642,11 @@ export default function GanttPage() {
                         return (
                           <div
                             key={task.id}
-                            className="absolute top-1 bottom-1 cursor-pointer overflow-hidden"
+                            className="absolute top-1 bottom-1 cursor-pointer group"
                             style={{
                               left,
                               width,
-                              backgroundColor: isCompleted
-                                ? `${color.bg}99`
-                                : color.bg,
-                              opacity: isCompleted ? 0.65 : 1,
+                              zIndex: hasWarnings ? 5 : 1,
                             }}
                             onMouseMove={(e) => handleMouseMove(e, task)}
                             onMouseLeave={handleMouseLeave}
@@ -1658,40 +1655,57 @@ export default function GanttPage() {
                               hasWarnings ? warningItems.join(" | ") : undefined
                             }
                           >
-                            {/* Completed stripe overlay */}
-                            {isCompleted && (
-                              <div
-                                className="absolute inset-0"
-                                style={{
-                                  backgroundImage: `repeating-linear-gradient(
+                            {/* Task bar body */}
+                            <div
+                              className="absolute inset-0 rounded-sm overflow-hidden"
+                              style={{
+                                backgroundColor: isCompleted
+                                  ? `${color.bg}99`
+                                  : color.bg,
+                                opacity: isCompleted ? 0.65 : 1,
+                                borderLeft: hasWarnings
+                                  ? `2px solid ${alerts.overdue ? "#e11d48" : alerts.inactiveMachine ? "#f59e0b" : "#7c3aed"}`
+                                  : undefined,
+                              }}
+                            >
+                              {/* Completed stripe overlay */}
+                              {isCompleted && (
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    backgroundImage: `repeating-linear-gradient(
                                                                         -45deg,
                                                                         transparent,
                                                                         transparent 3px,
                                                                         rgba(255,255,255,0.35) 3px,
                                                                         rgba(255,255,255,0.35) 6px
                                                                     )`,
-                                }}
-                              />
-                            )}
+                                  }}
+                                />
+                              )}
+                            </div>
 
-                            {/* Warning icons */}
+                            {/* Warning icons — rendered outside the overflow-hidden bar so they're always visible */}
                             {hasWarnings && (
-                              <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5">
+                              <div
+                                className="absolute z-10 flex items-center gap-0.5"
+                                style={{ right: -2, top: -6 }}
+                              >
                                 {alerts.overdue && (
                                   <span
-                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white shadow"
+                                    className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-rose-600 text-white shadow-md ring-2 ring-white animate-pulse"
                                     title="Overdue and not completed"
                                   >
                                     <svg
-                                      className="h-2.5 w-2.5"
+                                      className="h-3 w-3"
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
+                                      strokeWidth={2.5}
                                     >
                                       <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        strokeWidth={2}
                                         d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                       />
                                     </svg>
@@ -1699,19 +1713,19 @@ export default function GanttPage() {
                                 )}
                                 {alerts.inactiveMachine && (
                                   <span
-                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow"
+                                    className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-amber-500 text-white shadow-md ring-2 ring-white"
                                     title="Assigned to inactive machine"
                                   >
                                     <svg
-                                      className="h-2.5 w-2.5"
+                                      className="h-3 w-3"
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
+                                      strokeWidth={2.5}
                                     >
                                       <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        strokeWidth={2}
                                         d="M12 9v3.75m0 3.75h.007M4.93 19.5h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4.5c-.77-1.33-2.69-1.33-3.46 0L3.2 16.5c-.77 1.33.19 3 1.73 3z"
                                       />
                                     </svg>
@@ -1719,19 +1733,19 @@ export default function GanttPage() {
                                 )}
                                 {alerts.calendarException && (
                                   <span
-                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white shadow"
+                                    className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-violet-600 text-white shadow-md ring-2 ring-white"
                                     title={`Overlaps ${alerts.calendarExceptionType || "close/maintenance"} exception day`}
                                   >
                                     <svg
-                                      className="h-2.5 w-2.5"
+                                      className="h-3 w-3"
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
+                                      strokeWidth={2.5}
                                     >
                                       <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        strokeWidth={2}
                                         d="M8 7V4m8 3V4m-9 8h10m-11 8h12a2 2 0 002-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z"
                                       />
                                     </svg>
