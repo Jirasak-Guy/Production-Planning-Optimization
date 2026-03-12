@@ -70,10 +70,12 @@ export interface GanttData {
         code: string;
         name: string;
         number_of_workers_required: number;
+        is_active: boolean;
     }[];
     date_range: {
         start: string;
         end: string;
     };
     holidays: string[];
+    work_center_exceptions: Record<number, { date: string; type: string; description: string }[]>;
 }

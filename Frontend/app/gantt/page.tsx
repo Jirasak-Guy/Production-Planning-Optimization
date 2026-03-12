@@ -312,6 +312,7 @@ export default function GanttPage() {
             code: string;
             name: string;
             number_of_workers_required: number;
+            is_active: boolean;
         }[];
     }
 
@@ -370,6 +371,7 @@ export default function GanttPage() {
             code: string;
             name: string;
             number_of_workers_required: number;
+            is_active: boolean;
         };
     }
 
@@ -1021,8 +1023,16 @@ export default function GanttPage() {
                                             style={{ height: ROW_HEIGHT }}
                                         >
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-semibold text-slate-800 text-sm truncate">
+                                                <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-sm truncate">
                                                     {wc.code}
+                                                    {!wc.is_active && (
+                                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-300" title="Inactive">
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                                            </svg>
+                                                            Inactive
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1 text-slate-400 ml-2">
@@ -1126,16 +1136,49 @@ export default function GanttPage() {
                                                     const isToday = date.toDateString() === new Date().toDateString();
                                                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                                                     const isHoliday = ganttData.holidays.includes(date.toISOString().split("T")[0]);
+                                                    const dateStr = date.toISOString().split("T")[0];
+                                                    const wcExceptions = ganttData.work_center_exceptions[wc.id] || [];
+                                                    const exceptionForDate = wcExceptions.find(e => e.date === dateStr);
+                                                    const isClosed = exceptionForDate?.type === 'closed';
+                                                    const isMaintenance = exceptionForDate?.type === 'maintenance';
                                                     const shiftsForDay = getWorkCenterShiftsForDate(wc.id, date);
 
                                                     return (
                                                         <div
                                                             key={dateIndex}
                                                             className={`flex-1 h-full border-r border-slate-100 relative
-                                                                ${isHoliday ? "bg-red-100/40" : isToday ? "bg-indigo-50/30" : isWeekend ? "bg-slate-100/30" : ""}`}
+                                                                ${isHoliday ? "bg-red-100/40"
+                                                                    : isClosed ? "bg-red-100/50"
+                                                                    : isMaintenance ? "bg-amber-100/50"
+                                                                    : isToday ? "bg-indigo-50/30"
+                                                                    : isWeekend ? "bg-slate-100/30" : ""}`}
+                                                            title={exceptionForDate ? `${exceptionForDate.type}${exceptionForDate.description ? ': ' + exceptionForDate.description : ''}` : undefined}
                                                         >
+                                                            {/* Exception pattern overlay */}
+                                                            {isClosed && !isHoliday && (
+                                                                <div className="absolute inset-0" style={{
+                                                                    backgroundImage: `repeating-linear-gradient(
+                                                                        -45deg,
+                                                                        transparent,
+                                                                        transparent 4px,
+                                                                        rgba(239, 68, 68, 0.15) 4px,
+                                                                        rgba(239, 68, 68, 0.15) 8px
+                                                                    )`,
+                                                                }} />
+                                                            )}
+                                                            {isMaintenance && !isHoliday && (
+                                                                <div className="absolute inset-0" style={{
+                                                                    backgroundImage: `repeating-linear-gradient(
+                                                                        -45deg,
+                                                                        transparent,
+                                                                        transparent 4px,
+                                                                        rgba(245, 158, 11, 0.15) 4px,
+                                                                        rgba(245, 158, 11, 0.15) 8px
+                                                                    )`,
+                                                                }} />
+                                                            )}
                                                             {/* Shift stripes */}
-                                                            {!isHoliday && shiftsForDay.map((shift) => {
+                                                            {!isHoliday && !exceptionForDate && shiftsForDay.map((shift) => {
                                                                 const pos = calculateShiftPosition(shift);
                                                                 return (
                                                                     <div

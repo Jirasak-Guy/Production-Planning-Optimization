@@ -18,6 +18,7 @@ import {
   createWorkCenterShift,
   deleteWorkCenterShift,
   createWorkCenterCalendarException,
+  updateWorkCenterCalendarException,
   deleteWorkCenterCalendarException,
 } from "@/app/lib/data";
 import {
@@ -89,6 +90,15 @@ export default function WorkCenterDetailPage({
     description: "",
   });
   const [isAddingException, setIsAddingException] = useState(false);
+
+  // Edit Exception
+  const [exceptionToEdit, setExceptionToEdit] = useState<WorkCenterCalendarException | null>(null);
+  const [editExceptionData, setEditExceptionData] = useState({
+    exceptionDate: "",
+    exceptionType: "closed",
+    description: "",
+  });
+  const [isEditingException, setIsEditingException] = useState(false);
 
   // Delete Exception
   const [exceptionToDelete, setExceptionToDelete] = useState<WorkCenterCalendarException | null>(null);
@@ -242,6 +252,33 @@ export default function WorkCenterDetailPage({
       console.error("Failed to add exception:", error);
     } finally {
       setIsAddingException(false);
+    }
+  };
+
+  const openEditException = (exception: WorkCenterCalendarException) => {
+    setExceptionToEdit(exception);
+    setEditExceptionData({
+      exceptionDate: exception.exception_date,
+      exceptionType: exception.exception_type,
+      description: exception.description || "",
+    });
+  };
+
+  const handleEditException = async () => {
+    if (!exceptionToEdit) return;
+    setIsEditingException(true);
+    try {
+      await updateWorkCenterCalendarException(exceptionToEdit.id, {
+        exception_date: editExceptionData.exceptionDate,
+        exception_type: editExceptionData.exceptionType,
+        description: editExceptionData.description || undefined,
+      });
+      setExceptionToEdit(null);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to update exception:", error);
+    } finally {
+      setIsEditingException(false);
     }
   };
 
@@ -827,6 +864,13 @@ export default function WorkCenterDetailPage({
                                 })}
                               </span>
                               <button
+                                onClick={() => openEditException(exception)}
+                                className="p-1 text-blue-600 hover:bg-blue-200 rounded transition-colors"
+                                title="Edit exception"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => setExceptionToDelete(exception)}
                                 className="p-1 text-red-600 hover:bg-red-200 rounded transition-colors"
                                 title="Delete exception"
@@ -1008,6 +1052,61 @@ export default function WorkCenterDetailPage({
                 </button>
                 <button onClick={handleAddException} disabled={isAddingException || !newExceptionData.exceptionDate} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {isAddingException ? "Adding..." : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Exception Modal */}
+      {exceptionToEdit && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setExceptionToEdit(null)} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <button onClick={() => setExceptionToEdit(null)} className="absolute top-4 right-4">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Edit Calendar Exception</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={editExceptionData.exceptionDate}
+                    onChange={(e) => setEditExceptionData({ ...editExceptionData, exceptionDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={editExceptionData.exceptionType}
+                    onChange={(e) => setEditExceptionData({ ...editExceptionData, exceptionType: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  >
+                    <option value="closed">Closed</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={editExceptionData.description}
+                    onChange={(e) => setEditExceptionData({ ...editExceptionData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    rows={2}
+                    placeholder="Optional description..."
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setExceptionToEdit(null)} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                  Cancel
+                </button>
+                <button onClick={handleEditException} disabled={isEditingException || !editExceptionData.exceptionDate} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {isEditingException ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>

@@ -37,6 +37,11 @@ class WorkCenterInfo:
     shifts: Dict[int, List[Tuple]]  # day_of_week -> [(start_time, end_time), ...]
     number_of_workers_required: int
     is_active: bool = True
+    exceptions: List[Tuple[int, int]] = None  # [(start_minute, duration_minutes), ...] per-WC blocked dates
+
+    def __post_init__(self):
+        if self.exceptions is None:
+            self.exceptions = []
 
 
 @dataclass
@@ -290,10 +295,11 @@ class SchedulingDataManager:
                 all_operation_ids.add(r.operation_id)
         
         with Session(self.engine) as session:
-            # Bulk load all needed data (just 3 queries total!)
+            # Bulk load all needed data
             all_work_centers = session.exec(select(WorkCenter)).all()
             all_wc_shifts = session.exec(select(WorkCenterShift)).all()
             all_shifts = session.exec(select(Shift)).all()
+            all_wc_exceptions = session.exec(select(WorkCenterCalendarException)).all()
         
         # Build lookup maps in memory
         shifts_by_id: Dict[int, Shift] = {s.id: s for s in all_shifts}
@@ -305,6 +311,13 @@ class SchedulingDataManager:
         wc_by_operation: Dict[int, List[WorkCenter]] = collections.defaultdict(list)
         for wc in all_work_centers:
             wc_by_operation[wc.operation_id].append(wc)
+        
+        # Build exception lookup: wc_id -> [(start_minute, duration_minutes), ...]
+        wc_exceptions_by_id: Dict[int, List[Tuple[int, int]]] = collections.defaultdict(list)
+        for exc in all_wc_exceptions:
+            exc_minute = self._get_minutes_from_start(exc.exception_date)
+            if exc_minute >= 0:
+                wc_exceptions_by_id[exc.work_center_id].append((exc_minute, 1440))
         
         # Build operation_to_work_centers and work_centers (no more queries!)
         for op_id in all_operation_ids:
@@ -332,7 +345,8 @@ class SchedulingDataManager:
                         capacity_per_hour=wc.capacity_per_hour,
                         shifts=shifts_by_day,
                         number_of_workers_required=wc.number_of_workers_required,
-                        is_active=wc.is_active
+                        is_active=wc.is_active,
+                        exceptions=wc_exceptions_by_id.get(wc.id, []),
                     )
     
     def _load_dependencies(self):
