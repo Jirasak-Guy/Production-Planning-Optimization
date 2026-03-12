@@ -449,19 +449,14 @@ WHERE wc.work_center_code IN ('WC-QC-BODY-01', 'WC-QC-BODY-02', 'WC-QC-PAINT', '
 -- =====================================================
 
 -- Planned maintenance for Paint Booth
-INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) VALUES
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-15', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-16', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement', 0);
+INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description) VALUES
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-15', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement'),
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-BOOTH-01'), '2025-12-16', 'maintenance', 'Quarterly maintenance - Paint booth filter replacement');
 
 -- Planned maintenance for Stamping Press
-INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) VALUES
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-STAMP-01'), '2026-01-10', 'maintenance', 'Annual stamping press maintenance', 0);
+INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description) VALUES
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-STAMP-01'), '2026-01-10', 'maintenance', 'Annual stamping press maintenance');
 
--- Reduced capacity during year-end inventory
-INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) 
-SELECT wc.id, '2025-12-30', 'reduced-capacity', 'Year-end inventory count', 50.0
-FROM work_centers wc
-WHERE wc.work_center_code LIKE 'WC-%';
 
 -- =====================================================
 -- 6. ROUTING FOR FINISHED PRODUCTS

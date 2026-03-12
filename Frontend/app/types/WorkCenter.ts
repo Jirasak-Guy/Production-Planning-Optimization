@@ -34,9 +34,8 @@ export interface WorkCenterCalendarException {
     id: number;
     work_center_id: number;
     exception_date: string;
-    exception_type: string; // closed, maintenance, reduced-capacity, special-shift
+    exception_type: string; // closed, maintenance
     description?: string;
-    capacity_percentage: number;
     created_at: string;
     updated_at: string;
 }

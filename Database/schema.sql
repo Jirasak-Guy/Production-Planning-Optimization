@@ -198,16 +198,14 @@ CREATE TABLE work_center_calendar_exceptions (
     exception_date DATE NOT NULL,
     exception_type VARCHAR(50) NOT NULL,
     description VARCHAR(200),
-    capacity_percentage DECIMAL(5,2) DEFAULT 0 CHECK (capacity_percentage >= 0 AND capacity_percentage <= 100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_wc_exceptions_work_center FOREIGN KEY (work_center_id) REFERENCES work_centers(id) ON DELETE CASCADE,
-    CONSTRAINT chk_wc_exceptions_type CHECK (exception_type IN ('closed', 'maintenance', 'reduced-capacity', 'special-shift')),
+    CONSTRAINT chk_wc_exceptions_type CHECK (exception_type IN ('closed', 'maintenance')),
     CONSTRAINT uk_wc_exceptions UNIQUE (work_center_id, exception_date)
 );
 
 COMMENT ON TABLE work_center_calendar_exceptions IS 'Exceptions to normal work center schedule (maintenance, closures, etc.)';
-COMMENT ON COLUMN work_center_calendar_exceptions.capacity_percentage IS 'Capacity percentage: 0=closed, 100=full capacity';
 
 -- =====================================================
 -- ROUTING
