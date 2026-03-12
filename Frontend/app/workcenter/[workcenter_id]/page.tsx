@@ -87,7 +87,6 @@ export default function WorkCenterDetailPage({
     exceptionDate: "",
     exceptionType: "closed",
     description: "",
-    capacityPercentage: 0,
   });
   const [isAddingException, setIsAddingException] = useState(false);
 
@@ -235,10 +234,9 @@ export default function WorkCenterDetailPage({
         exception_date: newExceptionData.exceptionDate,
         exception_type: newExceptionData.exceptionType,
         description: newExceptionData.description || undefined,
-        capacity_percentage: newExceptionData.capacityPercentage,
       });
       setShowAddExceptionModal(false);
-      setNewExceptionData({ exceptionDate: "", exceptionType: "closed", description: "", capacityPercentage: 0 });
+      setNewExceptionData({ exceptionDate: "", exceptionType: "closed", description: "" });
       await loadData();
     } catch (error) {
       console.error("Failed to add exception:", error);
@@ -275,8 +273,6 @@ export default function WorkCenterDetailPage({
     switch (type) {
       case "closed": return <XCircleIcon className="w-5 h-5" />;
       case "maintenance": return <WrenchScrewdriverIcon className="w-5 h-5" />;
-      case "reduced-capacity": return <ExclamationTriangleIcon className="w-5 h-5" />;
-      case "special-shift": return <ClockIcon className="w-5 h-5" />;
       default: return <ExclamationTriangleIcon className="w-5 h-5" />;
     }
   };
@@ -285,8 +281,6 @@ export default function WorkCenterDetailPage({
     const colors: Record<string, string> = {
       closed: "bg-red-100 text-red-700 border-red-300",
       maintenance: "bg-yellow-100 text-yellow-700 border-yellow-300",
-      "reduced-capacity": "bg-orange-100 text-orange-700 border-orange-300",
-      "special-shift": "bg-blue-100 text-blue-700 border-blue-300",
     };
     return colors[type] || "bg-gray-100 text-gray-700 border-gray-300";
   };
@@ -295,8 +289,6 @@ export default function WorkCenterDetailPage({
     const labels: Record<string, string> = {
       closed: "Closed",
       maintenance: "Maintenance",
-      "reduced-capacity": "Reduced Capacity",
-      "special-shift": "Special Shift",
     };
     return labels[type] || type;
   };
@@ -846,18 +838,7 @@ export default function WorkCenterDetailPage({
                           {exception.description && (
                             <p className="text-sm mb-2">{exception.description}</p>
                           )}
-                          {exception.capacity_percentage !== 100 && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-medium">Capacity:</span>
-                              <div className="flex-1 bg-white bg-opacity-50 rounded-full h-4 overflow-hidden">
-                                <div
-                                  className="h-full bg-current opacity-30"
-                                  style={{ width: `${exception.capacity_percentage}%` }}
-                                />
-                              </div>
-                              <span className="font-semibold">{exception.capacity_percentage}%</span>
-                            </div>
-                          )}
+
                         </div>
                       </div>
                     </div>
@@ -1008,25 +989,7 @@ export default function WorkCenterDetailPage({
                   >
                     <option value="closed">Closed</option>
                     <option value="maintenance">Maintenance</option>
-                    <option value="reduced-capacity">Reduced Capacity</option>
-                    <option value="special-shift">Special Shift</option>
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Capacity Percentage</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newExceptionData.capacityPercentage}
-                    onChange={(e) => setNewExceptionData({ ...newExceptionData, capacityPercentage: parseInt(e.target.value) || 0 })}
-                    onKeyDown={(e) => {
-                      if (['-', '+', 'e', 'E'].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>

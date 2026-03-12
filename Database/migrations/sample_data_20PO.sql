@@ -165,12 +165,11 @@ WHERE wc.work_center_code IN ('WC-CUT-02','WC-BEND-02','WC-WELD-02','WC-GRIND-02
 -- =====================================================
 -- 7B. CALENDAR EXCEPTIONS
 -- =====================================================
-INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description, capacity_percentage) VALUES
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-01'), '2025-12-15', 'maintenance', 'Filter & ventilation overhaul', 0),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-WELD-01'),  '2025-12-22', 'maintenance', 'Robot calibration', 0),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-CUT-01'),   '2025-12-10', 'reduced-capacity', 'Tool changeover — half capacity', 50),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-ASSY-01'),  '2025-12-29', 'maintenance', 'Year-end deep clean', 0),
-((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-01'),  '2026-01-06', 'maintenance', 'Instrument recalibration', 0);
+INSERT INTO work_center_calendar_exceptions (work_center_id, exception_date, exception_type, description) VALUES
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-PAINT-01'), '2025-12-15', 'maintenance', 'Filter & ventilation overhaul'),
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-WELD-01'),  '2025-12-22', 'maintenance', 'Robot calibration'),
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-ASSY-01'),  '2025-12-29', 'maintenance', 'Year-end deep clean'),
+((SELECT id FROM work_centers WHERE work_center_code = 'WC-TEST-01'),  '2026-01-06', 'maintenance', 'Instrument recalibration');
 
 -- =====================================================
 -- 8. ROUTING — Both products use same 10 operations
