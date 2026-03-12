@@ -24,7 +24,7 @@ from model import (
     WorkCenterSchedule,
     SchedulerSettings,
 )
-from scheduler import run_scheduling
+from scheduler import run_scheduling, run_scheduling_by_priority
 from rl_scheduler import run_rl_scheduling
 
 load_dotenv()
@@ -1264,7 +1264,7 @@ def schedule_production(request: ScheduleRequest):
             session.commit()
             
     try:
-        result = run_scheduling(
+        result = run_scheduling_by_priority(
             engine=engine,
             production_ids=request.production_ids,
             max_shift_duration=request.max_shift_duration,
@@ -1334,7 +1334,7 @@ def schedule_production_rl(request: ScheduleRequest):
         result = run_rl_scheduling(
             engine=engine,
             production_ids=request.production_ids,
-            model_path=r"C:\Users\Jirasak\Documents\GitHub\Next-React-CSI\Backend\models\ppo_jss_final.zip",
+            model_path=r"/models/ppo_jss_final.zip",
             max_workers=request.max_workers,
             save_to_db=request.save_to_db
         )

@@ -1,10 +1,11 @@
 from ortools.sat.python import cp_model
 import collections
 from datetime import datetime, timedelta, time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional, Any
 
 from data_manager import SchedulingDataManager
+from sqlmodel import Session, select
 import math
 
 
@@ -625,3 +626,90 @@ def run_scheduling(
         data.update_production_status(production_ids, result.status)
     
     return result
+
+
+def run_scheduling_by_priority(
+    engine,
+    production_ids: List[int],
+    max_shift_duration: int = 60,
+    max_workers: int = 600,
+    time_limit_seconds: int = 60,
+    save_to_db: bool = True
+) -> ScheduleResult:
+    """
+    Schedule production orders grouped by (priority, due_date).
+
+    POs with the same priority AND same due_date are scheduled together.
+    Groups are processed in order: priority ASC (1=highest), then due_date ASC.
+    Each group sees the previous groups' results as existing schedule blocks.
+
+    Returns:
+        Combined ScheduleResult with all groups' results merged.
+    """
+    from model import ProductionOrder
+
+    # Load PO info to determine groups
+    with Session(engine) as session:
+        productions = session.exec(
+            select(ProductionOrder).where(ProductionOrder.id.in_(production_ids))
+        ).all()
+
+    if not productions:
+        return ScheduleResult(status="NO_DATA", message="No production orders found")
+
+    # Group by (priority, scheduled_end_date)
+    groups: Dict[Tuple[int, Optional[any]], List[int]] = collections.defaultdict(list)
+    for p in productions:
+        key = (p.priority, p.scheduled_end_date)
+        groups[key].append(p.id)
+
+    # Sort groups: priority ASC, due_date ASC (None last)
+    sorted_keys = sorted(groups.keys(), key=lambda k: (k[0], k[1] or datetime.max.date()))
+
+    # Schedule each group sequentially
+    all_schedule_data = []
+    all_segments = []
+    all_tasks = []
+    total_makespan = 0
+    overall_status = "OPTIMAL"
+    total_solve_time = 0.0
+
+    for i, key in enumerate(sorted_keys):
+        priority, due_date = key
+        group_po_ids = groups[key]
+
+        result = run_scheduling(
+            engine=engine,
+            production_ids=group_po_ids,
+            max_shift_duration=max_shift_duration,
+            max_workers=max_workers,
+            time_limit_seconds=time_limit_seconds,
+            save_to_db=save_to_db
+        )
+
+        total_solve_time += result.solve_time_seconds
+
+        if result.status in ("INFEASIBLE", "MODEL_INVALID"):
+            overall_status = result.status
+        elif result.status == "FEASIBLE" and overall_status == "OPTIMAL":
+            overall_status = "FEASIBLE"
+
+        if result.makespan and result.makespan > total_makespan:
+            total_makespan = result.makespan
+
+        if result.schedule_data:
+            all_schedule_data.extend(result.schedule_data)
+        if result.segments:
+            all_segments.extend(result.segments)
+        if result.tasks:
+            all_tasks.extend(result.tasks)
+
+    return ScheduleResult(
+        status=overall_status,
+        makespan=total_makespan,
+        schedule_data=all_schedule_data,
+        segments=all_segments,
+        tasks=all_tasks,
+        solve_time_seconds=total_solve_time,
+        message=f"Found solution with makespan {total_makespan} minutes"
+    )
