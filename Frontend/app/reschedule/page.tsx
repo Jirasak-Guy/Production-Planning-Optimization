@@ -154,6 +154,42 @@ export default function ReschedulePage() {
       const seenInactive = new Set<string>();
       const seenCalendar = new Set<string>();
 
+      // Pre-process schedules to assign group IDs based on gaps >= 8 hours
+      const sortedSchedules = [...schedulesData].sort(
+        (a, b) =>
+          parseAsLocalTime(a.scheduled_start).getTime() -
+          parseAsLocalTime(b.scheduled_start).getTime(),
+      );
+
+      const lastEndByPoWc = new Map<string, number>();
+      const groupIdByPoWc = new Map<string, number>();
+      const scheduleGroupIds = new Map<number, number>();
+      const maxEndByGroupKey = new Map<string, number>();
+
+      for (const schedule of sortedSchedules) {
+        const poId = schedule.production_order_id;
+        const baseKey = `${poId}|${schedule.work_center_id}`;
+        const start = parseAsLocalTime(schedule.scheduled_start).getTime();
+        const end = parseAsLocalTime(schedule.scheduled_end).getTime();
+
+        let groupId = groupIdByPoWc.get(baseKey) || 0;
+        const lastEnd = lastEndByPoWc.get(baseKey);
+
+        if (lastEnd !== undefined) {
+          const gapHours = (start - lastEnd) / (1000 * 60 * 60);
+          if (gapHours >= 8) {
+            groupId += 1;
+          }
+        }
+        groupIdByPoWc.set(baseKey, groupId);
+        lastEndByPoWc.set(baseKey, Math.max(lastEnd || 0, end));
+        scheduleGroupIds.set(schedule.id, groupId);
+
+        const groupKey = `${baseKey}|${groupId}`;
+        const currentGroupMax = maxEndByGroupKey.get(groupKey) || 0;
+        maxEndByGroupKey.set(groupKey, Math.max(currentGroupMax, end));
+      }
+
       for (const schedule of schedulesData) {
         const poId = schedule.production_order_id;
         const poNumber = poNumberById.get(poId) || `PO ${poId}`;
@@ -164,12 +200,17 @@ export default function ReschedulePage() {
         const status = (schedule.status || "").toLowerCase();
         const scheduleEnd = parseAsLocalTime(schedule.scheduled_end);
 
-        // Deduplicate by PO + work center
-        const poWcKey = `${poId}|${schedule.work_center_id}`;
+        // Deduplicate by PO + work center + group ID (differentiates >= 8h gaps)
+        const groupId = scheduleGroupIds.get(schedule.id) || 0;
+        const poWcKey = `${poId}|${schedule.work_center_id}|${groupId}`;
+
+        // Check overdue against the maximum end time of the entire contiguous group
+        const groupMaxEndTime = maxEndByGroupKey.get(poWcKey) || scheduleEnd.getTime();
+        const groupIsOverdue = now.getTime() - groupMaxEndTime >= OVERDUE_GRACE_MS;
 
         if (
           status !== "completed" &&
-          isOverdueByCurrentTime(schedule.scheduled_end, now) &&
+          groupIsOverdue &&
           !seenOverdue.has(poWcKey)
         ) {
           seenOverdue.add(poWcKey);
